@@ -44,10 +44,24 @@
      그러면 어디에 놓을지가 감이 아니라 운이 된다(첫 판에서 실제로 그랬다).
      그래서 길 타일만 틈 없이 붙이고 한 단계 밝게 깐다. */
   .tile.road{background:#2b3543;border-radius:0}
-  .tile.slot{background:#10141a;border:1px solid #1a1f27;cursor:pointer}
+  /* **놓을 수 있는 자리는 한눈에 갈려야 한다.** 바깥 땅과 색이 비슷하면 어디까지가 내
+     터인지 몰라 배치가 감이 된다. 터는 밝게 깔고, 적이 달려오는 바깥은 거의 배경으로 둔다. */
+  .tile.slot{background:#1e2630;border:1px solid #2c3745;cursor:pointer}
+  .tile.wild{background:#0b0e12;border:1px solid #0f1319}
   .tile.slot:hover{border-color:var(--amber)}
   .tile.slot.sel{border-color:var(--amber);background:#1e1c16}
   .mark{position:absolute;font-size:11px;color:var(--dim);pointer-events:none;letter-spacing:1px}
+  /* 본진 — 칸을 쪼개지 않고 한 덩이로. 조각으로 두면 지킬 것이 아니라 타일로 읽힌다. */
+  .core{position:absolute;background:#1c2530;border:1px solid #3d5468;border-radius:3px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    pointer-events:none;box-shadow:0 0 0 1px rgba(107,168,214,.18) inset}
+  .core .cname{color:var(--steel);font-size:12px;letter-spacing:2px}
+  .core .cbar{width:74%;height:7px;background:#141a22;border-radius:2px;overflow:hidden}
+  .core .cbar i{display:block;height:100%;background:linear-gradient(90deg,#4a6b3f,#7fb069);transition:width .15s}
+  .core .cnum{font-size:11px;color:var(--dim)}
+  /* 타워도 맞는다 — 얼마나 성한지가 보여야 "저건 빼자"가 결정이 된다 */
+  .tw .thp{position:absolute;left:4px;right:4px;bottom:2px;height:2px;background:#2a3038;border-radius:1px}
+  .tw .thp i{display:block;height:100%;background:#7fb069;border-radius:1px}
 
   .tw{position:absolute;display:flex;flex-direction:column;align-items:center;
     justify-content:center;border-radius:3px;pointer-events:none;font-size:16px;line-height:1}
@@ -88,6 +102,15 @@
     align-items:center;justify-content:center;text-align:center}
   #over.on{display:flex}
   #over h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 8px}
+  #over>div{max-width:520px}
+  .shopwrap h3{font-size:12px;letter-spacing:1px;color:var(--dim);font-weight:normal;margin:18px 0 8px}
+  .shopwrap h3 b{color:var(--amber);font-weight:normal}
+  .shop{display:grid;gap:7px;text-align:left}
+  .up{display:flex;align-items:center;gap:11px;padding:9px 12px}
+  .up .n{color:var(--amber);width:74px;flex-shrink:0}
+  .up .d{flex:1;color:var(--dim);font-size:12px}
+  .up .p{color:var(--good);font-size:12px}
+  .up:disabled .p{color:var(--dim)}
 </style>
 </head>
 <body>
@@ -97,7 +120,8 @@
   <div class="hud">
     <span>라운드 <b id="hRound">1</b></span>
     <span>골드 <b id="hGold">0</b></span>
-    <span class="life">목숨 <b id="hLife">20</b></span>
+    <span class="life">본진 <b id="hLife">—</b></span>
+    <span>유물 <b id="hRelic">0</b></span>
   </div>
 </header>
 
@@ -107,7 +131,11 @@
     <div id="over"><div>
       <h2 id="overT"></h2>
       <div class="note" id="overD" style="font-size:13px"></div>
-      <button id="again" style="margin-top:16px">다시</button>
+      <div class="shopwrap">
+        <h3>유물로 영구히 세진다 <span class="dim">(가진 유물 <b id="shopHave">0</b>)</span></h3>
+        <div class="shop" id="shop"></div>
+      </div>
+      <button id="again" style="margin-top:16px;padding:11px 26px">한 판 더</button>
     </div></div>
   </div>
 
@@ -115,6 +143,11 @@
     <section>
       <button class="wide roll" id="rollBtn">뽑는다 <span class="c" id="rollCost"></span></button>
       <div class="note" id="rollNote"></div>
+      <div class="note" style="margin-top:10px;color:#5f6874">
+        가운데 <b style="color:var(--steel)">본진</b>을 지킨다. 적은 <b>사방에서</b> 곧장 밀려온다.<br>
+        가는 길에 타워가 있으면 <b>그걸 먼저</b> 친다 — 바깥에 세우면 방벽이 되지만 얻어맞는다.<br>
+        웨이브가 끝나면 성한 것은 스스로 추스른다.
+      </div>
     </section>
 
     <section>
@@ -150,10 +183,10 @@ const $ = (id) => document.getElementById(id);
    대신 사거리·속도는 종류가 정한다 — 그래야 어느 종류를 키울지가 선택이 된다.
    ══════════════════════════════════════════════════════════ */
 const KINDS = {
-  gun:   { n:"총",   ico:"⌖", col:"#c9ccd1", dmg:6,  rng:105, cd:0.55, d:"고르게 쏜다" },
-  cannon:{ n:"포",   ico:"◉", col:"#d0785a", dmg:22, rng:88,  cd:1.5,  splash:34, d:"느리지만 범위" },
-  frost: { n:"서리", ico:"❆", col:"#6ba8d6", dmg:4,  rng:98,  cd:0.7,  slow:0.45, d:"느리게 만든다" },
-  bolt:  { n:"번개", ico:"⚡", col:"#a978c9", dmg:11, rng:130, cd:0.9,  chain:2, d:"멀리, 여럿에게" },
+  gun:   { n:"총",   ico:"⌖", col:"#c9ccd1", dmg:6,  rng:140, cd:0.55, d:"고르게 쏜다" },
+  cannon:{ n:"포",   ico:"◉", col:"#d0785a", dmg:22, rng:118, cd:1.5,  splash:44, d:"느리지만 범위" },
+  frost: { n:"서리", ico:"❆", col:"#6ba8d6", dmg:4,  rng:132, cd:0.7,  slow:0.45, d:"느리게 만든다" },
+  bolt:  { n:"번개", ico:"⚡", col:"#a978c9", dmg:11, rng:172, cd:0.9,  chain:2, d:"멀리, 여럿에게" },
 };
 const KIND_IDS = Object.keys(KINDS);
 const GRADE = [1,2,3,4,5];
@@ -161,25 +194,79 @@ const gradeMul = (g) => Math.pow(3, g - 1);          // 1 · 3 · 9 · 27 · 81
 const GNAME = ["", "하급", "중급", "상급", "정예", "전설"];
 const GCOL  = ["", "#8a8f98", "#7fb069", "#6ba8d6", "#a978c9", "#e0a458"];
 
-const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * gradeMul(t.g));
+const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * gradeMul(t.g) * metaDmg());
 const rngOf  = (t) => KINDS[t.kind].rng + (t.g - 1) * 9;
 const sellOf = (t) => Math.round(12 * gradeMul(t.g) * 0.55);
+// 타워도 맞는다. 등급이 오르면 단단해지되 피해만큼 뛰지는 않는다 —
+// 세다고 안 부서지면 바깥에 세우는 데 값이 없어진다.
+const hpOf   = (t) => Math.round(28 + t.g * 22);
 
-/* ══ 길 ══ 격자 좌표로 적는다. 화면 크기가 바뀌어도 같은 모양이 나온다. */
-const COLS = 12, ROWS = 8;
-const PATH = [
-  [0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],
-  [8,2],[8,3],
-  [7,3],[6,3],[5,3],[4,3],[3,3],[2,3],[1,3],
-  [1,4],[1,5],
-  [2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[9,5],[10,5],
-  [10,6],[11,6],
-];
-const pathKey = new Set(PATH.map(([x,y]) => x+","+y));
+/* ══════════════════════════════════════════════════════════════
+   전장 — **벙커디펜스.**
+   ──────────────────────────────────────────────────────────────
+   길을 따라가는 타워디펜스에서는 배치가 사실상 "길 옆이냐 아니냐" 하나뿐이다.
+   가운데 지킬 것을 놓고 **사방에서 몰려오게** 하면 배치가 진짜 결정이 된다 —
+   한쪽에 몰아 세우면 반대쪽이 그대로 뚫리고, 고르게 펴면 어디도 두껍지 않다.
+
+   그리고 **타워가 방벽 노릇을 한다.** 적은 가는 길에 타워가 있으면 그걸 먼저 친다.
+   그래서 바깥에 세운 것은 일찍 요격하지만 얻어맞고, 안쪽에 세운 것은 안전하지만
+   본진이 먼저 맞는다. 이게 벙커디펜스의 결이다.
+   ══════════════════════════════════════════════════════════ */
+const COLS = 13, ROWS = 9;
+const CORE = { x: 5, y: 3, w: 3, h: 3 };          // 가운데 3×3 이 본진
+const inCore = (x, y) => x >= CORE.x && x < CORE.x + CORE.w && y >= CORE.y && y < CORE.y + CORE.h;
+const coreKey = new Set();
+for (let y = CORE.y; y < CORE.y + CORE.h; y++)
+  for (let x = CORE.x; x < CORE.x + CORE.w; x++) coreKey.add(x + "," + y);
+
+/** **놓을 수 있는 곳은 본진 둘레뿐이다.**
+ *  판 전체를 열어 두면 뽑은 것이 아무 데나 떨어져 대부분 헛돈다 — 사거리가 안 닿으니
+ *  가진 타워의 절반이 장식이 되고, 사람은 매번 일일이 옮겨야 한다(실제로 그랬다).
+ *  둘레로 좁히면 "어느 쪽을 두껍게 할까"라는 진짜 결정만 남는다. 바깥 땅은 적이 달려오는
+ *  자리로 비워 둔다 — 요격할 시간이 거기서 나온다. */
+const RING = 2;
+const buildable = (x, y) =>
+  !inCore(x, y) &&
+  x >= CORE.x - RING && x < CORE.x + CORE.w + RING &&
+  y >= CORE.y - RING && y < CORE.y + CORE.h + RING;
+
+/* ══════════════════════════════════════════════════════════════
+   판을 넘어서는 성장 — **"한 판 더"를 만드는 것**
+   ──────────────────────────────────────────────────────────────
+   뚫리면 아무것도 안 남으면, 벽을 만난 순간이 그냥 끝이다. 도달한 만큼 유물을 주고
+   그걸로 영구히 세지게 하면 **같은 벽이 "다음 판에 넘을 것"으로 바뀐다.**
+   재미의 축 넷 중 ①불어난다에 손이 제일 오래 간 이유가 이 구조(환생)였다.
+   ══════════════════════════════════════════════════════════ */
+const META_KEY = "rtd.meta.v1";
+const UPGRADES = {
+  gold:  { n:"밑천",   d:"시작 골드 +25",       base:3, per:2 },
+  dmg:   { n:"벼림",   d:"모든 피해 +8%",       base:4, per:3 },
+  life:  { n:"성벽",   d:"본진 체력 +40",       base:3, per:2 },
+  cheap: { n:"흥정",   d:"뽑기 값 -1 (바닥 6)", base:5, per:4 },
+  start: { n:"선발대", d:"시작할 때 중급 하나", base:6, per:6 },
+};
+const META = loadMeta();
+function loadMeta() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(META_KEY));
+    if (raw && typeof raw === "object") {
+      return { relics: raw.relics | 0, best: raw.best | 0,
+               up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, (raw.up?.[k]) | 0])) };
+    }
+  } catch { /* 손상됐으면 조용히 새로 시작 — 저장이 깨졌다고 게임이 안 켜지면 안 된다 */ }
+  return { relics: 0, best: 0, up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])) };
+}
+const saveMeta = () => { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch {} };
+const upCost = (k) => UPGRADES[k].base + UPGRADES[k].per * META.up[k];
+// 넘긴 라운드가 곧 보상이다. 보스 라운드(5의 배수)를 넘기면 덤이 붙는다.
+const relicsFor = (round) => Math.floor((round - 1) / 2) + Math.floor((round - 1) / 5) * 2;
+const metaGold = () => 90 + META.up.gold * 25;
+const metaLife = () => 260 + META.up.life * 40;   // 본진 체력
+const metaDmg  = () => 1 + META.up.dmg * 0.08;
 
 /* ══ 상태 ══ */
 const S = {
-  gold: 90, life: 20, round: 1, rolls: 0,
+  gold: 90, life: 20, coreHp: 0, coreMax: 0, round: 1, rolls: 0,
   towers: [],       // { id, kind, g, x, y }  (x,y = 격자 슬롯)
   mobs: [], shots: [],
   running: false, spawned: 0, toSpawn: 0, spawnT: 0,
@@ -187,9 +274,9 @@ const S = {
 };
 let nextId = 1;
 
-const rollCost = () => 12 + S.rolls * 2;              // 뽑을수록 비싸진다 — 무한 뽑기를 막는다
-const waveHp   = (r) => Math.round(26 * Math.pow(1.34, r - 1));
-const waveN    = (r) => 8 + Math.floor(r * 1.2);
+const rollCost = () => Math.max(6, 12 - META.up.cheap) + S.rolls * 2;   // 뽑을수록 비싸진다
+const waveHp   = (r) => Math.round(24 * Math.pow(1.30, r - 1));
+const waveN    = (r) => 3 + Math.floor(r * 1.1);
 const isBossR  = (r) => r % 5 === 0;
 
 /* ══ 화면 크기 ══ */
@@ -209,16 +296,18 @@ const cy = (gy) => py(gy) + CELL / 2;
 function drawGrid() {
   let h = "";
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-    const road = pathKey.has(x+","+y);
-    // 길은 칸을 꽉 채워 서로 붙는다. 배치 칸만 틈을 둬서 "놓을 수 있는 곳"으로 읽히게 한다.
-    const pad = road ? 0 : 2;
-    h += `<div class="tile ${road ? "road" : "slot"}" ${road ? "" : `data-x="${x}" data-y="${y}"`}
-      style="left:${px(x)}px;top:${py(y)}px;width:${CELL-pad}px;height:${CELL-pad}px"></div>`;
+    if (inCore(x, y)) continue;                    // 본진은 아래에서 한 덩이로 그린다
+    const ok = buildable(x, y);
+    h += `<div class="tile ${ok ? "slot" : "wild"}" ${ok ? `data-x="${x}" data-y="${y}"` : ""}
+      style="left:${px(x)}px;top:${py(y)}px;width:${CELL-2}px;height:${CELL-2}px"></div>`;
   }
-  // 어디로 들어와 어디로 빠지는지 — 이게 없으면 길이 이어져도 방향을 모른다
-  const [sx, sy] = PATH[0], [ex, ey] = PATH[PATH.length - 1];
-  h += `<div class="mark" style="left:${px(sx)}px;top:${py(sy) - 15}px">들어온다 ▸</div>`;
-  h += `<div class="mark" style="left:${px(ex) - 6}px;top:${py(ey) + CELL}px">▸ 샌다</div>`;
+  // 본진 — 칸을 쪼개지 않고 **한 덩이**로 그린다. 조각으로 두면 지킬 것이 아니라 타일로 읽힌다.
+  h += `<div class="core" id="coreEl"
+    style="left:${px(CORE.x)}px;top:${py(CORE.y)}px;width:${CELL*CORE.w-2}px;height:${CELL*CORE.h-2}px">
+      <div class="cname">본진</div>
+      <div class="cbar"><i id="coreBar"></i></div>
+      <div class="cnum" id="coreNum"></div>
+    </div>`;
   $("grid").innerHTML = h;
   drawTowers();
 }
@@ -247,6 +336,7 @@ function roll() {
   const g = p > 1.12 ? 2 : 1;                    // 뽑기로는 중급까지만
   const slot = free[Math.floor(Math.random() * free.length)];
   const t = { id: nextId++, kind, g, x: slot.x, y: slot.y };
+  t.hp = t.maxHp = hpOf(t);
   S.towers.push(t);
   S.sel = t.id;
   say(`<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 뽑았다.`);
@@ -257,8 +347,7 @@ const occupied = () => new Set(S.towers.map(t => t.x+","+t.y));
 function freeSlots() {
   const occ = occupied(), out = [];
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-    const k = x+","+y;
-    if (!pathKey.has(k) && !occ.has(k)) out.push({ x, y });
+    if (buildable(x, y) && !occ.has(x+","+y)) out.push({ x, y });
   }
   return out;
 }
@@ -292,16 +381,26 @@ function merge() {
   const gone = new Set(arr.slice(1).map(t => t.id));
   S.towers = S.towers.filter(t => !gone.has(t.id));
   keep.g = g + 1;
+  keep.maxHp = hpOf(keep); keep.hp = keep.maxHp;     // 합치면 새것처럼 선다
   S.sel = keep.id;
   say(`셋을 합쳐 <b style="color:${GCOL[keep.g]}">${GNAME[keep.g]} ${KINDS[kind].n}</b> 이(가) 되었다.`);
   flyText(cx(keep.x), cy(keep.y), GNAME[keep.g], GCOL[keep.g]);
   refresh();
 }
-// 그 자리에서 길을 얼마나 덮는가 — 합성 때 어느 자리를 남길지 고르는 기준
+// **본진을 얼마나 감싸는가.** 본진 둘레를 한 바퀴 돌며 사거리에 드는 각도를 센다 —
+// 합성 때 어느 자리를 남길지, 그리고 지금 자리가 쓸 만한지의 기준.
 function coverOf(t) {
-  const r = rngOf(t);
-  return PATH.filter(([x, y]) => Math.hypot(cx(x) - cx(t.x), cy(y) - cy(t.y)) <= r).length;
+  const r = rngOf(t), tx = cx(t.x), ty = cy(t.y);
+  const c = coreCenter(), rad = coreRadius() + CELL * 0.5;
+  let n = 0;
+  for (let a = 0; a < 24; a++) {
+    const th = a / 24 * Math.PI * 2;
+    if (Math.hypot(c.x + Math.cos(th) * rad - tx, c.y + Math.sin(th) * rad - ty) <= r) n++;
+  }
+  return n;
 }
+const coreCenter = () => ({ x: px(CORE.x) + CELL * CORE.w / 2, y: py(CORE.y) + CELL * CORE.h / 2 });
+const coreRadius = () => CELL * CORE.w / 2;
 
 function sell() {
   const t = S.towers.find(x => x.id === S.sel);
@@ -337,25 +436,35 @@ function startWave() {
   refresh();
 }
 
+/** 이번 웨이브가 어느 방향에서 오는가. **라운드가 오를수록 갈래가 는다** —
+ *  한 쪽만 두껍게 막아 두고 넘어가지 못하게 하는 것이 이 구조의 핵심 압박이다. */
+function waveLanes(r) {
+  const n = Math.min(4, 1 + Math.floor((r - 1) / 3));
+  const base = (r * 1.7) % (Math.PI * 2);          // 라운드마다 방향이 돌아간다
+  return Array.from({ length: n }, (_, i) => base + i * (Math.PI * 2 / n));
+}
+
 function spawnMob() {
-  const boss = isBossR(S.round) && S.spawned === S.toSpawn - 1;
-  const hp = waveHp(S.round) * (boss ? 12 : 1);
+  const boss = isBossR(S.round) && S.spawned === 0;
+  const hp = waveHp(S.round) * (boss ? 8 : 1);
+  const lanes = waveLanes(S.round);
+  // 같은 갈래라도 조금씩 흩뿌린다 — 한 줄로 오면 한 타워가 다 잡는다
+  const th = lanes[S.spawned % lanes.length] + (Math.random() - 0.5) * 0.5;
+  const c = coreCenter();
+  const far = Math.hypot(COLS, ROWS) * CELL * 0.52;
   S.mobs.push({
-    id: nextId++, t: 0, hp, maxHp: hp, boss,
-    speed: (boss ? 0.55 : 0.85) * (1 + (S.round - 1) * 0.012),
-    slow: 0, slowT: 0,
+    id: nextId++, hp, maxHp: hp, boss, th,
+    x: c.x + Math.cos(th) * far, y: c.y + Math.sin(th) * far,
+    speed: (boss ? 15 : 24) * (1 + (S.round - 1) * 0.02),   // px/초
+    dmg: Math.round((2 + S.round * 0.6) * (boss ? 4 : 1)),
+    slow: 0, slowT: 0, atkT: 0,
   });
   S.spawned++;
 }
 
-// 경로 위 진행도(t) → 화면 좌표
-function mobPos(m) {
-  const seg = Math.min(Math.floor(m.t), PATH.length - 2);
-  const f = m.t - seg;
-  const a = PATH[seg], b = PATH[Math.min(seg + 1, PATH.length - 1)];
-  return { x: cx(a[0]) + (cx(b[0]) - cx(a[0])) * f,
-           y: cy(a[1]) + (cy(b[1]) - cy(a[1])) * f };
-}
+const mobPos = (m) => ({ x: m.x, y: m.y });
+// 본진까지 남은 거리 — 타워는 **제일 가까이 온 놈**부터 노린다
+const distToCore = (m) => Math.hypot(m.x - coreCenter().x, m.y - coreCenter().y) - coreRadius();
 
 function hurt(m, d, from) {
   m.hp -= d;
@@ -390,29 +499,62 @@ function tick(dt) {
     S.spawnT -= dt;
     if (S.spawnT <= 0) { spawnMob(); S.spawnT = 0.55; }
   }
-  // 이동
+  // 이동과 교전.
+  // **가는 길에 타워가 있으면 그걸 먼저 친다** — 그래서 바깥에 세운 타워가 방벽이 되고,
+  // 일찍 요격하는 대신 얻어맞는다. 이 맞바꿈이 "어디에 놓을까"를 진짜 결정으로 만든다.
+  const c = coreCenter(), cr = coreRadius();
   for (const m of S.mobs) {
     if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }
-    m.t += m.speed * (1 - m.slow) * dt;
-    if (m.t >= PATH.length - 1) {
-      m.leaked = true;
-      S.life -= m.boss ? 5 : 1;
-      if (S.life <= 0) { S.life = 0; gameOver(); }
+    m.atkT -= dt;
+
+    // 코앞의 타워 (한 칸 반경)
+    let block = null, bd = 1e9;
+    for (const t of S.towers) {
+      const d = Math.hypot(cx(t.x) - m.x, cy(t.y) - m.y);
+      if (d < CELL * 0.72 && d < bd) { bd = d; block = t; }
     }
+    if (block) {
+      if (m.atkT <= 0) {
+        m.atkT = 1;
+        block.hp -= m.dmg;
+        flyText(cx(block.x), cy(block.y), "-" + m.dmg, "#d05353");
+        if (block.hp <= 0) {
+          say(`<b style="color:${GCOL[block.g]}">${GNAME[block.g]} ${KINDS[block.kind].n}</b> 이(가) 부서졌다.`);
+          S.towers = S.towers.filter(t => t.id !== block.id);
+          if (S.sel === block.id) S.sel = null;
+          refresh();
+        }
+      }
+      continue;                                   // 막힌 동안은 전진하지 않는다
+    }
+
+    const d = Math.hypot(m.x - c.x, m.y - c.y);
+    if (d <= cr + 8) {                            // 본진에 붙었다
+      if (m.atkT <= 0) {
+        m.atkT = 1;
+        S.coreHp -= m.dmg;
+        flyText(c.x, c.y - cr, "-" + m.dmg, "#d05353");
+        if (S.coreHp <= 0) { S.coreHp = 0; gameOver(); return; }
+      }
+      continue;
+    }
+    const v = m.speed * (1 - m.slow) * dt;
+    m.x += (c.x - m.x) / d * v;
+    m.y += (c.y - m.y) / d * v;
   }
-  S.mobs = S.mobs.filter(m => !m.dead && !m.leaked);
+  S.mobs = S.mobs.filter(m => !m.dead);
 
   // 타워
   for (const t of S.towers) {
     t.cd = (t.cd || 0) - dt;
     if (t.cd > 0) continue;
     const K = KINDS[t.kind], r = rngOf(t), tx = cx(t.x), ty = cy(t.y);
-    // **가장 앞선 놈부터** 노린다 — 뒤에서부터 잡으면 새는 걸 못 막는다
-    let best = null;
+    // **본진에 제일 가까이 온 놈부터** 노린다 — 먼 놈을 먼저 잡으면 코앞의 것을 놓친다
+    let best = null, bestD = 1e9;
     for (const m of S.mobs) {
-      const p = mobPos(m);
-      if (Math.hypot(p.x - tx, p.y - ty) > r) continue;
-      if (!best || m.t > best.t) best = m;
+      if (Math.hypot(m.x - tx, m.y - ty) > r) continue;
+      const d = distToCore(m);
+      if (d < bestD) { bestD = d; best = m; }
     }
     if (!best) continue;
     t.cd = K.cd;
@@ -447,7 +589,10 @@ function tick(dt) {
   // 웨이브 끝
   if (S.running && S.spawned >= S.toSpawn && !S.mobs.length) {
     S.running = false;
-    const bonus = 20 + S.round * 6;
+    // 웨이브가 끝나면 성한 것은 추스른다. 안 그러면 바깥에 두는 값이 너무 비싸다 —
+    // 잃는 것은 **완전히 부서졌을 때뿐**이어야 한다.
+    for (const t of S.towers) t.hp = t.maxHp;
+    const bonus = 24 + S.round * 9;
     S.gold += bonus;
     say(`${S.round}라운드를 막았다. <b>+${bonus}</b>`);
     S.round++;
@@ -457,9 +602,27 @@ function tick(dt) {
 
 function gameOver() {
   S.over = true; S.running = false; S.mobs = [];
+  const got = relicsFor(S.round);
+  META.relics += got;
+  META.best = Math.max(META.best, S.round);
+  saveMeta();
   $("overT").textContent = "뚫렸다";
-  $("overD").innerHTML = `${S.round}라운드까지 막았다.<br>타워 ${S.towers.length}기 · 뽑기 ${S.rolls}회`;
+  $("overD").innerHTML =
+    `${S.round}라운드에서 본진이 무너졌다. 최고 기록 ${META.best}라운드.<br>` +
+    `<b style="color:var(--amber)">유물 +${got}</b>`;
+  drawShop();
   $("over").classList.add("on");
+}
+
+// 유물 상점. **뚫린 화면에서 바로 세지는 게 보여야** "한 판 더"에 손이 간다.
+function drawShop() {
+  $("shop").innerHTML = Object.entries(UPGRADES).map(([k, u]) => {
+    const c = upCost(k), lv = META.up[k];
+    return `<button class="up" data-up="${k}" ${META.relics < c ? "disabled" : ""}>
+      <span class="n">${u.n}${lv ? ` <span class="dim">${lv}</span>` : ""}</span>
+      <span class="d">${u.d}</span><span class="p">유물 ${c}</span></button>`;
+  }).join("");
+  $("shopHave").textContent = META.relics;
 }
 
 /* ══ 그리기 ══ */
@@ -473,7 +636,10 @@ function drawTowers() {
     el.style.cssText = `left:${px(t.x)}px;top:${py(t.y)}px;width:${CELL-2}px;height:${CELL-2}px;
       color:${K.col};background:${sel ? "#22201a" : "#181d25"};
       box-shadow:inset 0 0 0 1px ${GCOL[t.g]}${sel ? ",0 0 0 1px var(--amber)" : ""}`;
-    el.innerHTML = `${K.ico}<span class="lvl" style="color:${GCOL[t.g]}">${t.g}</span>`;
+    const hurt = t.hp < t.maxHp;
+    el.innerHTML = `${K.ico}<span class="lvl" style="color:${GCOL[t.g]}">${t.g}</span>` +
+      (hurt ? `<span class="thp"><i style="width:${Math.max(0,t.hp/t.maxHp*100)}%;
+        background:${t.hp/t.maxHp > .4 ? "#7fb069" : "#d05353"}"></i></span>` : "");
     $("field").appendChild(el);
     if (sel) {
       const r = rngOf(t), rg = document.createElement("div");
@@ -485,6 +651,7 @@ function drawTowers() {
 }
 
 let mobEls = new Map();
+let towersHurtLast = false;
 function paint() {
   // 몹
   const alive = new Set();
@@ -507,6 +674,12 @@ function paint() {
   }
   for (const [id, el] of mobEls) if (!alive.has(id)) { el.remove(); mobEls.delete(id); }
 
+  // 타워 체력바는 매 프레임 바뀐다 — 구성이 그대로여도 여기서 다시 쓴다
+  if (S.towers.some(t => t.hp < t.maxHp) || towersHurtLast) {
+    towersHurtLast = S.towers.some(t => t.hp < t.maxHp);
+    drawTowers();
+  }
+
   // 탄
   document.querySelectorAll("#field .shot").forEach(e => e.remove());
   for (const s of S.shots) {
@@ -518,8 +691,12 @@ function paint() {
   }
 
   $("hGold").textContent = Math.floor(S.gold);
-  $("hLife").textContent = S.life;
+  $("hLife").textContent = Math.max(0, Math.ceil(S.coreHp)) + "/" + S.coreMax;
+  const cb = $("coreBar"), cn = $("coreNum");
+  if (cb) cb.style.width = Math.max(0, S.coreHp / S.coreMax * 100) + "%";
+  if (cn) cn.textContent = Math.max(0, Math.ceil(S.coreHp));
   $("hRound").textContent = S.round;
+  $("hRelic").textContent = META.relics;
   $("rollBtn").disabled = S.gold < rollCost() || S.over;
 }
 
@@ -530,9 +707,11 @@ function refresh() {
   $("rollNote").textContent = `뽑을수록 값이 오른다. 지금 ${S.towers.length}기.`;
   $("waveBtn").textContent = S.running ? "막는 중…" : `${S.round}라운드 시작`;
   $("waveBtn").disabled = S.running || S.over;
+  const lanes = waveLanes(S.round).length;
   $("waveNote").textContent = S.running
     ? `${S.spawned}/${S.toSpawn} 나옴 · 남은 놈 ${S.mobs.length}`
-    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)}` + (isBossR(S.round) ? " · 큰 놈이 섞인다" : "");
+    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다` +
+      (isBossR(S.round) ? " · 큰 놈이 섞인다" : "");
 
   const m = mergeGroups();
   const rows = [];
@@ -552,7 +731,7 @@ function refresh() {
   $("selInfo").innerHTML = t ? `<div class="sel-info">
       <div class="nm" style="color:${GCOL[t.g]}">${GNAME[t.g]} ${KINDS[t.kind].n}</div>
       <div class="st">피해 ${dmgOf(t)} · 사거리 ${rngOf(t)} · ${KINDS[t.kind].d}<br>
-        길을 ${coverOf(t)}칸 덮는다 · 팔면 ${sellOf(t)}<br>
+        본진 둘레를 ${Math.round(coverOf(t)/24*100)}% 덮는다 · 체력 ${t.hp}/${t.maxHp} · 팔면 ${sellOf(t)}<br>
         <span style="color:var(--steel)">빈 칸을 누르면 그리로 옮긴다.</span></div></div>`
     : `<div class="note">타워를 누르면 사거리가 보이고, 빈 칸을 누르면 그리로 옮긴다.</div>`;
 }
@@ -561,7 +740,7 @@ $("rollBtn").onclick = roll;
 $("mergeBtn").onclick = merge;
 $("sellBtn").onclick = sell;
 $("waveBtn").onclick = startWave;
-$("again").onclick = () => location.reload();
+$("again").onclick = newGame;
 addEventListener("resize", layout);
 addEventListener("keydown", (e) => {
   if (e.key === " ") { e.preventDefault(); if (!S.running) startWave(); }
@@ -570,11 +749,45 @@ addEventListener("keydown", (e) => {
 });
 
 // 검증 도구용 창구
-Object.assign(window, { S, KINDS, roll, merge, sell, startWave, refresh, tick, canMerge, freeSlots, waveHp, waveN });
+Object.assign(window, { S, KINDS, GNAME, roll, merge, sell, startWave, refresh, tick, canMerge,
+  freeSlots, waveHp, waveN, waveLanes, coreCenter, coreRadius, distToCore, hpOf, coverOf,
+  cx, cy, rngOf, dmgOf, buildable, CORE });
 
-layout(); refresh(); requestAnimationFrame(step);
-say("골드로 <b>뽑고</b>, 같은 것 셋을 <b>합치고</b>, 라운드를 시작해 막는다.");
-say("전투는 알아서 돈다 — 짜 놓은 것이 얼마나 버티는지 보면 된다.");
+function newGame() {
+  Object.assign(S, {
+    gold: metaGold(), coreHp: metaLife(), coreMax: metaLife(), round: 1, rolls: 0,
+    towers: [], mobs: [], shots: [],
+    running: false, spawned: 0, toSpawn: 0, spawnT: 0, sel: null, over: false,
+  });
+  mobEls.forEach(el => el.remove()); mobEls.clear();
+  // 선발대 — 빈손으로 시작하지 않는다는 감각이 영구 성장의 첫 체감이다
+  for (let i = 0; i < META.up.start; i++) {
+    const free = freeSlots();
+    if (!free.length) break;
+    const slot = free[Math.floor(Math.random() * free.length)];
+    const t0 = { id: nextId++, kind: KIND_IDS[Math.floor(Math.random()*KIND_IDS.length)],
+                 g: 2, x: slot.x, y: slot.y };
+    t0.hp = t0.maxHp = hpOf(t0);
+    S.towers.push(t0);
+  }
+  $("over").classList.remove("on");
+  $("log").innerHTML = "";
+  refresh();
+  say("골드로 <b>뽑고</b>, 같은 것 셋을 <b>합치고</b>, 라운드를 시작해 막는다.");
+  say("전투는 알아서 돈다 — 짜 놓은 것이 얼마나 버티는지 보면 된다.");
+  if (META.relics || META.best) say(`유물 <b>${META.relics}</b> · 최고 <b>${META.best}</b>라운드`);
+}
+$("shop").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-up]");
+  if (!b || b.disabled) return;
+  const k = b.dataset.up, c = upCost(k);
+  if (META.relics < c) return;
+  META.relics -= c; META.up[k]++;
+  saveMeta(); drawShop(); paint();
+});
+Object.assign(window, { META, newGame, drawShop, relicsFor, upCost, UPGRADES, saveMeta, metaDmg });
+
+layout(); newGame(); requestAnimationFrame(step);
 </script>
 </body>
 </html>

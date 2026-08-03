@@ -1,73 +1,100 @@
-/** 유즈맵 랜타디의 심장은 **"다음 라운드를 누르고 싶은가"** 다.
- *  그건 셋으로 쪼갤 수 있다:
- *    1) 뽑기·합성이 실제로 **성장**으로 이어지는가 (등급이 오르고 화력이 커지는가)
- *    2) 라운드가 **적당히 조여 오는가** — 아무것도 안 해도 이기면 뽑을 이유가 없고,
- *       제대로 해도 5라운드에서 뚫리면 성장을 볼 새가 없다
- *    3) 예외 없이 끝까지 도는가
- *      node funtest.mjs
+/** 벙커디펜스가 묻는 것은 **"어디에 세울까"가 결과를 바꾸는가** 다.
+ *
+ *  길을 따라가는 타워디펜스에서는 배치가 사실상 "길 옆이냐" 하나뿐이었다. 가운데를 지키고
+ *  사방에서 오게 하면 배치가 진짜 결정이 된다 — 그게 사실인지 숫자로 확인한다.
+ *
+ *  그래서 **같은 뽑기·합성을 하되 배치만 다른 봇 둘**을 나란히 돌린다.
+ *    아무렇게나  — 뽑힌 자리 그대로 둔다
+ *    보고 세운다 — 이번 웨이브가 오는 갈래 쪽으로 고르게 나눠 세운다
+ *  둘의 차이가 곧 "배치가 게임인가"의 답이다.
+ *
+ *      node funtest.mjs [판수]      # serve.mjs(8772) + 크롬(9333)
  */
+const RUNS = Number(process.argv[2] || 6);
+
 const list = await (await fetch("http://127.0.0.1:9333/json/list")).json();
-const ws = new WebSocket(list.find(x=>x.type==="page").webSocketDebuggerUrl);
-await new Promise(r=>{ws.onopen=r;});
-let id=0; const pend=new Map(); const errors=[];
-ws.onmessage=e=>{const m=JSON.parse(e.data);
-  if(m.method==="Runtime.exceptionThrown") errors.push(m.params?.exceptionDetails?.exception?.description||"?");
-  if(pend.has(m.id)){pend.get(m.id)(m.result);pend.delete(m.id);}};
-const send=(m,p={})=>new Promise(res=>{const i=++id;pend.set(i,res);ws.send(JSON.stringify({id:i,method:m,params:p}));});
-const ev=async x=>{const r=await send("Runtime.evaluate",{expression:x,returnByValue:true,awaitPromise:true});
-  if(r?.exceptionDetails) errors.push((r.exceptionDetails.exception?.description||"").slice(0,160));
-  return r?.result?.value;};
+const ws = new WebSocket(list.find(x => x.type === "page").webSocketDebuggerUrl);
+await new Promise(r => { ws.onopen = r; });
+let id = 0; const pend = new Map(); const errors = [];
+ws.onmessage = e => {
+  const m = JSON.parse(e.data);
+  if (m.method === "Runtime.exceptionThrown") errors.push(m.params?.exceptionDetails?.exception?.description || "?");
+  if (pend.has(m.id)) { pend.get(m.id)(m.result); pend.delete(m.id); }
+};
+const send = (m, params = {}) => new Promise(res => { const i = ++id; pend.set(i, res); ws.send(JSON.stringify({ id: i, method: m, params })); });
+const ev = async (x) => {
+  const r = await send("Runtime.evaluate", { expression: x, returnByValue: true, awaitPromise: true });
+  if (r?.exceptionDetails) errors.push((r.exceptionDetails.exception?.description || "").slice(0, 200));
+  return r?.result?.value;
+};
 await send("Runtime.enable");
-await send("Page.navigate",{url:"http://127.0.0.1:8772/index.html"});
-await new Promise(r=>setTimeout(r,900));
+await send("Page.navigate", { url: "http://127.0.0.1:8772/index.html" });
+await new Promise(r => setTimeout(r, 1000));
 
-// 실제 시간을 기다리지 않고 tick 을 직접 돌린다 — 20라운드를 60배로 접는다
-const RUNS = Number(process.argv[2] || 8);
-const play = (mode) => `(() => {
-  const runs = [];
-  for (let r = 0; r < ${RUNS}; r++) {
-    location.hash = "";                       // 상태 초기화용 표식 (아래에서 새로 만든다)
-    Object.assign(S, { gold:90, life:20, round:1, rolls:0, towers:[], mobs:[], shots:[],
-                       running:false, spawned:0, toSpawn:0, spawnT:0, sel:null, over:false });
-    const peak = { g:1, dmg:0 };
-    let guard = 0;
-    while (!S.over && S.round <= 20 && guard++ < 200) {
-      // 라운드 전에 살 수 있는 만큼 뽑고, 합칠 수 있으면 합친다
-      if ("${mode}" !== "idle") {
-        let n = 0;
-        while (S.gold >= (12 + S.rolls*2) && freeSlots().length && n++ < 40) roll();
-        while (canMerge()) merge();
-      }
-      startWave();
-      let t = 0;
-      while (S.running && t < 240) { tick(1/30); t += 1/30; }   // 라운드 최대 240초분
-      for (const tw of S.towers) { if (tw.g > peak.g) peak.g = tw.g; }
-      peak.dmg = S.towers.reduce((a,tw)=>a+Math.round(KINDS[tw.kind].dmg*Math.pow(3,tw.g-1)),0);
-    }
-    runs.push({ round:S.round, life:S.life, rolls:S.rolls, towers:S.towers.length,
-                peakG:peak.g, dmg:peak.dmg, over:S.over });
-  }
-  const avg = (f) => runs.reduce((a,x)=>a+f(x),0)/runs.length;
-  return { 도달라운드:+avg(x=>x.round).toFixed(1), 남은목숨:+avg(x=>x.life).toFixed(1),
-           뽑기:+avg(x=>x.rolls).toFixed(1), 타워:+avg(x=>x.towers).toFixed(1),
-           최고등급:+avg(x=>x.peakG).toFixed(1), 총화력:Math.round(avg(x=>x.dmg)),
-           뚫린판:runs.filter(x=>x.over).length + "/" + runs.length };
-})()`;
+// 배치·유물 사용 여부를 켜고 끄며 같은 루프를 돌린다
+const play = (place, useMeta) => [
+  '(() => {',
+  '  localStorage.removeItem("rtd.meta.v1");',
+  '  Object.assign(META,{relics:0,best:0,up:{gold:0,dmg:0,life:0,cheap:0,start:0}});',
+  '  const arrange = () => {',
+  '    const lanes = waveLanes(S.round), c = coreCenter();',
+  '    const cells=[]; for(let y=0;y<9;y++) for(let x=0;x<13;x++) if(buildable(x,y)) cells.push({x,y});',
+  '    const used=new Set();',
+  '    S.towers.forEach((t,i)=>{',
+  '      const th=lanes[i%lanes.length];',
+  '      const ax=c.x+Math.cos(th)*195, ay=c.y+Math.sin(th)*195;',
+  '      let b=null,bd=1e9;',
+  '      for(const s of cells){const k=s.x+","+s.y; if(used.has(k))continue;',
+  '        const d=Math.hypot(cx(s.x)-ax,cy(s.y)-ay); if(d<bd){bd=d;b=s;}}',
+  '      if(b){used.add(b.x+","+b.y); t.x=b.x; t.y=b.y;}',
+  '    });',
+  '  };',
+  '  const runs=[], grades=[];',
+  `  for (let run=0; run<${RUNS}; run++) {`,
+  '    newGame();',
+  '    let g=0;',
+  '    while(!S.over && S.round<=30 && g++<250){',
+  '      let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&freeSlots().length&&n++<40) roll();',
+  '      while(canMerge()) merge();',
+  place ? '      arrange();' : '',
+  '      startWave();',
+  '      let t=0; while(S.running && t<300){ tick(1/30); t+=1/30; }',
+  '      if (S.running) break;',
+  '    }',
+  '    runs.push(S.round);',
+  '    grades.push(Math.max(1, ...S.towers.map(t=>t.g)));',
+  useMeta ? [
+  '    let k=0;',
+  '    while(k++<30){',
+  '      const key=Object.keys(UPGRADES).filter(x=>META.relics>=upCost(x)).sort((a,b)=>upCost(a)-upCost(b))[0];',
+  '      if(!key) break; META.relics-=upCost(key); META.up[key]++;',
+  '    }',
+  '    saveMeta();'].join("\n") : '',
+  '  }',
+  '  const avg = a => +(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1);',
+  '  return { seq:runs, avg:avg(runs), grade:avg(grades) };',
+  '})()'
+].filter(Boolean).join("\n");
 
-const playing = await ev(play("play"));
-const idle    = await ev(play("idle"));
-const p = (o) => Object.entries(o).map(([k,v])=>`${k} ${v}`).join(" · ");
-console.log(`\n═══ 랜타디 재미 지표 (각 ${RUNS}판, 20라운드까지) ═══\n`);
-console.log("── 뽑고 합치며 논다\n   " + p(playing));
-console.log("\n── 아무것도 안 한다 (뽑지도 합치지도 않음)\n   " + p(idle) + "\n");
+const blind  = await ev(play(false, false));
+const smart  = await ev(play(true,  false));
+const growth = await ev(play(true,  true));
+
+console.log(`\n═══ 벙커디펜스 지표 (각 ${RUNS}판) ═══\n`);
+console.log(`── 아무렇게나 세운다   평균 ${blind.avg}R · 최고등급 ${blind.grade}`);
+console.log(`   ${blind.seq.join(" · ")}`);
+console.log(`── 오는 쪽을 보고 세운다  평균 ${smart.avg}R · 최고등급 ${smart.grade}`);
+console.log(`   ${smart.seq.join(" · ")}`);
+console.log(`── 보고 세우고 + 유물을 쓴다  평균 ${growth.avg}R`);
+console.log(`   ${growth.seq.join(" → ")}\n`);
 
 const chk = (n, ok, d) => console.log(`${ok ? "✓" : "✗"} ${n}${d ? "  — " + d : ""}`);
 console.log("── 판정 ──");
-chk("뽑고 합치면 실제로 더 멀리 간다", playing.도달라운드 > idle.도달라운드 + 3,
-    `놀았을 때 ${playing.도달라운드}R · 안 했을 때 ${idle.도달라운드}R`);
-chk("등급이 실제로 오른다 (합성이 작동한다)", playing.최고등급 >= 3, `평균 최고 ${playing.최고등급}등급`);
-chk("아무것도 안 하면 일찍 뚫린다", idle.도달라운드 < 8, `${idle.도달라운드}R`);
-chk("제대로 하면 성장을 볼 만큼은 간다", playing.도달라운드 >= 10, `${playing.도달라운드}R`);
-chk("20라운드가 그냥 뚫리지는 않는다", playing.도달라운드 <= 20.5, `${playing.도달라운드}R`);
+chk("배치가 결과를 크게 바꾼다 (이 구조의 존재 이유)", smart.avg > blind.avg + 3,
+    `아무렇게나 ${blind.avg}R → 보고 세우면 ${smart.avg}R`);
+chk("합성으로 등급이 오른다", smart.grade >= 2.5, `평균 최고 ${smart.grade}등급`);
+const f = growth.seq.slice(0,2).reduce((a,b)=>a+b,0)/2, l = growth.seq.slice(-2).reduce((a,b)=>a+b,0)/2;
+chk("판을 거듭하면 더 간다 (유물)", l >= f, `처음 2판 ${f.toFixed(1)}R → 마지막 2판 ${l.toFixed(1)}R`);
+chk("첫 벽이 너무 이르지 않다", smart.avg >= 7, `${smart.avg}R`);
 chk("예외 없이 돈다", errors.length === 0, errors.slice(0,2).join(" | ").slice(0,150));
 ws.close(); process.exit(0);
