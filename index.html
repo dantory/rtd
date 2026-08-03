@@ -30,7 +30,7 @@
   :root{--bg:#0b0d10;--panel:#12151a;--line:#232830;--fg:#c6ccd4;--dim:#6b7480;
     --amber:#e0a458;--good:#7fb069;--bad:#d05353;--steel:#6ba8d6;--magic:#a978c9}
   *{box-sizing:border-box}
-  body{margin:0;height:100vh;overflow:hidden;background:var(--bg);color:var(--fg);
+  body{margin:0;height:100vh;height:100dvh;overflow:hidden;background:var(--bg);color:var(--fg);
     font-family:"D2Coding","Menlo","Noto Sans Mono CJK KR",monospace;font-size:14px;
     display:flex;flex-direction:column;user-select:none;
     /* 폰에서 길게 눌러 메뉴가 뜨거나 당겨서 새로고침되면 판이 그대로 끊긴다 */
@@ -46,7 +46,13 @@
 
   /* ── 전장 ── */
   #field{position:relative;flex:1;min-width:0;background:#0e1116;overflow:hidden}
+  #world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
   #grid{position:absolute;inset:0}
+  /* 손가락이 없어도, 있어도 쓸 수 있게 버튼도 둔다 — 핀치를 모르는 사람이 판을 못 보면 안 된다 */
+  .viewbtns{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px;z-index:30}
+  .viewbtns button{width:38px;height:38px;padding:0;font-size:16px;line-height:1;
+    background:rgba(20,26,34,.86);border:1px solid #38465a;border-radius:6px;
+    backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   .tile{position:absolute;border-radius:2px}
   /* **길은 한 줄기로 이어져 보여야 한다.** 칸마다 틈이 있으면 몹이 어디로 가는지 안 읽히고,
      그러면 어디에 놓을지가 감이 아니라 운이 된다(첫 판에서 실제로 그랬다).
@@ -238,7 +244,12 @@
 
 <main>
   <div id="field">
-    <div id="grid"></div>
+    <div id="world"><div id="grid"></div></div>
+    <div class="viewbtns">
+      <button id="fitBtn" title="전체 보기">⤢</button>
+      <button id="zinBtn" title="확대">＋</button>
+      <button id="zoutBtn" title="축소">－</button>
+    </div>
     <div id="over"><div class="box">
       <h2 id="overT"></h2>
       <div class="note" id="overD" style="font-size:13px"></div>
@@ -422,13 +433,56 @@ const waveN    = (r) => 3 + Math.floor(r * 1.1);
 const isBossR  = (r) => r % 5 === 0;
 
 /* ══ 화면 크기 ══ */
-let CELL = 56, OX = 0, OY = 0;
-function layout() {
+// **칸은 늘 64px 다.** 화면에 맞추는 일은 배율이 한다 — 그래야 확대했을 때 칸이 실제로
+// 커지고(손가락으로 누를 수 있고), 좌표 셈이 화면 크기에 흔들리지 않는다.
+const CELL = 64, OX = 0, OY = 0;
+const WORLD_W = CELL * COLS, WORLD_H = CELL * ROWS;
+
+const V = { z: 1, x: 0, y: 0, minZ: 0.35, maxZ: 2.2 };
+
+function applyView() {
+  const w = $("world");
+  if (!w) return;
+  w.style.width = WORLD_W + "px";
+  w.style.height = WORLD_H + "px";
+  w.style.transform = `translate(${V.x}px,${V.y}px) scale(${V.z})`;
+}
+
+/** 판 전체가 보이는 배율로 맞추고 가운데에 둔다. 처음 화면이 이래야 "어디가 어디인지"부터 안다. */
+function fitView() {
   const f = $("field").getBoundingClientRect();
-  CELL = Math.floor(Math.min(f.width / COLS, f.height / ROWS));
-  OX = Math.round((f.width  - CELL * COLS) / 2);
-  OY = Math.round((f.height - CELL * ROWS) / 2);
+  if (!f.width || !f.height) return;
+  V.z = Math.min(f.width / WORLD_W, f.height / WORLD_H) * 0.98;
+  V.z = Math.max(V.minZ, Math.min(V.maxZ, V.z));
+  V.x = (f.width  - WORLD_W * V.z) / 2;
+  V.y = (f.height - WORLD_H * V.z) / 2;
+  applyView();
+}
+
+/** 화면의 어느 점을 붙잡은 채 배율만 바꾼다 — 손가락 밑의 것이 제자리에 있어야 어지럽지 않다. */
+function zoomAt(sx, sy, nz) {
+  const f = $("field").getBoundingClientRect();
+  const px0 = sx - f.left, py0 = sy - f.top;
+  const wx = (px0 - V.x) / V.z, wy = (py0 - V.y) / V.z;
+  V.z = Math.max(V.minZ, Math.min(V.maxZ, nz));
+  V.x = px0 - wx * V.z;
+  V.y = py0 - wy * V.z;
+  clampView();
+  applyView();
+}
+
+/** 판을 화면 밖으로 완전히 밀어내지 못하게 — 한 번 놓치면 돌아올 길이 없다. */
+function clampView() {
+  const f = $("field").getBoundingClientRect();
+  const w = WORLD_W * V.z, h = WORLD_H * V.z;
+  const mx = Math.min(80, f.width * 0.3), my = Math.min(80, f.height * 0.3);
+  V.x = w <= f.width  ? (f.width  - w) / 2 : Math.min(mx, Math.max(f.width  - w - mx, V.x));
+  V.y = h <= f.height ? (f.height - h) / 2 : Math.min(my, Math.max(f.height - h - my, V.y));
+}
+
+function layout() {
   drawGrid();
+  fitView();
 }
 const px = (gx) => OX + gx * CELL;
 const py = (gy) => OY + gy * CELL;
@@ -652,13 +706,13 @@ function boom(x, y, kind) {
   img.src = `assets/fx/${kind}.png`;
   img.style.cssText = `left:${x}px;top:${y}px`;
   img.onerror = () => { img.remove(); S.fxBusy--; };
-  $("field").appendChild(img);
+  $("world").appendChild(img);
   setTimeout(() => { img.remove(); S.fxBusy--; }, 300);
 }
 
 /** 방금 생긴 것을 한 번 튀겨 준다. 목록의 숫자만 바뀌면 무슨 일이 있었는지 안 남는다. */
 function popTower(t, cls) {
-  const el = [...document.querySelectorAll("#field .tw")]
+  const el = [...document.querySelectorAll("#world .tw")]
     .find(e => e.dataset.id === String(t.id));
   if (!el) return;
   el.classList.remove("rolled", "merged"); void el.offsetWidth; el.classList.add(cls);
@@ -668,7 +722,7 @@ function flyText(x, y, text, col) {
   const el = document.createElement("div");
   el.className = "fly"; el.textContent = text;
   el.style.cssText = `left:${x}px;top:${y}px;color:${col}`;
-  $("field").appendChild(el);
+  $("world").appendChild(el);
   setTimeout(() => el.remove(), 700);
 }
 
@@ -812,7 +866,7 @@ function tick(dt) {
 
 function gameOver() {
   S.over = true; S.running = false; S.mobs = []; S.shots = [];
-  document.querySelectorAll("#field .fly, #field .boom").forEach(e => e.remove());
+  document.querySelectorAll("#world .fly, #world .boom").forEach(e => e.remove());
   const got = relicsFor(S.round);
   META.relics += got;
   META.best = Math.max(META.best, S.round);
@@ -838,7 +892,7 @@ function drawShop() {
 
 /* ══ 그리기 ══ */
 function drawTowers() {
-  const old = [...document.querySelectorAll("#field .tw, #field .rng")];
+  const old = [...document.querySelectorAll("#world .tw, #world .rng")];
   old.forEach(e => e.remove());
   for (const t of S.towers) {
     const K = KINDS[t.kind], sel = S.sel === t.id;
@@ -857,12 +911,12 @@ function drawTowers() {
       `<span class="lvl" style="color:${GCOL[t.g]}">${"★".repeat(Math.min(t.g,5))}</span>` +
       (hurt ? `<span class="thp"><i style="width:${Math.max(0,t.hp/t.maxHp*100)}%;
         background:${t.hp/t.maxHp > .4 ? "#7fb069" : "#d05353"}"></i></span>` : "");
-    $("field").appendChild(el);
+    $("world").appendChild(el);
     if (sel) {
       const r = rngOf(t), rg = document.createElement("div");
       rg.className = "rng";
       rg.style.cssText = `left:${cx(t.x)-r}px;top:${cy(t.y)-r}px;width:${r*2}px;height:${r*2}px`;
-      $("field").appendChild(rg);
+      $("world").appendChild(rg);
     }
   }
 }
@@ -880,7 +934,7 @@ function paint() {
       el.className = "mob" + (m.boss ? " boss" : "");
       el.innerHTML = `<img class="spr" src="assets/mob/${m.kind}.png" alt=""
           onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()"><i></i>`;
-      $("field").appendChild(el);
+      $("world").appendChild(el);
       mobEls.set(m.id, el);
     }
     const p = mobPos(m), sz = m.boss ? 54 : 30;
@@ -903,13 +957,13 @@ function paint() {
   }
 
   // 탄
-  document.querySelectorAll("#field .shot").forEach(e => e.remove());
+  document.querySelectorAll("#world .shot").forEach(e => e.remove());
   for (const s of S.shots) {
     const f = 1 - s.life / 0.14;
     const el = document.createElement("div");
     el.className = "shot";
     el.style.cssText = `left:${s.x + (s.tx - s.x) * f}px;top:${s.y + (s.ty - s.y) * f}px;background:${s.col}`;
-    $("field").appendChild(el);
+    $("world").appendChild(el);
   }
 
   $("hGold").textContent = Math.floor(S.gold);
@@ -984,17 +1038,99 @@ $("sellBtn").onclick = sell;
 $("waveBtn").onclick = startWave;
 $("waveBtn2").onclick = startWave;
 $("again").onclick = newGame;
-// 폰에는 hover 가 없다. **두드리면 고르고, 빈 칸을 두드리면 옮긴다** — 클릭 경로를
-// 그대로 쓰되 두 번 두드림으로 화면이 확대되지 않게 기본 동작만 막는다.
-$("grid").addEventListener("touchend", (e) => {
-  const c = e.target.closest("[data-x]");
-  if (!c) return;
-  e.preventDefault();
-  c.click();
+/* ══════════════════════════════════════════════════════════════
+   보는 자리 — 끌어서 옮기고, 오므려서 줄인다.
+   ──────────────────────────────────────────────────────────────
+   판은 13×9 다. 폰 화면에 통째로 욱여넣으면 칸이 30px 까지 줄어 손가락으로 누를 수가
+   없고, 조금만 어긋나면 판이 화면 밖으로 나간다 — 실제로 "본진밖에 안 보인다"가 그것이었다.
+   그래서 **칸 크기는 고정하고 보는 자리를 움직인다.** 확대하면 칸이 실제로 커진다.
+
+   끌기와 두드리기를 가르는 것이 핵심이다. 손가락이 조금이라도 미끄러지면 배치하려던
+   두드림이 끌기로 먹히고, 반대로 문턱이 너무 크면 판이 안 움직인다. 10px·300ms 로 갈랐다.
+   ══════════════════════════════════════════════════════════ */
+const TAP_SLOP = 10, TAP_MS = 300;
+let drag = null, pinch = null;
+
+const dist2 = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+const mid2  = (a, b) => ({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+
+$("field").addEventListener("touchstart", (e) => {
+  if (e.touches.length === 2) {
+    drag = null;
+    pinch = { d: dist2(e.touches[0], e.touches[1]), z: V.z };
+    return;
+  }
+  if (e.touches.length === 1) {
+    const t = e.touches[0];
+    drag = { sx: t.clientX, sy: t.clientY, ox: V.x, oy: V.y, t0: Date.now(), moved: false,
+             target: e.target.closest("[data-x]") };
+  }
+}, { passive: true });
+
+$("field").addEventListener("touchmove", (e) => {
+  if (pinch && e.touches.length === 2) {
+    e.preventDefault();
+    const d = dist2(e.touches[0], e.touches[1]), m = mid2(e.touches[0], e.touches[1]);
+    zoomAt(m.x, m.y, pinch.z * (d / pinch.d));
+    return;
+  }
+  if (drag && e.touches.length === 1) {
+    const t = e.touches[0];
+    const dx = t.clientX - drag.sx, dy = t.clientY - drag.sy;
+    if (!drag.moved && Math.hypot(dx, dy) < TAP_SLOP) return;   // 아직 두드림일 수 있다
+    drag.moved = true;
+    e.preventDefault();
+    V.x = drag.ox + dx; V.y = drag.oy + dy;
+    clampView(); applyView();
+  }
 }, { passive: false });
 
-addEventListener("resize", layout);
-addEventListener("orientationchange", () => setTimeout(layout, 250));
+$("field").addEventListener("touchend", (e) => {
+  if (pinch && e.touches.length < 2) pinch = null;
+  if (!drag) return;
+  // 짧고 거의 안 움직였으면 두드림이다 — 그 칸을 누른 것으로 친다
+  if (!drag.moved && Date.now() - drag.t0 < TAP_MS && drag.target) {
+    e.preventDefault();
+    drag.target.click();
+  }
+  drag = null;
+}, { passive: false });
+
+// 마우스도 같은 일을 한다 — 휠로 키우고 끌어서 옮긴다
+$("field").addEventListener("wheel", (e) => {
+  e.preventDefault();
+  zoomAt(e.clientX, e.clientY, V.z * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
+}, { passive: false });
+
+let mdrag = null;
+$("field").addEventListener("mousedown", (e) => {
+  if (e.button !== 0) return;
+  mdrag = { sx: e.clientX, sy: e.clientY, ox: V.x, oy: V.y, moved: false };
+});
+addEventListener("mousemove", (e) => {
+  if (!mdrag) return;
+  const dx = e.clientX - mdrag.sx, dy = e.clientY - mdrag.sy;
+  if (!mdrag.moved && Math.hypot(dx, dy) < TAP_SLOP) return;
+  mdrag.moved = true;
+  V.x = mdrag.ox + dx; V.y = mdrag.oy + dy;
+  clampView(); applyView();
+});
+addEventListener("mouseup", () => { mdrag = null; });
+// 끌고 나서 손을 떼는 순간의 클릭은 배치가 아니다 — 삼켜 준다
+$("grid").addEventListener("click", (e) => {
+  if (mdrag && mdrag.moved) { e.stopPropagation(); e.preventDefault(); }
+}, true);
+
+$("fitBtn").onclick = fitView;
+$("zinBtn").onclick = () => { const f = $("field").getBoundingClientRect();
+  zoomAt(f.left + f.width / 2, f.top + f.height / 2, V.z * 1.25); };
+$("zoutBtn").onclick = () => { const f = $("field").getBoundingClientRect();
+  zoomAt(f.left + f.width / 2, f.top + f.height / 2, V.z / 1.25); };
+
+addEventListener("resize", () => { clampView(); applyView(); });
+addEventListener("orientationchange", () => setTimeout(fitView, 300));
+// iOS 는 주소창이 접히며 높이가 변한다 — 처음 한 번 더 맞춰 주지 않으면 판이 잘린 채로 남는다
+addEventListener("load", () => setTimeout(fitView, 120));
 addEventListener("keydown", (e) => {
   if (e.key === " ") { e.preventDefault(); if (!S.running) startWave(); }
   if (e.key === "r" || e.key === "R") roll();
@@ -1004,7 +1140,8 @@ addEventListener("keydown", (e) => {
 // 검증 도구용 창구
 Object.assign(window, { S, KINDS, GNAME, roll, merge, sell, startWave, refresh, tick, canMerge,
   freeSlots, waveHp, waveN, waveLanes, coreCenter, coreRadius, distToCore, hpOf, coverOf,
-  cx, cy, rngOf, dmgOf, buildable, CORE, drawGrid, layout, KIND_IDS, GRADE, mergeGroups });
+  cx, cy, rngOf, dmgOf, buildable, CORE, drawGrid, layout, KIND_IDS, GRADE, mergeGroups,
+  V, fitView, zoomAt, applyView, clampView, CELL });
 
 function newGame() {
   Object.assign(S, {
@@ -1042,6 +1179,7 @@ $("shop").addEventListener("click", (e) => {
 Object.assign(window, { META, newGame, drawShop, relicsFor, upCost, UPGRADES, saveMeta, metaDmg });
 
 layout(); newGame(); requestAnimationFrame(step);
+setTimeout(fitView, 60);
 </script>
 </body>
 </html>
