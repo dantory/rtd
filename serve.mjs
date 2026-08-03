@@ -4,6 +4,7 @@
 // 이 서버는 루트만 보고 있어서 스프라이트가 통째로 404 였다 — 화면에는 글자만 남았다.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import os from "node:os";
 
 const PORT = 8772;
 const TYPES = {
@@ -27,4 +28,11 @@ createServer(async (req, res) => {
     } catch { /* 다음 자리에서 찾는다 */ }
   }
   res.writeHead(404).end("not found");
-}).listen(PORT, () => console.log(`http://127.0.0.1:${PORT}/`));
+// 0.0.0.0 으로 연다 — 같은 와이파이의 폰에서 맥 IP 로 바로 들어올 수 있어야
+// "모바일에서도 되나"를 실제로 확인할 수 있다.
+}).listen(PORT, "0.0.0.0", () => {
+  const nets = os.networkInterfaces();
+  const lan = Object.values(nets).flat().find(n => n && n.family === "IPv4" && !n.internal);
+  console.log(`http://127.0.0.1:${PORT}/`);
+  if (lan) console.log(`http://${lan.address}:${PORT}/   ← 같은 와이파이의 폰에서`);
+});
