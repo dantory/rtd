@@ -45,7 +45,13 @@
   main{flex:1;display:flex;min-height:0}
 
   /* ── 전장 ── */
-  #field{position:relative;flex:1;min-width:0;background:#0e1116;overflow:hidden}
+  /* **touch-action: none 이 없으면 브라우저가 한 손가락 끌기를 스크롤로 가로챈다.**
+     preventDefault 를 불러도 이미 늦다 — 첫 움직임을 두드림인지 보려고 흘려보내는 사이
+     브라우저가 제스처를 가져가 버리고, 그 뒤로는 touchmove 가 아예 안 온다.
+     (핀치만 되고 이동이 안 되던 이유가 이것이었다 — 두 손가락은 첫 move 에서 바로 막았다.) */
+  #field{position:relative;flex:1;min-width:0;background:#0e1116;overflow:hidden;
+    touch-action:none}
+  .viewbtns button{touch-action:manipulation}
   #world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
   #grid{position:absolute;inset:0}
   /* 손가락이 없어도, 있어도 쓸 수 있게 버튼도 둔다 — 핀치를 모르는 사람이 판을 못 보면 안 된다 */
@@ -448,7 +454,24 @@ function applyView() {
   w.style.transform = `translate(${V.x}px,${V.y}px) scale(${V.z})`;
 }
 
-/** 판 전체가 보이는 배율로 맞추고 가운데에 둔다. 처음 화면이 이래야 "어디가 어디인지"부터 안다. */
+/** **처음 화면은 이것이다** — 본진과 그 둘레(놓을 수 있는 자리)가 화면을 꽉 채운다.
+ *
+ *  판 전체를 보여 주고 시작하면 폰에서 칸이 30px 로 줄어 누를 수가 없고, 무엇보다
+ *  **판이 화면보다 작아 끌어도 아무 일이 안 일어난다**(가운데로 되돌린다) — 그게
+ *  "화면 이동 안 됨"으로 보인다. 처음부터 조금 확대해 두면 칸도 누를 만하고 끌 여지도 생긴다.
+ *  판 전체는 ⤢ 버튼으로 언제든 본다. */
+function focusView() {
+  const f = $("field").getBoundingClientRect();
+  if (!f.width || !f.height) return;
+  const need = CELL * (CORE.w + RING * 2);          // 본진 + 둘레 = 놓을 수 있는 자리 전부
+  V.z = Math.max(V.minZ, Math.min(V.maxZ, Math.min(f.width, f.height) / need));
+  const c = { x: (CORE.x + CORE.w / 2) * CELL, y: (CORE.y + CORE.h / 2) * CELL };
+  V.x = f.width / 2 - c.x * V.z;
+  V.y = f.height / 2 - c.y * V.z;
+  clampView(); applyView();
+}
+
+/** 판 전체가 보이는 배율. 어디서 오는지 한눈에 보고 싶을 때. */
 function fitView() {
   const f = $("field").getBoundingClientRect();
   if (!f.width || !f.height) return;
@@ -482,7 +505,7 @@ function clampView() {
 
 function layout() {
   drawGrid();
-  fitView();
+  focusView();
 }
 const px = (gx) => OX + gx * CELL;
 const py = (gy) => OY + gy * CELL;
@@ -1121,16 +1144,21 @@ $("grid").addEventListener("click", (e) => {
   if (mdrag && mdrag.moved) { e.stopPropagation(); e.preventDefault(); }
 }, true);
 
-$("fitBtn").onclick = fitView;
+$("fitBtn").onclick = () => {
+  // 이미 전체가 보이면 본진으로 돌아온다 — 버튼 하나가 두 일을 하되 뜻이 흔들리지 않는다
+  const f = $("field").getBoundingClientRect();
+  const whole = Math.min(f.width / WORLD_W, f.height / WORLD_H) * 0.98;
+  if (Math.abs(V.z - whole) < 0.02) focusView(); else fitView();
+};
 $("zinBtn").onclick = () => { const f = $("field").getBoundingClientRect();
   zoomAt(f.left + f.width / 2, f.top + f.height / 2, V.z * 1.25); };
 $("zoutBtn").onclick = () => { const f = $("field").getBoundingClientRect();
   zoomAt(f.left + f.width / 2, f.top + f.height / 2, V.z / 1.25); };
 
 addEventListener("resize", () => { clampView(); applyView(); });
-addEventListener("orientationchange", () => setTimeout(fitView, 300));
+addEventListener("orientationchange", () => setTimeout(focusView, 300));
 // iOS 는 주소창이 접히며 높이가 변한다 — 처음 한 번 더 맞춰 주지 않으면 판이 잘린 채로 남는다
-addEventListener("load", () => setTimeout(fitView, 120));
+addEventListener("load", () => setTimeout(focusView, 120));
 addEventListener("keydown", (e) => {
   if (e.key === " ") { e.preventDefault(); if (!S.running) startWave(); }
   if (e.key === "r" || e.key === "R") roll();
@@ -1141,7 +1169,7 @@ addEventListener("keydown", (e) => {
 Object.assign(window, { S, KINDS, GNAME, roll, merge, sell, startWave, refresh, tick, canMerge,
   freeSlots, waveHp, waveN, waveLanes, coreCenter, coreRadius, distToCore, hpOf, coverOf,
   cx, cy, rngOf, dmgOf, buildable, CORE, drawGrid, layout, KIND_IDS, GRADE, mergeGroups,
-  V, fitView, zoomAt, applyView, clampView, CELL });
+  V, fitView, focusView, zoomAt, applyView, clampView, CELL, WORLD_W, WORLD_H });
 
 function newGame() {
   Object.assign(S, {
@@ -1179,7 +1207,7 @@ $("shop").addEventListener("click", (e) => {
 Object.assign(window, { META, newGame, drawShop, relicsFor, upCost, UPGRADES, saveMeta, metaDmg });
 
 layout(); newGame(); requestAnimationFrame(step);
-setTimeout(fitView, 60);
+setTimeout(focusView, 60);
 </script>
 </body>
 </html>
