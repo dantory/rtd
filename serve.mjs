@@ -16,7 +16,9 @@ const TYPES = {
 createServer(async (req, res) => {
   const p = req.url === "/" ? "/index.html" : decodeURIComponent(req.url.split("?")[0]);
   const ext = p.slice(p.lastIndexOf("."));
-  for (const base of ["./", "./public/"]) {          // 루트 → public 순으로 찾는다
+  // 에셋은 리포 루트의 assets/ 에 둔다 — GitHub Pages 가 루트를 그대로 서빙하므로
+  // 로컬 서버와 배포본이 같은 경로를 쓴다(경로가 갈리면 한쪽이 반드시 깨진다).
+  for (const base of ["./", "./public/"]) {
     try {
       const body = await readFile(new URL(base + p.replace(/^\//, ""), import.meta.url));
       res.writeHead(200, {
