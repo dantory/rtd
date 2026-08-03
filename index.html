@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<!--
+  랜덤 타워디펜스 — 유즈맵 감성 프로토타입.
+
+  취향에서 출발했다: 병수님은 스타/워크 **유즈맵**을 재밌어했고, 재미의 축 넷 중에서는
+  **①숫자가 불어나는 것**에 손이 제일 오래 갔다. 그 교집합이 이것이다.
+
+  루프는 유즈맵 랜타디 그대로다:
+      뽑는다 → 합친다 → 배치한다 → 웨이브가 자동으로 온다 → 골드 → 또 뽑는다
+
+  네 가지가 각각 다른 재미를 맡는다. 하나라도 빠지면 나머지가 심심해진다.
+    뽑기   무엇이 나올까 (도파민, 매번 다르다)
+    합성   같은 것 셋 → 한 등급 위. **숫자가 커지는 맛**이 여기 있다
+    배치   길에서 먼 자리는 사거리가 닿지 않는다 — 공짜가 아니다
+    관전   내가 짜 놓은 것이 나 없이 막는 걸 지켜본다
+
+  판정할 질문: **다음 라운드를 누르고 싶은가.**
+-->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>랜덤 타워디펜스</title>
+<style>
+  :root{--bg:#0b0d10;--panel:#12151a;--line:#232830;--fg:#c6ccd4;--dim:#6b7480;
+    --amber:#e0a458;--good:#7fb069;--bad:#d05353;--steel:#6ba8d6;--magic:#a978c9}
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;overflow:hidden;background:var(--bg);color:var(--fg);
+    font-family:"D2Coding","Menlo","Noto Sans Mono CJK KR",monospace;font-size:14px;
+    display:flex;flex-direction:column;user-select:none}
+  header{display:flex;align-items:baseline;gap:14px;padding:9px 16px;
+    border-bottom:1px solid var(--line);background:var(--panel)}
+  .title{color:var(--amber);letter-spacing:3px;font-weight:bold}
+  .sub{color:var(--dim);font-size:12px}
+  .hud{margin-left:auto;display:flex;gap:18px;font-size:13px}
+  .hud b{color:var(--amber);font-weight:normal}
+  .hud .life b{color:var(--bad)}
+  main{flex:1;display:flex;min-height:0}
+
+  /* ── 전장 ── */
+  #field{position:relative;flex:1;min-width:0;background:#0e1116;overflow:hidden}
+  #grid{position:absolute;inset:0}
+  .tile{position:absolute;border-radius:2px}
+  /* **길은 한 줄기로 이어져 보여야 한다.** 칸마다 틈이 있으면 몹이 어디로 가는지 안 읽히고,
+     그러면 어디에 놓을지가 감이 아니라 운이 된다(첫 판에서 실제로 그랬다).
+     그래서 길 타일만 틈 없이 붙이고 한 단계 밝게 깐다. */
+  .tile.road{background:#2b3543;border-radius:0}
+  .tile.slot{background:#10141a;border:1px solid #1a1f27;cursor:pointer}
+  .tile.slot:hover{border-color:var(--amber)}
+  .tile.slot.sel{border-color:var(--amber);background:#1e1c16}
+  .mark{position:absolute;font-size:11px;color:var(--dim);pointer-events:none;letter-spacing:1px}
+
+  .tw{position:absolute;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;border-radius:3px;pointer-events:none;font-size:16px;line-height:1}
+  .tw .lvl{font-size:9px;margin-top:2px;opacity:.85}
+  .mob{position:absolute;border-radius:50%;pointer-events:none;transition:none}
+  .mob i{position:absolute;left:0;top:-6px;height:3px;background:var(--good);border-radius:2px}
+  .mob.boss{box-shadow:0 0 0 2px var(--bad)}
+  .shot{position:absolute;width:4px;height:4px;border-radius:50%;pointer-events:none}
+  .rng{position:absolute;border-radius:50%;border:1px dashed #3f4a58;pointer-events:none}
+  .fly{position:absolute;font-size:11px;color:var(--amber);pointer-events:none;
+    animation:fly .7s ease-out forwards}
+  @keyframes fly{to{transform:translateY(-22px);opacity:0}}
+
+  /* ── 옆 패널 ── */
+  aside{width:290px;flex-shrink:0;border-left:1px solid var(--line);background:var(--panel);
+    padding:12px 14px;overflow-y:auto}
+  aside h3{margin:0 0 7px;font-size:11px;letter-spacing:2px;color:var(--dim);font-weight:normal}
+  aside section{margin-bottom:15px}
+  button{font-family:inherit;font-size:13px;cursor:pointer;color:var(--fg);
+    background:#1a2029;border:1px solid #333c48;border-radius:4px;padding:8px 12px}
+  button:hover:not(:disabled){border-color:var(--amber);color:var(--amber)}
+  button:disabled{opacity:.32;cursor:default}
+  .wide{width:100%}
+  .roll{padding:13px;font-size:15px}
+  .roll .c{color:var(--good)}
+  .rowbtn{display:flex;gap:8px;margin-top:8px}
+  .note{color:var(--dim);font-size:11px;line-height:1.6;margin-top:7px}
+  .sel-info{border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin-top:9px}
+  .sel-info .nm{color:var(--amber)}
+  .sel-info .st{color:var(--dim);font-size:12px;line-height:1.6;margin-top:4px}
+  ul.tally{list-style:none;margin:0;padding:0;font-size:12px}
+  ul.tally li{display:flex;justify-content:space-between;padding:2px 0}
+  ul.tally li span:last-child{color:var(--dim)}
+  ul.tally li.ready span:last-child{color:var(--good)}
+  #log{font-size:11px;color:var(--dim);line-height:1.65;max-height:150px;overflow-y:auto}
+  #log b{color:var(--amber);font-weight:normal}
+  #over{position:absolute;inset:0;background:rgba(6,8,10,.88);display:none;
+    align-items:center;justify-content:center;text-align:center}
+  #over.on{display:flex}
+  #over h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 8px}
+</style>
+</head>
+<body>
+<header>
+  <span class="title">랜덤 타워디펜스</span>
+  <span class="sub">뽑고 · 합치고 · 막는다</span>
+  <div class="hud">
+    <span>라운드 <b id="hRound">1</b></span>
+    <span>골드 <b id="hGold">0</b></span>
+    <span class="life">목숨 <b id="hLife">20</b></span>
+  </div>
+</header>
+
+<main>
+  <div id="field">
+    <div id="grid"></div>
+    <div id="over"><div>
+      <h2 id="overT"></h2>
+      <div class="note" id="overD" style="font-size:13px"></div>
+      <button id="again" style="margin-top:16px">다시</button>
+    </div></div>
+  </div>
+
+  <aside>
+    <section>
+      <button class="wide roll" id="rollBtn">뽑는다 <span class="c" id="rollCost"></span></button>
+      <div class="note" id="rollNote"></div>
+    </section>
+
+    <section>
+      <h3>다음 웨이브</h3>
+      <button class="wide" id="waveBtn"></button>
+      <div class="note" id="waveNote"></div>
+    </section>
+
+    <section>
+      <h3>가진 것</h3>
+      <ul class="tally" id="tally"></ul>
+      <div class="rowbtn">
+        <button id="mergeBtn" style="flex:1">셋을 합친다</button>
+        <button id="sellBtn">판다</button>
+      </div>
+      <div class="note">같은 등급 셋이 모이면 한 등급 위가 된다.</div>
+      <div id="selInfo"></div>
+    </section>
+
+    <section>
+      <h3>기록</h3>
+      <div id="log"></div>
+    </section>
+  </aside>
+</main>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+
+/* ══════════════════════════════════════════════════════════════
+   유닛 — 등급이 오르면 **눈에 띄게** 세져야 한다.
+   합성이 "조금 나아짐"이면 셋을 모을 이유가 없다. 등급마다 피해가 3배씩 뛴다.
+   대신 사거리·속도는 종류가 정한다 — 그래야 어느 종류를 키울지가 선택이 된다.
+   ══════════════════════════════════════════════════════════ */
+const KINDS = {
+  gun:   { n:"총",   ico:"⌖", col:"#c9ccd1", dmg:6,  rng:105, cd:0.55, d:"고르게 쏜다" },
+  cannon:{ n:"포",   ico:"◉", col:"#d0785a", dmg:22, rng:88,  cd:1.5,  splash:34, d:"느리지만 범위" },
+  frost: { n:"서리", ico:"❆", col:"#6ba8d6", dmg:4,  rng:98,  cd:0.7,  slow:0.45, d:"느리게 만든다" },
+  bolt:  { n:"번개", ico:"⚡", col:"#a978c9", dmg:11, rng:130, cd:0.9,  chain:2, d:"멀리, 여럿에게" },
+};
+const KIND_IDS = Object.keys(KINDS);
+const GRADE = [1,2,3,4,5];
+const gradeMul = (g) => Math.pow(3, g - 1);          // 1 · 3 · 9 · 27 · 81
+const GNAME = ["", "하급", "중급", "상급", "정예", "전설"];
+const GCOL  = ["", "#8a8f98", "#7fb069", "#6ba8d6", "#a978c9", "#e0a458"];
+
+const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * gradeMul(t.g));
+const rngOf  = (t) => KINDS[t.kind].rng + (t.g - 1) * 9;
+const sellOf = (t) => Math.round(12 * gradeMul(t.g) * 0.55);
+
+/* ══ 길 ══ 격자 좌표로 적는다. 화면 크기가 바뀌어도 같은 모양이 나온다. */
+const COLS = 12, ROWS = 8;
+const PATH = [
+  [0,1],[1,1],[2,1],[3,1],[4,1],[5,1],[6,1],[7,1],[8,1],
+  [8,2],[8,3],
+  [7,3],[6,3],[5,3],[4,3],[3,3],[2,3],[1,3],
+  [1,4],[1,5],
+  [2,5],[3,5],[4,5],[5,5],[6,5],[7,5],[8,5],[9,5],[10,5],
+  [10,6],[11,6],
+];
+const pathKey = new Set(PATH.map(([x,y]) => x+","+y));
+
+/* ══ 상태 ══ */
+const S = {
+  gold: 90, life: 20, round: 1, rolls: 0,
+  towers: [],       // { id, kind, g, x, y }  (x,y = 격자 슬롯)
+  mobs: [], shots: [],
+  running: false, spawned: 0, toSpawn: 0, spawnT: 0,
+  sel: null, over: false,
+};
+let nextId = 1;
+
+const rollCost = () => 12 + S.rolls * 2;              // 뽑을수록 비싸진다 — 무한 뽑기를 막는다
+const waveHp   = (r) => Math.round(26 * Math.pow(1.34, r - 1));
+const waveN    = (r) => 8 + Math.floor(r * 1.2);
+const isBossR  = (r) => r % 5 === 0;
+
+/* ══ 화면 크기 ══ */
+let CELL = 56, OX = 0, OY = 0;
+function layout() {
+  const f = $("field").getBoundingClientRect();
+  CELL = Math.floor(Math.min(f.width / COLS, f.height / ROWS));
+  OX = Math.round((f.width  - CELL * COLS) / 2);
+  OY = Math.round((f.height - CELL * ROWS) / 2);
+  drawGrid();
+}
+const px = (gx) => OX + gx * CELL;
+const py = (gy) => OY + gy * CELL;
+const cx = (gx) => px(gx) + CELL / 2;
+const cy = (gy) => py(gy) + CELL / 2;
+
+function drawGrid() {
+  let h = "";
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const road = pathKey.has(x+","+y);
+    // 길은 칸을 꽉 채워 서로 붙는다. 배치 칸만 틈을 둬서 "놓을 수 있는 곳"으로 읽히게 한다.
+    const pad = road ? 0 : 2;
+    h += `<div class="tile ${road ? "road" : "slot"}" ${road ? "" : `data-x="${x}" data-y="${y}"`}
+      style="left:${px(x)}px;top:${py(y)}px;width:${CELL-pad}px;height:${CELL-pad}px"></div>`;
+  }
+  // 어디로 들어와 어디로 빠지는지 — 이게 없으면 길이 이어져도 방향을 모른다
+  const [sx, sy] = PATH[0], [ex, ey] = PATH[PATH.length - 1];
+  h += `<div class="mark" style="left:${px(sx)}px;top:${py(sy) - 15}px">들어온다 ▸</div>`;
+  h += `<div class="mark" style="left:${px(ex) - 6}px;top:${py(ey) + CELL}px">▸ 샌다</div>`;
+  $("grid").innerHTML = h;
+  drawTowers();
+}
+
+/* ══ 로그 ══ */
+const say = (html) => {
+  $("log").insertAdjacentHTML("afterbegin", `<div>${html}</div>`);
+  while ($("log").children.length > 30) $("log").lastChild.remove();
+};
+
+/* ══════════════════════════════════════════════════════════════
+   뽑기 — 이 게임의 도파민.
+   라운드가 오를수록 좋은 게 나올 확률이 오른다. 안 그러면 후반에도 하급만 나와
+   "뽑는다"가 벌금이 된다. 다만 상급 이상은 뽑기로 못 나온다 — **합성만이 길**이어야
+   셋을 모으는 행동에 값이 생긴다.
+   ══════════════════════════════════════════════════════════ */
+function roll() {
+  const c = rollCost();
+  if (S.gold < c) return;
+  const free = freeSlots();
+  if (!free.length) { say("놓을 자리가 없다."); return; }
+  S.gold -= c; S.rolls++;
+
+  const kind = KIND_IDS[Math.floor(Math.random() * KIND_IDS.length)];
+  const p = Math.random() + Math.min(0.30, S.round * 0.022);
+  const g = p > 1.12 ? 2 : 1;                    // 뽑기로는 중급까지만
+  const slot = free[Math.floor(Math.random() * free.length)];
+  const t = { id: nextId++, kind, g, x: slot.x, y: slot.y };
+  S.towers.push(t);
+  S.sel = t.id;
+  say(`<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 뽑았다.`);
+  refresh();
+}
+
+const occupied = () => new Set(S.towers.map(t => t.x+","+t.y));
+function freeSlots() {
+  const occ = occupied(), out = [];
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    const k = x+","+y;
+    if (!pathKey.has(k) && !occ.has(k)) out.push({ x, y });
+  }
+  return out;
+}
+
+/* ══ 합성 — 같은 종류·같은 등급 셋 ══ */
+function mergeGroups() {
+  const m = new Map();
+  for (const t of S.towers) {
+    const k = t.kind + ":" + t.g;
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(t);
+  }
+  return m;
+}
+function canMerge() {
+  for (const [k, arr] of mergeGroups()) {
+    const g = +k.split(":")[1];
+    if (g < 5 && arr.length >= 3) return k;
+  }
+  return null;
+}
+function merge() {
+  const k = canMerge();
+  if (!k) return;
+  const [kind, gs] = k.split(":");
+  const g = +gs;
+  const arr = mergeGroups().get(k).slice(0, 3);
+  // **가장 좋은 자리를 남긴다** — 합쳤더니 구석에 서 있으면 억울하다
+  arr.sort((a, b) => coverOf(b) - coverOf(a));
+  const keep = arr[0];
+  const gone = new Set(arr.slice(1).map(t => t.id));
+  S.towers = S.towers.filter(t => !gone.has(t.id));
+  keep.g = g + 1;
+  S.sel = keep.id;
+  say(`셋을 합쳐 <b style="color:${GCOL[keep.g]}">${GNAME[keep.g]} ${KINDS[kind].n}</b> 이(가) 되었다.`);
+  flyText(cx(keep.x), cy(keep.y), GNAME[keep.g], GCOL[keep.g]);
+  refresh();
+}
+// 그 자리에서 길을 얼마나 덮는가 — 합성 때 어느 자리를 남길지 고르는 기준
+function coverOf(t) {
+  const r = rngOf(t);
+  return PATH.filter(([x, y]) => Math.hypot(cx(x) - cx(t.x), cy(y) - cy(t.y)) <= r).length;
+}
+
+function sell() {
+  const t = S.towers.find(x => x.id === S.sel);
+  if (!t) return;
+  S.gold += sellOf(t);
+  S.towers = S.towers.filter(x => x.id !== t.id);
+  S.sel = null;
+  say(`${GNAME[t.g]} ${KINDS[t.kind].n} 을(를) 팔았다. +${sellOf(t)}`);
+  refresh();
+}
+
+/* ══ 배치 옮기기 — 빈 슬롯을 누르면 고른 타워가 그리로 간다 ══ */
+$("grid").addEventListener("click", (e) => {
+  const el = e.target.closest("[data-x]");
+  if (!el) return;
+  const x = +el.dataset.x, y = +el.dataset.y;
+  const here = S.towers.find(t => t.x === x && t.y === y);
+  if (here) { S.sel = (S.sel === here.id) ? null : here.id; refresh(); return; }
+  const t = S.towers.find(t => t.id === S.sel);
+  if (t) { t.x = x; t.y = y; refresh(); }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   웨이브 — **자동으로 싸운다.** 내가 짜 놓은 것이 나 없이 막는 걸 지켜보는 것이
+   이 장르의 심장이다. 그래서 전투 중에는 손댈 것을 일부러 두지 않았다.
+   ══════════════════════════════════════════════════════════ */
+function startWave() {
+  if (S.running || S.over) return;
+  S.running = true;
+  S.toSpawn = waveN(S.round);
+  S.spawned = 0; S.spawnT = 0;
+  say(`── <b>${S.round}라운드</b>${isBossR(S.round) ? " · 큰 놈이 온다" : ""}`);
+  refresh();
+}
+
+function spawnMob() {
+  const boss = isBossR(S.round) && S.spawned === S.toSpawn - 1;
+  const hp = waveHp(S.round) * (boss ? 12 : 1);
+  S.mobs.push({
+    id: nextId++, t: 0, hp, maxHp: hp, boss,
+    speed: (boss ? 0.55 : 0.85) * (1 + (S.round - 1) * 0.012),
+    slow: 0, slowT: 0,
+  });
+  S.spawned++;
+}
+
+// 경로 위 진행도(t) → 화면 좌표
+function mobPos(m) {
+  const seg = Math.min(Math.floor(m.t), PATH.length - 2);
+  const f = m.t - seg;
+  const a = PATH[seg], b = PATH[Math.min(seg + 1, PATH.length - 1)];
+  return { x: cx(a[0]) + (cx(b[0]) - cx(a[0])) * f,
+           y: cy(a[1]) + (cy(b[1]) - cy(a[1])) * f };
+}
+
+function hurt(m, d, from) {
+  m.hp -= d;
+  if (m.hp <= 0) {
+    m.dead = true;
+    const g = Math.max(1, Math.round(2 + S.round * 0.5)) * (m.boss ? 14 : 1);
+    S.gold += g;
+    const p = mobPos(m);
+    flyText(p.x, p.y, "+" + g, "#e0a458");
+  }
+}
+
+function flyText(x, y, text, col) {
+  const el = document.createElement("div");
+  el.className = "fly"; el.textContent = text;
+  el.style.cssText = `left:${x}px;top:${y}px;color:${col}`;
+  $("field").appendChild(el);
+  setTimeout(() => el.remove(), 700);
+}
+
+let last = performance.now();
+function step(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!S.over) tick(dt);
+  paint();
+  requestAnimationFrame(step);
+}
+
+function tick(dt) {
+  // 소환
+  if (S.running && S.spawned < S.toSpawn) {
+    S.spawnT -= dt;
+    if (S.spawnT <= 0) { spawnMob(); S.spawnT = 0.55; }
+  }
+  // 이동
+  for (const m of S.mobs) {
+    if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }
+    m.t += m.speed * (1 - m.slow) * dt;
+    if (m.t >= PATH.length - 1) {
+      m.leaked = true;
+      S.life -= m.boss ? 5 : 1;
+      if (S.life <= 0) { S.life = 0; gameOver(); }
+    }
+  }
+  S.mobs = S.mobs.filter(m => !m.dead && !m.leaked);
+
+  // 타워
+  for (const t of S.towers) {
+    t.cd = (t.cd || 0) - dt;
+    if (t.cd > 0) continue;
+    const K = KINDS[t.kind], r = rngOf(t), tx = cx(t.x), ty = cy(t.y);
+    // **가장 앞선 놈부터** 노린다 — 뒤에서부터 잡으면 새는 걸 못 막는다
+    let best = null;
+    for (const m of S.mobs) {
+      const p = mobPos(m);
+      if (Math.hypot(p.x - tx, p.y - ty) > r) continue;
+      if (!best || m.t > best.t) best = m;
+    }
+    if (!best) continue;
+    t.cd = K.cd;
+    const d = dmgOf(t);
+    const bp = mobPos(best);
+    S.shots.push({ x: tx, y: ty, tx: bp.x, ty: bp.y, life: 0.14, col: K.col });
+
+    hurt(best, d);
+    if (K.slow) { best.slow = Math.max(best.slow, K.slow); best.slowT = 1.1; }
+    if (K.splash) for (const m of S.mobs) {
+      if (m === best || m.dead) continue;
+      const p = mobPos(m);
+      if (Math.hypot(p.x - bp.x, p.y - bp.y) <= K.splash) hurt(m, Math.round(d * 0.55));
+    }
+    if (K.chain) {
+      let n = K.chain;
+      for (const m of S.mobs) {
+        if (n <= 0) break;
+        if (m === best || m.dead) continue;
+        const p = mobPos(m);
+        if (Math.hypot(p.x - bp.x, p.y - bp.y) <= 70) {
+          hurt(m, Math.round(d * 0.5));
+          S.shots.push({ x: bp.x, y: bp.y, tx: p.x, ty: p.y, life: 0.12, col: K.col });
+          n--;
+        }
+      }
+    }
+  }
+  for (const s of S.shots) s.life -= dt;
+  S.shots = S.shots.filter(s => s.life > 0);
+
+  // 웨이브 끝
+  if (S.running && S.spawned >= S.toSpawn && !S.mobs.length) {
+    S.running = false;
+    const bonus = 20 + S.round * 6;
+    S.gold += bonus;
+    say(`${S.round}라운드를 막았다. <b>+${bonus}</b>`);
+    S.round++;
+    refresh();
+  }
+}
+
+function gameOver() {
+  S.over = true; S.running = false; S.mobs = [];
+  $("overT").textContent = "뚫렸다";
+  $("overD").innerHTML = `${S.round}라운드까지 막았다.<br>타워 ${S.towers.length}기 · 뽑기 ${S.rolls}회`;
+  $("over").classList.add("on");
+}
+
+/* ══ 그리기 ══ */
+function drawTowers() {
+  const old = [...document.querySelectorAll("#field .tw, #field .rng")];
+  old.forEach(e => e.remove());
+  for (const t of S.towers) {
+    const K = KINDS[t.kind], sel = S.sel === t.id;
+    const el = document.createElement("div");
+    el.className = "tw";
+    el.style.cssText = `left:${px(t.x)}px;top:${py(t.y)}px;width:${CELL-2}px;height:${CELL-2}px;
+      color:${K.col};background:${sel ? "#22201a" : "#181d25"};
+      box-shadow:inset 0 0 0 1px ${GCOL[t.g]}${sel ? ",0 0 0 1px var(--amber)" : ""}`;
+    el.innerHTML = `${K.ico}<span class="lvl" style="color:${GCOL[t.g]}">${t.g}</span>`;
+    $("field").appendChild(el);
+    if (sel) {
+      const r = rngOf(t), rg = document.createElement("div");
+      rg.className = "rng";
+      rg.style.cssText = `left:${cx(t.x)-r}px;top:${cy(t.y)-r}px;width:${r*2}px;height:${r*2}px`;
+      $("field").appendChild(rg);
+    }
+  }
+}
+
+let mobEls = new Map();
+function paint() {
+  // 몹
+  const alive = new Set();
+  for (const m of S.mobs) {
+    alive.add(m.id);
+    let el = mobEls.get(m.id);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "mob" + (m.boss ? " boss" : "");
+      el.innerHTML = "<i></i>";
+      $("field").appendChild(el);
+      mobEls.set(m.id, el);
+    }
+    const p = mobPos(m), sz = m.boss ? 26 : 15;
+    const pct = Math.max(0, m.hp / m.maxHp);
+    el.style.cssText = `left:${p.x - sz/2}px;top:${p.y - sz/2}px;width:${sz}px;height:${sz}px;` +
+      `background:${m.slow ? "#5b7f9e" : m.boss ? "#8c3a3a" : "#7a4a4a"}`;
+    el.firstChild.style.width = (sz * pct) + "px";
+    el.firstChild.style.background = pct > .5 ? "var(--good)" : "var(--bad)";
+  }
+  for (const [id, el] of mobEls) if (!alive.has(id)) { el.remove(); mobEls.delete(id); }
+
+  // 탄
+  document.querySelectorAll("#field .shot").forEach(e => e.remove());
+  for (const s of S.shots) {
+    const f = 1 - s.life / 0.14;
+    const el = document.createElement("div");
+    el.className = "shot";
+    el.style.cssText = `left:${s.x + (s.tx - s.x) * f}px;top:${s.y + (s.ty - s.y) * f}px;background:${s.col}`;
+    $("field").appendChild(el);
+  }
+
+  $("hGold").textContent = Math.floor(S.gold);
+  $("hLife").textContent = S.life;
+  $("hRound").textContent = S.round;
+  $("rollBtn").disabled = S.gold < rollCost() || S.over;
+}
+
+/* ══ 패널 ══ */
+function refresh() {
+  drawTowers();
+  $("rollCost").textContent = rollCost();
+  $("rollNote").textContent = `뽑을수록 값이 오른다. 지금 ${S.towers.length}기.`;
+  $("waveBtn").textContent = S.running ? "막는 중…" : `${S.round}라운드 시작`;
+  $("waveBtn").disabled = S.running || S.over;
+  $("waveNote").textContent = S.running
+    ? `${S.spawned}/${S.toSpawn} 나옴 · 남은 놈 ${S.mobs.length}`
+    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)}` + (isBossR(S.round) ? " · 큰 놈이 섞인다" : "");
+
+  const m = mergeGroups();
+  const rows = [];
+  for (const kind of KIND_IDS) for (const g of GRADE) {
+    const arr = m.get(kind + ":" + g);
+    if (!arr) continue;
+    const ready = g < 5 && arr.length >= 3;
+    rows.push(`<li class="${ready ? "ready" : ""}">
+      <span style="color:${GCOL[g]}">${GNAME[g]} ${KINDS[kind].n}</span>
+      <span>${arr.length}기${ready ? " · 합칠 수 있다" : ""}</span></li>`);
+  }
+  $("tally").innerHTML = rows.join("") || `<li><span class="note">아직 없다</span></li>`;
+  $("mergeBtn").disabled = !canMerge() || S.over;
+
+  const t = S.towers.find(x => x.id === S.sel);
+  $("sellBtn").disabled = !t || S.over;
+  $("selInfo").innerHTML = t ? `<div class="sel-info">
+      <div class="nm" style="color:${GCOL[t.g]}">${GNAME[t.g]} ${KINDS[t.kind].n}</div>
+      <div class="st">피해 ${dmgOf(t)} · 사거리 ${rngOf(t)} · ${KINDS[t.kind].d}<br>
+        길을 ${coverOf(t)}칸 덮는다 · 팔면 ${sellOf(t)}<br>
+        <span style="color:var(--steel)">빈 칸을 누르면 그리로 옮긴다.</span></div></div>`
+    : `<div class="note">타워를 누르면 사거리가 보이고, 빈 칸을 누르면 그리로 옮긴다.</div>`;
+}
+
+$("rollBtn").onclick = roll;
+$("mergeBtn").onclick = merge;
+$("sellBtn").onclick = sell;
+$("waveBtn").onclick = startWave;
+$("again").onclick = () => location.reload();
+addEventListener("resize", layout);
+addEventListener("keydown", (e) => {
+  if (e.key === " ") { e.preventDefault(); if (!S.running) startWave(); }
+  if (e.key === "r" || e.key === "R") roll();
+  if (e.key === "m" || e.key === "M") merge();
+});
+
+// 검증 도구용 창구
+Object.assign(window, { S, KINDS, roll, merge, sell, startWave, refresh, tick, canMerge, freeSlots, waveHp, waveN });
+
+layout(); refresh(); requestAnimationFrame(step);
+say("골드로 <b>뽑고</b>, 같은 것 셋을 <b>합치고</b>, 라운드를 시작해 막는다.");
+say("전투는 알아서 돈다 — 짜 놓은 것이 얼마나 버티는지 보면 된다.");
+</script>
+</body>
+</html>
