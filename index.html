@@ -56,7 +56,8 @@
   #grid{position:absolute;inset:0}
   /* 손가락이 없어도, 있어도 쓸 수 있게 버튼도 둔다 — 핀치를 모르는 사람이 판을 못 보면 안 된다 */
   .viewbtns{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px;z-index:30}
-  .viewbtns button{width:38px;height:38px;padding:0;font-size:16px;line-height:1;
+  .viewbtns button.on{border-color:var(--amber);color:var(--amber);background:rgba(40,32,18,.9)}
+  .viewbtns button{width:38px;height:38px;padding:0;font-size:15px;line-height:1;
     background:rgba(20,26,34,.86);border:1px solid #38465a;border-radius:6px;
     backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   .tile{position:absolute;border-radius:2px}
@@ -252,6 +253,7 @@
   <div id="field">
     <div id="world"><div id="grid"></div></div>
     <div class="viewbtns">
+      <button id="spdBtn" title="배속">1×</button>
       <button id="fitBtn" title="전체 보기">⤢</button>
       <button id="zinBtn" title="확대">＋</button>
       <button id="zoutBtn" title="축소">－</button>
@@ -430,6 +432,7 @@ const S = {
   mobs: [], shots: [],
   running: false, spawned: 0, toSpawn: 0, spawnT: 0,
   sel: null, over: false,
+  speed: 1,          // 배속 — 관전하는 장르라 기다림이 곧 지루함이다
 };
 let nextId = 1;
 
@@ -693,7 +696,10 @@ function spawnMob() {
              : S.round < 10 ? ["grunt","runner","brute"] : ["grunt","runner","brute","swarm","shield"];
   const kind = boss ? "boss" : pool[Math.floor(Math.random() * pool.length)];
   const c = coreCenter();
-  const far = Math.hypot(COLS, ROWS) * CELL * 0.52;
+  // **놓을 수 있는 자리 바로 바깥에서 나온다.** 예전엔 판 대각선의 절반(526px)에서
+  // 출발했는데, 그건 배치 구역(반지름 224) 한참 밖이라 화면에 없는 데서 한참을 걸어온다 —
+  // 나오는 것도 안 보이고, 보일 때쯤엔 이미 코앞이다.
+  const far = coreRadius() + CELL * (RING + 1.6);
   S.mobs.push({
     id: nextId++, hp, maxHp: hp, boss, th, kind,
     x: c.x + Math.cos(th) * far, y: c.y + Math.sin(th) * far,
@@ -752,7 +758,9 @@ function flyText(x, y, text, col) {
 let last = performance.now();
 function step(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (!S.over) tick(dt);
+  // **배속은 한 번에 크게 밀지 않고 여러 번 나눠 민다.** dt 를 통째로 곱하면 빠른 적이
+  // 타워를 통과해 버리거나 코어를 지나쳐 판정이 튄다.
+  if (!S.over) for (let i = 0; i < S.speed; i++) tick(dt);
   paint();
   requestAnimationFrame(step);
 }
@@ -960,7 +968,7 @@ function paint() {
       $("world").appendChild(el);
       mobEls.set(m.id, el);
     }
-    const p = mobPos(m), sz = m.boss ? 54 : 30;
+    const p = mobPos(m), sz = m.boss ? 76 : 44;
     const pct = Math.max(0, m.hp / m.maxHp);
     el.style.cssText = `left:${p.x - sz/2}px;top:${p.y - sz/2}px;width:${sz}px;height:${sz}px`;
     el.classList.toggle("slowed", !!m.slow);
@@ -1144,6 +1152,14 @@ $("grid").addEventListener("click", (e) => {
   if (mdrag && mdrag.moved) { e.stopPropagation(); e.preventDefault(); }
 }, true);
 
+// 배속 — 1× → 2× → 3× → 1×. 짜 놓은 것이 도는 걸 보는 장르라 기다림이 곧 지루함이다.
+$("spdBtn").onclick = () => {
+  S.speed = S.speed >= 3 ? 1 : S.speed + 1;
+  $("spdBtn").textContent = S.speed + "×";
+  $("spdBtn").classList.toggle("on", S.speed > 1);
+};
+addEventListener("keydown", (e) => { if (e.key === "f" || e.key === "F") $("spdBtn").click(); });
+
 $("fitBtn").onclick = () => {
   // 이미 전체가 보이면 본진으로 돌아온다 — 버튼 하나가 두 일을 하되 뜻이 흔들리지 않는다
   const f = $("field").getBoundingClientRect();
@@ -1169,14 +1185,14 @@ addEventListener("keydown", (e) => {
 Object.assign(window, { S, KINDS, GNAME, roll, merge, sell, startWave, refresh, tick, canMerge,
   freeSlots, waveHp, waveN, waveLanes, coreCenter, coreRadius, distToCore, hpOf, coverOf,
   cx, cy, rngOf, dmgOf, buildable, CORE, drawGrid, layout, KIND_IDS, GRADE, mergeGroups,
-  V, fitView, focusView, zoomAt, applyView, clampView, CELL, WORLD_W, WORLD_H });
+  V, fitView, focusView, zoomAt, applyView, clampView, CELL, WORLD_W, WORLD_H, mobPos, RING });
 
 function newGame() {
   Object.assign(S, {
     gold: metaGold(), coreHp: metaLife(), coreMax: metaLife(), round: 1, rolls: 0,
     towers: [], mobs: [], shots: [],
     running: false, spawned: 0, toSpawn: 0, spawnT: 0, sel: null, over: false,
-    pool: rollPool(),
+    pool: rollPool(), speed: S.speed || 1,      // 배속은 판을 넘어 유지한다
   });
   mobEls.forEach(el => el.remove()); mobEls.clear();
   // 선발대 — 빈손으로 시작하지 않는다는 감각이 영구 성장의 첫 체감이다
