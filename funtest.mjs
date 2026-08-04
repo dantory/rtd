@@ -35,6 +35,15 @@ await new Promise(r => setTimeout(r, 1000));
 // 배치·유물 사용 여부를 켜고 끄며 같은 루프를 돌린다
 const play = (place, useMeta) => [
   '(() => {',
+  // **같은 코드면 같은 판정.** Math.random 을 씨앗 고정 PRNG 로 덮어 봇의 징집·합성·전투를
+  // 결정적으로 만든다. 스트림은 판을 거듭하며 흐르므로 판마다 다른 값을 뽑되(표본은 여섯
+  // 그대로), 자를 다시 돌리면 똑같이 흐른다 — 그래서 세 번 돌려도 seq·등급·판정이 한 글자도
+  // 안 바뀐다. 덮어쓰기는 이 eval 안에서만 산다(봇 전용) — 실제 게임의 Math.random 은 그대로다.
+  '  { let __s = 0x1a2b3c4d; Math.random = () => {',
+  '    __s |= 0; __s = (__s + 0x6D2B79F5) | 0;',
+  '    let t = Math.imul(__s ^ (__s >>> 15), 1 | __s);',
+  '    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;',
+  '    return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }',
   '  localStorage.removeItem("rtd.meta.v1");',
   // **업그레이드 키를 손으로 적지 말 것.** 새 업그레이드를 하나 더하면 여기만 빠져서
   // 그 값이 undefined 가 되고, 그걸 쓰는 계산이 통째로 NaN 이 된다 — slots 를 더했을 때
@@ -95,7 +104,7 @@ const play = (place, useMeta) => [
   '    saveMeta();'].join("\n") : '',
   '  }',
   '  const avg = a => +(a.reduce((x,y)=>x+y,0)/a.length).toFixed(1);',
-  '  return { seq:runs, avg:avg(runs), grade:avg(grades) };',
+  '  return { seq:runs, avg:avg(runs), grade:avg(grades), peak:Math.max(1,...grades) };',
   '})()'
 ].filter(Boolean).join("\n");
 
@@ -115,7 +124,9 @@ const chk = (n, ok, d) => console.log(`${ok ? "✓" : "✗"} ${n}${d ? "  — " 
 console.log("── 판정 ──");
 chk("무엇을 내보내느냐가 결과를 바꾼다 (이 구조의 존재 이유)", smart.avg > blind.avg + 3,
     `아무거나 ${blind.avg}R → 골라 내보내면 ${smart.avg}R`);
-chk("합성으로 등급이 오른다", smart.grade >= 2.5, `평균 최고 ${smart.grade}등급`);
+// **징집은 중급(2)까지만 나온다 — 상급(3)은 합성으로만 닿는다.** 그래서 평균이 2.5 근처에서
+// 출렁이던 옛 기준 대신 "상급에 닿았는가"를 본다: 3 이상이면 같은 것 셋을 합친 적이 있다는 증거다.
+chk("합성으로 등급이 오른다", smart.peak >= 3, `최고 ${smart.peak}등급 도달 (평균 ${smart.grade})`);
 const f = growth.seq.slice(0,2).reduce((a,b)=>a+b,0)/2, l = growth.seq.slice(-2).reduce((a,b)=>a+b,0)/2;
 chk("판을 거듭하면 더 간다 (유물)", l >= f, `처음 2판 ${f.toFixed(1)}R → 마지막 2판 ${l.toFixed(1)}R`);
 chk("첫 벽이 너무 이르지 않다", smart.avg >= 7, `${smart.avg}R`);
