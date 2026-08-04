@@ -74,11 +74,10 @@ export function refresh() {
    되살리지 못하게 판부터 멈춘다. */
 /** 상점을 연다. **판 도중에도 연다** — 벽에 부딪혔을 때 할 수 있는 게 죽기를 기다리는
  *  것뿐이면 그건 돌파가 아니다. 도중에 열면 게임은 뒤에서 계속 돈다(방치형이니까). */
+/** 강화 — 자원을 쓰는 메뉴. 결과 화면 위에 얹히고, 닫으면 결과로 돌아간다. */
 export function openShop() {
   drawShop();
-  $("over").classList.remove("mid");
-  $("again").textContent = "한 판 더";
-  $("over").classList.add("on");
+  $("forge").classList.add("on");
 }
 /** **편성 화면** — 자리에 누가 들어가 있고 창고에 무엇이 남았는지를 한 화면에서 본다.
  *
@@ -290,6 +289,9 @@ export function wireUI() {
   });
   $("recruitBtn").onclick = recruit;
   $("toSquad").onclick = () => openSquad();
+  $("forgeBtn").onclick = openShop;
+  $("overSquad").onclick = () => openSquad();
+  $("forgeClose").onclick = () => $("forge").classList.remove("on");
   $("relicBtn").onclick = () => {
     if (S.over) { openShop(false); return; }
     say(`자원 <b style="color:var(--amber)">${META.relics}</b> — 판이 끝나면 쓴다.`);
@@ -299,7 +301,9 @@ export function wireUI() {
     if (b) trainKind(b.dataset.train);
   });
   $("again").onclick = newGame;
+  const inModal = (e) => e.target.closest("#over,#forge,#squad,#settings,#offline");
   $("field").addEventListener("touchstart", (e) => {
+    if (inModal(e)) return;
     if (e.touches.length === 2) {
       drag = null;
       pinch = { d: dist2(e.touches[0], e.touches[1]), z: V.z };
@@ -312,6 +316,7 @@ export function wireUI() {
     }
   }, { passive: true });
   $("field").addEventListener("touchmove", (e) => {
+    if (inModal(e)) return;
     if (pinch && e.touches.length === 2) {
       e.preventDefault();
       const d = dist2(e.touches[0], e.touches[1]), m = mid2(e.touches[0], e.touches[1]);
@@ -339,10 +344,12 @@ export function wireUI() {
     drag = null;
   }, { passive: false });
   $("field").addEventListener("wheel", (e) => {
+    if (inModal(e)) return;
     e.preventDefault();
     zoomAt(e.clientX, e.clientY, V.z * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
   }, { passive: false });
   $("field").addEventListener("mousedown", (e) => {
+    if (inModal(e)) return;
     if (e.button !== 0) return;
     mdrag = { sx: e.clientX, sy: e.clientY, ox: V.x, oy: V.y, moved: false };
   });
