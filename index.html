@@ -308,15 +308,21 @@
     align-items:center;justify-content:center;text-align:center;
     backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
   #over.on{display:flex}
+  /* 폭·높이 제한을 **기본 규칙에** 둔다. 미디어쿼리에만 적어 두었더니 그 규칙이 위에 있어
+     기본이 이겼고, 폰에서 상점 카드 오른쪽이 화면 밖으로 잘려 나갔다(.shop 과 같은 사고). */
   #over .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
-    padding:26px 30px;box-shadow:0 18px 60px rgba(0,0,0,.6)}
+    padding:22px 18px;box-shadow:0 18px 60px rgba(0,0,0,.6);
+    max-width:min(520px,94vw);max-height:88vh;overflow-y:auto}
   #over h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 8px}
   #over>div{max-width:520px}
   .shopwrap h3{font-size:12px;letter-spacing:1px;color:var(--dim);font-weight:normal;margin:18px 0 8px}
   .shopwrap h3 b{color:var(--amber);font-weight:normal}
   /* 폭에 맞춰 저절로 접히게 한다. 열 수를 미디어쿼리로 박아 두었더니 그 규칙이 아래에 있어
      폰에서도 2열이 이겨 카드 절반이 화면 밖으로 잘려 나갔다. */
-  .shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:7px;text-align:left}
+  .shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:7px;text-align:left}
+  /* **격자 칸은 안의 글보다 작아질 수 있어야 한다.** grid 아이템의 min-width 는 auto 라서
+     카드 안 문구가 칸을 바깥으로 밀어냈고, 그래서 폭을 아무리 제한해도 오른쪽이 잘렸다. */
+  .shop>*, .dex>*, .sqslots>*, .sqbox>*{min-width:0}
   .up{display:flex;align-items:center;gap:11px;padding:9px 12px}
   .up{flex-direction:column;align-items:flex-start;gap:3px;min-width:190px}
   .up .n{color:var(--amber);width:auto}
@@ -1337,7 +1343,7 @@ function tick(dt) {
       const first = META.relics === 0;      // 이 판에서 처음 손에 쥐는 유물인가
       META.relics += rel; saveMeta();
       // 처음 한 번은 어디서 쓰는지까지 말해 준다. 두 번째부터는 잔소리다.
-      if (first) say('유물은 <b style="color:var(--amber)">위쪽 「유물」</b>을 눌러 아무 때나 쓴다.');
+      if (first) say('유물이 쌓인다 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 병과를 올린다.');
     }
     say(`${S.round}라운드를 막았다. <b>+${bonus}</b>` +
         (rel ? ` · <b style="color:var(--amber)">유물 +${rel}</b>` : ""));
@@ -1482,8 +1488,10 @@ function paint() {
      한 번도 말한 적이 없었던 것이다. 지금 살 수 있는 게 하나라도 있으면 버튼이 뛴다. */
   const canBuy = Object.keys(UPGRADES).some(k => META.relics >= upCost(k)) ||
                  KIND_IDS.some(k => META.seen[k] && META.relics >= kindCost(k));
-  $("relicBtn").classList.toggle("hot", canBuy && !$("over").classList.contains("on"));
-  $("relicBtn").title = canBuy ? "쓸 수 있는 유물이 있다 — 눌러서 상점" : "유물 상점";
+  // 지금 쓸 수 있을 때만 뛴다 — 판 도중에 뛰면 누르라는 말이 되고, 눌러도 안 열린다.
+  $("relicBtn").classList.toggle("hot", canBuy && S.over && !$("over").classList.contains("on"));
+  $("relicBtn").title = S.over ? (canBuy ? "쓸 수 있는 유물이 있다 — 눌러서 상점" : "유물 상점")
+                               : "판이 끝나면 쓴다";
   $("rollBtn").disabled = S.gold < rollCost() || S.over;
 }
 
@@ -1587,11 +1595,10 @@ $("autoBtn").onclick = () => {
 };
 /** 상점을 연다. **판 도중에도 연다** — 벽에 부딪혔을 때 할 수 있는 게 죽기를 기다리는
  *  것뿐이면 그건 돌파가 아니다. 도중에 열면 게임은 뒤에서 계속 돈다(방치형이니까). */
-function openShop(mid) {
+function openShop() {
   drawShop();
-  $("over").classList.toggle("mid", !!mid);
-  $("again").textContent = mid ? "계속한다" : "한 판 더";
-  if (mid) $("overD").textContent = "막는 동안에도 유물은 쓸 수 있다.";
+  $("over").classList.remove("mid");
+  $("again").textContent = "한 판 더";
   $("over").classList.add("on");
 }
 /** **편성 화면** — 자리에 누가 들어가 있고 창고에 무엇이 남았는지를 한 화면에서 본다.
@@ -1654,15 +1661,19 @@ $("sqBox").addEventListener("click", (e) => {
   toggleOut(b.dataset.push);      // 창고에 있으면 내보낸다 — 진열대 칩과 같은 손잡이
   drawSquad();
 });
-$("relicBtn").onclick = () => openShop(!S.over);
+/* **상점은 판이 끝난 뒤에만 연다.**
+   막는 도중에도 열리게 해 뒀었는데, 전투를 보다 말고 상점을 여닫는 건 몰입을 끊는다는
+   판단(병수님)이다. 한 판 → 정산 → 강화 → 다시 가 리듬이 더 선명하다. 판 도중에 눌리면
+   무엇을 기다리는지만 알려 준다 — 눌러도 아무 일이 없으면 고장으로 읽힌다. */
+$("relicBtn").onclick = () => {
+  if (S.over) { openShop(false); return; }
+  say(`유물 <b style="color:var(--amber)">${META.relics}</b> — 판이 끝나면 쓴다.`);
+};
 $("dex").addEventListener("click", (e) => {
   const b = e.target.closest("[data-train]");
   if (b) trainKind(b.dataset.train);
 });
-$("again").onclick = () => {
-  if ($("over").classList.contains("mid")) { $("over").classList.remove("on"); refresh(); }
-  else newGame();
-};
+$("again").onclick = newGame;
 /* ══════════════════════════════════════════════════════════════
    보는 자리 — 끌어서 옮기고, 오므려서 줄인다.
    ──────────────────────────────────────────────────────────────
