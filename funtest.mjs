@@ -38,11 +38,16 @@ const play = (place, useMeta) => [
   '  Object.assign(META,{relics:0,best:0,up:{gold:0,dmg:0,life:0,cheap:0,start:0}});',
   '  const arrange = () => {',
   '    const lanes = waveLanes(S.round), c = coreCenter();',
-  '    const cells=[]; for(let y=0;y<9;y++) for(let x=0;x<13;x++) if(buildable(x,y)) cells.push({x,y});',
+  // 판 크기는 **게임에서 가져온다.** 13×9 로 박아 뒀더니 판을 21×21 로 넓힌 순간
+  // 후보 칸이 구석 21칸만 잡혀, 보고 세운 봇이 오히려 1R 에 죽었다 — 게임이 아니라
+  // 이 자를 잘못 대고 있었던 것이다.
+  '    const cells=[]; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) if(buildable(x,y)) cells.push({x,y});',
   '    const used=new Set();',
   '    S.towers.forEach((t,i)=>{',
   '      const th=lanes[i%lanes.length];',
-  '      const ax=c.x+Math.cos(th)*195, ay=c.y+Math.sin(th)*195;',
+  // 세우는 반지름도 링 두께에서 뽑는다(전엔 195 로 박혀 있었다) — 링이 두꺼워지면 같이 따라간다.
+  '      const R=coreRadius()+CELL*(RING*0.78);',
+  '      const ax=c.x+Math.cos(th)*R, ay=c.y+Math.sin(th)*R;',
   '      let b=null,bd=1e9;',
   '      for(const s of cells){const k=s.x+","+s.y; if(used.has(k))continue;',
   '        const d=Math.hypot(cx(s.x)-ax,cy(s.y)-ay); if(d<bd){bd=d;b=s;}}',

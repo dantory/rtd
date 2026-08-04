@@ -9,7 +9,7 @@
 유닛은 옆에서 본 그림, 적은 위에서 본 그림이 되어 같은 판에 못 세운다.
 (DELVE 에서 마을 아이콘 시점이 제각각이라 조감도가 안 됐던 것과 같은 실수를 미리 막는다.)
 
-결과는 public/assets/<폴더>/<id>.png — 서버가 public/ 을 그대로 서빙한다.
+결과는 assets/<폴더>/<id>.png — 서버가 리포 루트를 그대로 서빙한다.
 """
 import base64, json, os, subprocess, sys, time
 
@@ -22,6 +22,17 @@ TONE = ("top-down three-quarter view seen from above, dark grimy sci-fi bunker w
         "muted steel and rust palette, single light source from above, transparent background")
 UNIT = f"{TONE}, small squat turret emplacement standing on a metal pad, centred, whole object visible"
 MOB  = f"{TONE}, hostile creature charging forward, centred, whole body visible"
+# 땅은 **위에서 똑바로** 본다 — 비스듬히 보면 이어 깔았을 때 원근이 어긋나 격자가 물결친다.
+GROUND = ("a plain square patch of ground seen from directly above, seamless tileable, "
+          "very dark muted palette, no objects sticking up, dark grimy sci-fi wasteland")
+# 데코는 얹는 것이라 그림자까지 포함하되 배경은 없어야 한다.
+DECO = (f"{TONE}, lying on the ground as scenery, centred, whole object visible, "
+        "with a soft contact shadow, transparent background")
+
+# **땅에는 외곽선을 두르면 안 된다.** 기본값(single color outline)으로 구웠더니 64px 타일
+# 하나하나에 테두리가 그려져, 이어 깔았을 때 벌판이 통째로 격자로 보였다 — 테두리를 CSS 에서
+# 지워도 소용없었다. 그림 자체에 선이 들어 있었기 때문이다. 땅은 lineless 로 굽는다.
+FLAT = {"outline": "lineless", "shading": "basic shading", "detail": "medium detail"}
 
 SPRITES = {
     # ── 본진 ── 지킬 것. 한눈에 "저게 무너지면 끝"으로 읽혀야 하므로 크고 육중하게.
@@ -58,7 +69,29 @@ SPRITES = {
     "ui/pad":   ("a plain square metal deck plate seen from directly above, riveted steel, "
                  "seamless tileable, subtle wear, no objects", 64),
     "ui/dirt":  ("a plain square patch of cracked dark wasteland ground seen from directly above, "
-                 "seamless tileable, no objects, very dark", 64),
+                 "seamless tileable, no objects, very dark", 64, FLAT),
+
+    # ── 땅의 변주 ── **판이 커지면 바깥 땅이 화면의 대부분이 된다.**
+    # 한 장을 500번 반복하면 지형이 아니라 벽지로 보인다(실제로 그래서 "허접"했다).
+    # 같은 톤·같은 밝기로 결만 다른 것을 여러 장 두고 칸마다 골라 깐다.
+    "ui/dirt2": (f"{GROUND}, cracked dark earth with a few scattered small stones", 64, FLAT),
+    "ui/dirt3": (f"{GROUND}, dry dark earth split by one deep jagged fissure", 64, FLAT),
+    "ui/rock":  (f"{GROUND}, dark rocky ground littered with broken concrete chunks", 64, FLAT),
+    "ui/ash":   (f"{GROUND}, scorched black ash ground with a few faint dying embers", 64, FLAT),
+    "ui/grate": (f"{GROUND}, half-buried rusted metal grating over dark soil", 64, FLAT),
+    "ui/pad2":  ("a plain square metal deck plate seen from directly above, riveted steel with a "
+                 "yellow black hazard stripe along one edge, seamless tileable, worn, no objects", 64),
+
+    # ── 데코 ── 땅 위에 드문드문 얹는다. 배경이 없어야 어느 땅 위에든 올라간다.
+    # 이것이 "빈 땅"과 "폐허가 된 전장"을 가른다.
+    "deco/wreck":   (f"{DECO}, the rusted burnt-out hull of a wrecked armoured vehicle lying on its side", 64),
+    "deco/crates":  (f"{DECO}, a small stack of military supply crates with faded markings", 48),
+    "deco/pipe":    (f"{DECO}, a broken industrial pipe segment jutting out of the ground, leaking", 48),
+    "deco/boulder": (f"{DECO}, a cluster of jagged dark boulders", 48),
+    "deco/bones":   (f"{DECO}, a few scattered bleached bones and a cracked skull", 48),
+    "deco/crystal": (f"{DECO}, a small cluster of glowing cyan crystal shards growing from the ground", 48),
+    "deco/barrel":  (f"{DECO}, two dented rusty fuel barrels, one tipped over", 48),
+    "deco/antenna": (f"{DECO}, a leaning broken radio antenna mast with torn cables", 64),
 }
 
 COMMON = {"view": "high top-down", "outline": "single color outline",
@@ -78,8 +111,11 @@ def content(resp):
 
 
 def queue(key):
-    desc, size = SPRITES[key]
-    resp = mcp("create_map_object", {"description": desc, "width": size, "height": size, **COMMON})
+    # 항목마다 옵션을 덧씌울 수 있다 — 땅(FLAT)처럼 온 세트와 다르게 구워야 하는 것이 있다.
+    spec = SPRITES[key]
+    desc, size = spec[0], spec[1]
+    opts = {**COMMON, **(spec[2] if len(spec) > 2 else {})}
+    resp = mcp("create_map_object", {"description": desc, "width": size, "height": size, **opts})
     for c in content(resp):
         if c.get("type") == "text":
             for line in c["text"].splitlines():
@@ -97,7 +133,7 @@ def fetch(key, oid):
                    for c in content(resp))
         for c in content(resp):
             if done and c.get("type") == "image" and c.get("data"):
-                out = os.path.join(ROOT, "public", "assets", key + ".png")
+                out = os.path.join(ROOT, "assets", key + ".png")
                 os.makedirs(os.path.dirname(out), exist_ok=True)
                 raw = base64.b64decode(c["data"])
                 open(out, "wb").write(raw)
@@ -114,7 +150,7 @@ def main():
         short = k.split("/")[-1]
         if args and short not in args and k not in args:
             continue
-        path = os.path.join(ROOT, "public", "assets", k + ".png")
+        path = os.path.join(ROOT, "assets", k + ".png")
         if not force and os.path.exists(path):
             continue
         keys.append(k)
