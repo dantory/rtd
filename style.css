@@ -186,8 +186,13 @@
   .dxc.off .ico{font-size:22px;color:#4a5361;display:block}
   .hold:not(.ready){opacity:.94}
   .hold.away{opacity:.46}                /* 한 기도 안 나가 있는 것 — 창고에서 대기 중이다 */
-  #log{font-size:11px;color:var(--dim);line-height:1.65;max-height:150px;overflow-y:auto}
-  #log b{color:var(--amber);font-weight:normal}
+  /* 토스트 — 다른 통로가 없는 피드백만 잠깐 띄운다 (상시 로그는 뺐다) */
+  #toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%) translateY(6px);
+    max-width:86%;padding:7px 14px;border-radius:6px;background:rgba(16,20,26,.92);
+    border:1px solid #333c48;font-size:12px;color:var(--fg);text-align:center;
+    opacity:0;transition:opacity .2s, transform .2s;pointer-events:none;z-index:450}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  #toast b{color:var(--amber);font-weight:normal}
   /* ══════════════════════════════════════════════════════════
      폰 — **세로 화면에서는 옆 패널이 아니라 아래 패널이다.**
      290px 짜리 옆 패널을 그대로 두면 폰 폭의 3/4 를 먹어 전장이 사라진다.
@@ -222,7 +227,6 @@
        둘이면 둘 다 안 읽힌다. 안내 문구만 남긴다. */
     .wavesec h3, .wavesec #waveBtn{display:none}
     .wavesec{margin-top:-4px}
-    #log{max-height:54px}
     #over .box{padding:18px 16px;max-width:94vw;max-height:88vh;overflow-y:auto}
   }
   /* 유물은 **누를 수 있는 것**이라는 게 보여야 한다 — 상점으로 가는 유일한 문이다. */

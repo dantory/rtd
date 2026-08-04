@@ -178,8 +178,19 @@ export function drawGrid() {
   drawTowers();
 }
 
-/* ══ 로그 ══ */
+/* ══ 토스트 ══
+   상시 로그는 뺐다 — 대부분의 사건은 화면(벙커 연출·칩·웨이브 줄)이 이미 말한다.
+   여기로 오는 건 **다른 통로가 없는 피드백**뿐이고, 잠깐 떴다 사라진다. */
+let toastT = 0;
 export const say = (html) => {
-  $("log").insertAdjacentHTML("afterbegin", `<div>${html}</div>`);
-  while ($("log").children.length > 30) $("log").lastChild.remove();
+  let el = $("toast");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "toast";
+    $("field").appendChild(el);
+  }
+  el.innerHTML = html;
+  el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove("on"), 2400);
 };

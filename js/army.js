@@ -126,8 +126,7 @@ export function toggleOut(key) {
     t.slot = null;
     if (S.sel === t.id) S.sel = null;
     syncArmy(); saveMeta();
-    say(`<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 거뒀다.`);
-    refresh();
+      refresh();
   }
 }
 
@@ -166,7 +165,6 @@ export function mergeKey(k) {
   S.sel = keep.id;
   fillFree();                                        // 셋이 하나가 되며 빈 두 자리를 메운다
   noteSeen(kind, keep.g);                            // 합쳐 오른 등급도 도감에 남는다
-  say(`셋을 합쳐 <b style="color:${GCOL[keep.g]}">${GNAME[keep.g]} ${KINDS[kind].n}</b> 이(가) 되었다.`);
   refresh();                       // 자리 배치가 먼저다 — 그래야 연출이 제자리에서 터진다
   // 대원은 벙커 안에 있으니 연출도 벙커에서 — 위로 병과와 등급이 떠오르고 링이 퍼진다.
   const c = coreCenter();
@@ -196,7 +194,6 @@ export function sell(id) {
   META.army = META.army.filter(x => x.id !== t.id);
   if (S.sel === t.id) S.sel = null;
   fillFree(); syncArmy(); saveMeta();
-  say(`${GNAME[t.g]} ${KINDS[t.kind].n} 을(를) 해산했다. 유물 +${sellOf(t)}`);
   drawShop(); refresh();
 }
 

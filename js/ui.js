@@ -188,12 +188,8 @@ export function newGame() {
     noteSeen(t0.kind, t0.g);
   }
   $("over").classList.remove("on");
-  $("log").innerHTML = "";
   focusView();       // 판을 시작하면 항상 벙커가 화면 가운데 — 지난 판에 끌어 둔 화면을 물려받지 않는다
   refresh();
-  say("<b>편성</b>한 대로 벙커가 막는다. 판이 끝나면 유물로 <b>징집·훈련·증축</b>.");
-  say("전투는 알아서 돈다 — 짜 놓은 것이 얼마나 버티는지 보면 된다.");
-  if (META.relics || META.best) say(`유물 <b>${META.relics}</b> · 최고 <b>${META.best}</b>라운드`);
 }
 
 /* 화면 배선 — DOM 이벤트를 한 곳에서 붙인다. main 이 모든 모듈이 선 뒤에 부른다. */

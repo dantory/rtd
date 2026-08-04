@@ -17,7 +17,6 @@ export function startWave() {
   S.running = true;
   S.toSpawn = waveN(S.round);
   S.spawned = 0; S.spawnT = 0;
-  say(`── <b>${S.round}라운드</b>${isBossR(S.round) ? " · 큰 놈이 온다" : ""}`);
   refresh();
 }
 
@@ -286,8 +285,6 @@ export function tick(dt) {
       // 처음 한 번은 어디서 쓰는지까지 말해 준다. 두 번째부터는 잔소리다.
       if (first) say('유물이 쌓인다 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 병과를 올린다.');
     }
-    say(`${S.round}라운드를 막았다.` +
-        (rel ? ` <b style="color:var(--amber)">유물 +${rel}</b>` : ""));
     S.round++;
     drawGrid();            // 다음 웨이브가 오는 갈래가 바뀌었다
     refresh();
