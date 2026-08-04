@@ -267,6 +267,10 @@
   .rlc{padding:2px 8px;font-size:inherit;font-family:inherit;color:var(--fg);
     background:rgba(40,32,18,.5);border:1px solid #4a3d22;border-radius:4px;cursor:pointer}
   .rlc:hover{border-color:var(--amber)}
+  /* 살 것이 있을 때만 뛴다. 늘 뛰면 그건 배경이 되고 아무도 안 본다. */
+  .rlc.hot{border-color:var(--amber);color:var(--amber);animation:relicPulse 1.6s ease-in-out infinite}
+  @keyframes relicPulse{0%,100%{box-shadow:0 0 0 0 rgba(214,168,74,0)}
+    50%{box-shadow:0 0 0 3px rgba(214,168,74,.28)}}
   @media (max-width: 420px){ aside{max-height:38vh} }
 
   /* 편성 화면 — 상점과 같은 틀을 쓴다. 뒤에서 게임은 계속 돈다(방치형이니 멈출 이유가 없다). */
@@ -1329,7 +1333,12 @@ function tick(dt) {
     const bonus = 24 + S.round * 9;
     S.gold += bonus;
     const rel = relicTick(S.round);
-    if (rel) { META.relics += rel; saveMeta(); }
+    if (rel) {
+      const first = META.relics === 0;      // 이 판에서 처음 손에 쥐는 유물인가
+      META.relics += rel; saveMeta();
+      // 처음 한 번은 어디서 쓰는지까지 말해 준다. 두 번째부터는 잔소리다.
+      if (first) say('유물은 <b style="color:var(--amber)">위쪽 「유물」</b>을 눌러 아무 때나 쓴다.');
+    }
     say(`${S.round}라운드를 막았다. <b>+${bonus}</b>` +
         (rel ? ` · <b style="color:var(--amber)">유물 +${rel}</b>` : ""));
     S.round++;
@@ -1468,6 +1477,13 @@ function paint() {
   if (cn) cn.textContent = Math.max(0, Math.ceil(S.coreHp));
   $("hRound").textContent = S.round;
   $("hRelic").textContent = META.relics;
+  /* **살 수 있으면 살 수 있다고 말해야 한다.** 유물 버튼을 헤더 구석에 조용히 두었더니
+     "업그레이드는 한 판 끝나고만 되나"는 물음이 돌아왔다 — 언제든 열린다는 걸 화면이
+     한 번도 말한 적이 없었던 것이다. 지금 살 수 있는 게 하나라도 있으면 버튼이 뛴다. */
+  const canBuy = Object.keys(UPGRADES).some(k => META.relics >= upCost(k)) ||
+                 KIND_IDS.some(k => META.seen[k] && META.relics >= kindCost(k));
+  $("relicBtn").classList.toggle("hot", canBuy && !$("over").classList.contains("on"));
+  $("relicBtn").title = canBuy ? "쓸 수 있는 유물이 있다 — 눌러서 상점" : "유물 상점";
   $("rollBtn").disabled = S.gold < rollCost() || S.over;
 }
 
