@@ -108,17 +108,15 @@
   .core{position:absolute;background:#151c25;border:1px solid #3d5468;border-radius:3px;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
     pointer-events:none;box-shadow:0 0 0 1px rgba(107,168,214,.18) inset}
-  /* 그림은 위쪽만 쓰고 아래를 이름·체력에 내준다. 꽉 채우면 글자가 그림에 묻힌다. */
-  .core .cspr{position:absolute;left:6%;top:2%;width:88%;height:70%;object-fit:contain;
-    image-rendering:pixelated;filter:drop-shadow(0 3px 5px rgba(0,0,0,.7))}
-  .core .cname{position:relative;color:var(--steel);font-size:12px;letter-spacing:2px;
-    text-shadow:0 1px 3px #000;margin-top:auto}
-  .core.noimg .cname{margin-top:0}
-  .core .cbar,.core .cnum{position:relative}
-  .core{justify-content:flex-end;padding-bottom:8px}
-  .core .cbar{width:74%;height:7px;background:#141a22;border-radius:2px;overflow:hidden}
+  /* 한 칸짜리다. 그림이 칸을 꽉 채우고, 체력은 **칸 밖 위쪽**에 얹는다 —
+     안에 넣으면 64px 안에서 그림과 겹쳐 둘 다 안 읽힌다. 이름은 뺐다(가운데 것이 본진이다). */
+  .core .cspr{position:absolute;left:-6%;top:-12%;width:112%;height:112%;object-fit:contain;
+    image-rendering:pixelated;filter:drop-shadow(0 3px 5px rgba(0,0,0,.75))}
+  .core .cbar{position:absolute;left:-10%;width:120%;top:-15px;height:5px;
+    background:#141a22;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
   .core .cbar i{display:block;height:100%;background:linear-gradient(90deg,#4a6b3f,#7fb069);transition:width .15s}
-  .core .cnum{font-size:11px;color:var(--dim)}
+    /* 수치는 헤더에 이미 있다("본진 520/520"). 한 칸 위에 또 적으면 그림만 가린다. */
+  .core .cnum{display:none}
   /* 타워도 맞는다 — 얼마나 성한지가 보여야 "저건 빼자"가 결정이 된다 */
   .tw .thp{position:absolute;left:4px;right:4px;bottom:2px;height:2px;background:#2a3038;border-radius:1px}
   .tw .thp i{display:block;height:100%;background:#7fb069;border-radius:1px}
@@ -464,7 +462,10 @@ const hpOf   = (t) => Math.round(28 + t.g * 22);
  *  격자 몇 개라 "전장"이 아니라 UI 표처럼 보였다. 21×21(441칸) 로 넓혀 **바깥을 진짜
  *  벌판으로** 만든다 — 넓힌 땅은 놓는 자리가 아니라 **달려오는 것을 보는 시간**이다. */
 const COLS = 21, ROWS = 21;
-const CORE = { x: 9, y: 9, w: 3, h: 3 };          // 한가운데 3×3 이 본진
+/* **본진은 한 칸이다.** 3×3 은 벙커 하나치고 판을 너무 많이 먹었고, 그만큼 대원 자리가
+   바깥으로 밀려 반대편까지 사거리가 안 닿는 문제까지 낳았다(그걸 사거리 배수로 메우고
+   있었다). 한 칸으로 줄이면 대원이 벙커에 바짝 붙고 앞마당도 아담해진다. */
+const CORE = { x: 10, y: 10, w: 1, h: 1 };        // 한가운데 한 칸이 본진
 const inCore = (x, y) => x >= CORE.x && x < CORE.x + CORE.w && y >= CORE.y && y < CORE.y + CORE.h;
 const coreKey = new Set();
 for (let y = CORE.y; y < CORE.y + CORE.h; y++)
@@ -831,7 +832,6 @@ function drawGrid() {
     style="left:${px(CORE.x)}px;top:${py(CORE.y)}px;width:${CELL*CORE.w-2}px;height:${CELL*CORE.h-2}px">
       <img class="cspr" src="assets/unit/bunker.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
-      <div class="cname">본진</div>
       <div class="cbar"><i id="coreBar"></i></div>
       <div class="cnum" id="coreNum"></div>
     </div>`;
@@ -1195,7 +1195,7 @@ function tick(dt) {
     if (t.healT > 0) continue;
     t.healT = 1.2;
     if (S.coreHp >= S.coreMax) continue;
-    const amt = Math.round(h * gradeMul(t.g) * 0.5 * kindSkill(t.kind));
+    const amt = Math.max(1, Math.round(h * gradeMul(t.g) * 0.5 * kindSkill(t.kind)));
     S.coreHp = Math.min(S.coreMax, S.coreHp + amt);
     const c2 = coreCenter();
     flyText(c2.x, c2.y - coreRadius(), "+" + amt, "#7fb069");
