@@ -421,12 +421,13 @@
     </section>
 
     <section>
-      <h3>기록</h3>
-      <div id="log"></div>
       <!-- 테스트용 — 저장(부대·유물·업그레이드·도감·최고 기록)을 지우고 처음부터.
-           눈에 안 띄게 맨 아래 작게 둔다. 실수로 못 누르게 확인을 한 번 묻는다. -->
-      <button id="wipeBtn" style="margin-top:14px;font-size:11px;padding:5px 10px;
-        color:var(--dim);border-color:#2a323d">저장 초기화 — 처음부터</button>
+           기록 **위**에 둔다: 로그가 30줄까지 자라서, 아래에 두면 플레이 중엔
+           스크롤 밖으로 밀려나 있는지도 모르게 된다. 실수로 못 누르게 확인을 한 번 묻는다. -->
+      <h3>기록
+        <button id="wipeBtn" style="float:right;font-size:11px;padding:4px 10px;
+          color:var(--dim);border-color:#2a323d">저장 초기화</button></h3>
+      <div id="log"></div>
     </section>
   </aside>
 </main>
