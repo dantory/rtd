@@ -75,17 +75,18 @@
      회색 판때기가 줄지어 떠 있는 꼴이었고 — 벌판과 완전히 끊겨 그게 제일 허접했다.
      이제 땅은 벌판과 **같은 것**을 이어 깔고, 그 위에 옅은 빛과 가는 선만 얹어
      "여기 놓을 수 있다"는 것만 말한다. 땅은 하나로 이어지고 정보는 그대로 남는다. */
-  .slot{position:absolute;cursor:pointer;border-radius:2px;
-    background:linear-gradient(rgba(158,182,208,.22),rgba(158,182,208,.09));
-    box-shadow:inset 0 0 0 1px rgba(138,164,194,.38)}
+  /* 타일셋이 터를 철판 데크로 그려 주므로 여기서 밝힐 것은 없다. 남길 것은 **칸 금**뿐이다 —
+     밝은 바닥 위에서는 밝은 선이 안 보인다(찍어 보니 통짜 철판 한 장으로 읽혔다). 어두운 선으로
+     긋는다. 놓는 게임에서 칸이 안 세어지면 배치가 눈대중이 된다. */
+  .slot{position:absolute;cursor:pointer;
+    box-shadow:inset 0 0 0 1px rgba(154,178,206,.30)}
   .slot:hover{box-shadow:inset 0 0 0 1px var(--amber)}
   .slot.sel{box-shadow:inset 0 0 0 2px var(--amber);background:rgba(214,168,74,.14)}
-  /* **바깥 땅은 격자로 보이면 안 된다.** 칸마다 테두리를 두르면 넓힐수록 표처럼 보인다 —
-     판을 21×21 로 키우고 나서 이게 제일 크게 티가 났다. 벌판은 테두리 없이 이어 붙여
-     한 장의 땅으로 읽히게 하고, **테두리는 놓을 수 있는 터에만** 남겨 둔다(그게 정보다). */
-  /* 어둡게 덮는 막을 타일마다 씌우면 **겹친 자리만 두 겹**이 되어 오히려 격자가 진해진다.
-     밝기는 굽고 나서 한 번에 맞춰 두었으니(tools/blend_ground.py) 여기서는 그림만 깐다. */
-  .tile.wild{border:0;border-radius:0;background-image:var(--tex,url("assets/ui/dirt.png"))}
+  /* **가장자리가 맞물리는 타일이라 딱 맞게 깔아야 한다.** 낱장 흙 타일은 서로 겹쳐 깔아
+     이음새를 뭉갰지만(그래도 칸 경계가 읽혔다), Wang 타일은 이웃과 맞물리도록 구워져
+     있어서 겹치거나 돌리면 그 맞물림이 깨진다. 한 장 시트에서 잘라 1:1 로 깐다. */
+  .tile.wang{border:0;border-radius:0;background-repeat:no-repeat;
+    background-image:url("assets/ui/tileset.png");background-size:256px 256px}
   /* 잔해 — 벌판에 얹는 배경 소품. 눈에 띄면 적으로 오인되므로 확실히 가라앉힌다. */
   .deco{position:absolute;transform:translate(-50%,-50%);pointer-events:none;
     object-fit:contain;image-rendering:pixelated;opacity:.9;
@@ -565,14 +566,25 @@ const hash2 = (x, y, salt = 0) => {
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 };
-/* dirt2 · ash 는 뺐다 — 원본이 평균 밝기 9 와 6 이라 거의 검다. 46 에 맞추려고 곱하면
-   파란 채널만 살아남아 보라·파랑 얼룩이 되고, 안 맞추면 저 혼자 시커먼 칸으로 남는다.
-   둘 다 격자다. 남은 넷은 밝기 46 에 채도 0.1 아래로 고르게 붙는다(tools/blend_ground.py). */
-const WILD_TILES = ["dirt", "dirt3", "rock", "grate"];
-/** **같은 땅은 뭉쳐야 지형이 된다.** 칸마다 따로 고르면 네 종류가 체스판처럼 섞여
- *  그 자체가 얼룩이 된다. 세 칸짜리 구역이 대체로 정하고, 나머지 4분의 1 만 칸이 정한다. */
-const zoneRand = (x, y) =>
-  hash2(Math.floor(x / 3), Math.floor(y / 3), 3) * 0.76 + hash2(x, y, 3) * 0.24;
+/** **땅은 이제 한 세트로 구운 Wang 타일셋이다** (PixelLab create_topdown_tileset, 64px 16장).
+ *
+ *  낱장 흙 그림을 여섯 장 굽고 돌려 깔던 방식은 아무리 이어 붙여도 칸 경계가 읽혔다 —
+ *  생성 모델이 64px 안에서 그림을 "완결"시키기 때문에 가장자리가 안쪽과 다르게 끝난다.
+ *  Wang 타일은 **네 모서리의 지형이 무엇인지**를 정해 놓고 굽기 때문에 이웃과 맞물린다.
+ *  덤으로 벌판(lower=갈라진 콘크리트)과 터(upper=리벳 철판)의 **경계 타일까지 한 세트**라,
+ *  터가 벌판에 얹힌 판때기가 아니라 땅에 깔린 바닥으로 읽힌다.
+ *
+ *  키는 NW·NE·SW·SE 순서의 네 자리(1=터, 0=벌판)이고 값은 시트에서의 칸 [열, 행]이다.
+ *  시트 위치는 **배열 순서**로만 잡는다 — 타일 이름(wang_N)이나 original_position 을 쓰면
+ *  가로로 밴딩이 생긴다(PixelLab 문서가 명시한 함정). */
+const WANG = {"0000":[2,1],"0001":[3,1],"0010":[2,2],"0011":[1,2],"0100":[2,0],"0101":[3,2],
+              "0110":[0,1],"0111":[3,3],"1000":[1,1],"1001":[2,3],"1010":[1,0],"1011":[0,2],
+              "1100":[3,0],"1101":[0,0],"1110":[1,3],"1111":[0,3]};
+/** 모서리가 터 안쪽인가. **모서리 격자는 칸 격자보다 하나 크다** — 터가 [a,b] 칸이면
+ *  모서리는 [a,b+1] 이다. 이걸 칸 범위로 재면 터 둘레가 한 줄씩 어긋난다. */
+const cornerUp = (cx, cy) =>
+  cx >= CORE.x - RING && cx <= CORE.x + CORE.w + RING &&
+  cy >= CORE.y - RING && cy <= CORE.y + CORE.h + RING;
 const DECOS = ["wreck", "crates", "pipe", "boulder", "bones", "crystal", "barrel", "antenna"];
 const pick = (arr, r) => arr[Math.min(arr.length - 1, Math.floor(r * arr.length))];
 
@@ -580,22 +592,13 @@ function drawGrid() {
   let h = "";
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
     if (inCore(x, y)) continue;                    // 본진은 아래에서 한 덩이로 그린다
-    /* **땅은 터든 벌판이든 같은 것을 깐다.** 여기서 갈라 놓으면 한 판이 두 장이 된다. */
-    const img = pick(WILD_TILES, zoneRand(x, y));
-    /* 땅 그림은 가장자리를 알파로 흐려 두었으므로(tools/blend_ground.py) **칸보다 크게
-       그려 서로 물리게** 한다. 딱 맞게 깔면 흐린 만큼이 틈이 되어 오히려 더 티난다. */
-    const s = Math.round(CELL * 1.34), off = (CELL - s) / 2;
-    /* **같은 그림도 돌려 깔면 다른 땅이 된다.** 정사각이라 90°씩 돌리고 좌우로 뒤집는 것만으로
-       네 장이 서른두 가지가 된다 — 그림을 더 굽지 않고 반복감을 지우는 가장 싼 수다. */
-    const tf = `;transform:rotate(${Math.floor(hash2(x, y, 5) * 4) * 90}deg)` +
-               ` scaleX(${hash2(x, y, 13) < 0.5 ? -1 : 1})`;
-    /* **네 장을 돌려 깔아도 같은 균열이 같은 모양으로 반복되는 건 보인다.** 칸마다 조금씩
-       가라앉혀 아래 바탕이 비치게 하면 그 반복이 깨진다. 어두워지는 쪽으로만 흔들어야
-       벌판이 얼룩덜룩해지지 않는다. (밝기 필터 대신 투명도 — 441칸을 매번 다시 그린다.) */
-    const dim = (0.84 + hash2(x, y, 17) * 0.16).toFixed(3);
-    h += `<div class="tile wild"
-      style="left:${px(x) + off}px;top:${py(y) + off}px;width:${s}px;height:${s}px;opacity:${dim};` +
-      `--tex:url('assets/ui/${img}.png')${tf}"></div>`;
+    /* 네 모서리가 각각 터인지 벌판인지로 깔 타일이 정해진다 — 그게 Wang 타일의 전부다. */
+    const k = (cornerUp(x, y)     ? "1" : "0") + (cornerUp(x + 1, y)     ? "1" : "0") +
+              (cornerUp(x, y + 1) ? "1" : "0") + (cornerUp(x + 1, y + 1) ? "1" : "0");
+    const [tc, tr] = WANG[k];
+    h += `<div class="tile wang"
+      style="left:${px(x)}px;top:${py(y)}px;width:${CELL}px;height:${CELL}px;` +
+      `background-position:${-tc * CELL}px ${-tr * CELL}px"></div>`;
   }
   /* 놓을 수 있는 자리 — 땅 **위에 얹는 구획선**이다. 땅과 층을 나눠야 땅이 안 끊긴다. */
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {

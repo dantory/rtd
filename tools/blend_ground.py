@@ -27,6 +27,9 @@ TARGET_L_SLOT = 58      # 터는 벌판보다 한 뼘 밝아야 "놓을 수 있�
 # 맞췄더니 파란 채널만 살아남아 채도 0.77 짜리 보라·파랑 얼룩이 됐다. 밝기는 같은데
 # 색이 다르면 그게 곧 격자다 — 그래서 채도에 천장을 두고 먼저 누른 뒤에 밝기를 맞춘다.
 TARGET_S = 0.10
+# 64 는 전장 톤보다 밝아 회색빛이 돌았고, 42 는 터가 새까만 판이 되어 칸이 안 세어졌다.
+# 벌판이 결을 유지하면서 터가 바닥으로 읽히는 지점이 53 근처다(찍어 가며 맞췄다).
+TARGET_L_SHEET = 53     # Wang 타일셋 시트의 평균 밝기(터·벌판·전이가 다 섞인 값)
 
 
 def feather_mask(size, pad):
@@ -90,6 +93,27 @@ def bake(name, target_l, feather):
     print(f"  {name:6s} 채도 {s0:.2f}→{s1:.2f} · 밝기 {l0:.0f}→{l1:.0f} · 페이드 {pad}px")
 
 
+def bake_tileset():
+    """Wang 타일셋은 **한 장으로 통째로** 어둡게 한다.
+
+    타일마다 밝기를 맞추면 안 된다 — 이 시트의 열여섯 장은 서로 맞물리라고 구운 것이라,
+    낱장씩 건드리면 그 맞물림이 깨져 이음새가 도로 살아난다. 굽혀 나온 평균이 63 이라
+    전장 톤(30 대)보다 밝으니 전체에 같은 배율만 곱한다.
+    """
+    src = os.path.join(ROOT, "asset_staging", "tileset", "tileset.png")
+    dst = os.path.join(ROOT, "assets", "ui", "tileset.png")
+    if not os.path.exists(src):
+        print("  ✗ tileset: 원본이 없다")
+        return
+    im = Image.open(src).convert("RGBA")
+    rgb = im.convert("RGB")
+    before = ImageStat.Stat(rgb).mean
+    k = TARGET_L_SHEET / (sum(before) / 3)
+    rgb = ImageChops.multiply(rgb, Image.new("RGB", im.size, tuple([int(255 * min(1, k))] * 3)))
+    Image.merge("RGBA", (*rgb.split(), im.split()[3])).save(dst)
+    print(f"  tileset 밝기 {sum(before)/3:.0f} → {sum(ImageStat.Stat(rgb).mean)/3:.0f} (×{k:.2f})")
+
+
 def main():
     print("벌판")
     for name in GROUND:
@@ -97,6 +121,8 @@ def main():
     print("터")
     for name in SLOTS:
         bake(name, TARGET_L_SLOT, False)
+    print("Wang 타일셋")
+    bake_tileset()
 
 
 if __name__ == "__main__":

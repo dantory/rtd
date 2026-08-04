@@ -1,0 +1,20 @@
+status: completed
+id: 4515bc34-6617-4c81-b924-eae6f10b3ee7
+terrain: cracked dark grey concrete and packed ash wasteland ground, grimy sci-fi battlefield floor, very dark muted palette -> dark riveted steel deck plating, industrial metal floor panel, very dark muted palette
+tiles: 16
+tile_size: 64x64px
+view: high top-down
+transition: worn concrete edge meeting metal plate, dust and grit
+
+download_png: https://api.pixellab.ai/mcp/tilesets/4515bc34-6617-4c81-b924-eae6f10b3ee7/image
+download_png_inline: https://api.pixellab.ai/mcp/tilesets/4515bc34-6617-4c81-b924-eae6f10b3ee7/image?inline=true  (same PNG served from this host — use it if your egress blocks backblaze.pixellab.ai)
+download_metadata: https://api.pixellab.ai/mcp/tilesets/4515bc34-6617-4c81-b924-eae6f10b3ee7/metadata
+
+placement: pick each tile by its corners (NW/NE/SW/SE) or pattern_4x4, then take its pixels from that tile's own `image.url` in the metadata (always correct, one PNG per tile). There is NO `bounding_box` field. Two things are NOT sheet positions: the `wang_N` NAME, and `original_position` (the generation grid — its row can exceed this sheet). Using either is what produces horizontal banding. On a 16-tile sheet you may instead slice by the tile's ARRAY index, 4 columns (col = i % 4, row = i // 4) — verified exact on 80/80 tiles across five tilesets. That shortcut does NOT hold for transition sheets, where tiles repeat and some are absent.
+
+base_tile_ids (for chaining):
+  lower (cracked dark grey concrete and packed ash wasteland ground, grimy sci-fi battlefield floor, very dark muted palette): eba66fea-34b8-48ba-944a-7521e5d3463f
+  upper (dark riveted steel deck plating, industrial metal floor panel, very dark muted palette): 400a01bc-5b47-4914-80fa-ef9929744df2
+
+hint: use upper ID as lower_base_tile_id in next tileset for seamless transitions
+resource: pixellab://docs/godot/wang-tilesets
