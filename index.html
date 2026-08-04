@@ -542,7 +542,7 @@ const META_KEY = "rtd.meta.v1";
 const UPGRADES = {
   gold:  { n:"밑천",   d:"시작 골드 +35",       base:3, per:2 },
   dmg:   { n:"벼림",   d:"모든 피해 +13%",      base:4, per:3 },
-  life:  { n:"성벽",   d:"본진 체력 +65",       base:3, per:2 },
+  life:  { n:"성벽",   d:"본진 체력 +90",       base:3, per:2 },
   cheap: { n:"흥정",   d:"뽑기 값 -1 (바닥 6)", base:5, per:4 },
   start: { n:"선발대", d:"시작할 때 중급 하나", base:6, per:6 },
   luck:  { n:"안목",   d:"중급이 더 자주 나온다", base:5, per:4 },
@@ -608,7 +608,10 @@ const relicsFor = (round) => Math.floor((round - 1) * 1.6 + Math.pow(Math.max(0,
 const relicTick = (round) => (round % 3 === 0 ? 1 + Math.floor(round / 8) : 0);
 // **돌파가 체감되어야 한다.** 스무 판을 해도 8%씩 오르면 벽은 그대로 벽이다.
 const metaGold = () => 90 + META.up.gold * 35;
-const metaLife = () => 260 + META.up.life * 65;   // 본진 체력
+/* **맞기 시작한 뒤에도 버틸 시간이 있어야 한다.** 260 이면 적 몇이 붙는 순간 몇 초 만에
+   끝나서, 처음 맞은 라운드와 죽는 라운드가 붙어 버렸다(재 보니 1~5 라운드 차). 두껍게 두고
+   대신 한 대를 가볍게 하면, 새어 든 놈들이 조금씩 깎다 잡히는 구간이 길어진다. */
+const metaLife = () => 520 + META.up.life * 90;   // 본진 체력
 const metaDmg  = () => 1 + META.up.dmg * 0.13;
 
 /** **이번 판에 나올 유닛은 다섯 종뿐이다.**
@@ -641,8 +644,18 @@ const S = {
 let nextId = 1;
 
 const rollCost = () => Math.max(6, 12 - META.up.cheap) + Math.round(S.rolls * 1.15);  // 뽑을수록 비싸진다
-const waveHp   = (r) => Math.round(24 * Math.pow(1.30, r - 1));
-const waveN    = (r) => 3 + Math.floor(r * 1.1);
+/** **압박은 서서히 와야 한다.**
+ *
+ *  재 보니 본진이 처음 맞는 게 15~22 라운드였고 죽는 건 20~24 라운드였다. 무손상으로
+ *  달리다 한두 라운드 만에 즉사하는 곡선이다 — 그러면 위생병도 방패병도 쓸 자리가 없고,
+ *  유물을 쓸 이유도 마지막 순간에야 생긴다. 돌파할 벽이 아니라 낭떠러지다.
+ *
+ *  원인은 체력만 가파르게(×1.30) 올린 것이다. 우리 화력은 합성으로 ×3 씩 계단을 뛰므로
+ *  한동안 압도하다가 계단 사이에서 한 번에 무너진다. 그래서 **체력은 완만하게, 수는
+ *  가파르게** 바꿨다. 수가 늘면 몇 마리가 새어 들어와 본진을 조금씩 깎고, 그 지점부터
+ *  고치고 막는 병과가 값을 하기 시작한다. 터지는 병과(척탄병·로켓병·화염병)도 같이 산다. */
+const waveHp   = (r) => Math.round(24 * Math.pow(1.235, r - 1));
+const waveN    = (r) => 3 + Math.floor(r * 2.0);
 const isBossR  = (r) => r % 5 === 0;
 
 /* ══ 화면 크기 ══ */
@@ -1027,7 +1040,12 @@ function waveLanes(r) {
 
 function spawnMob() {
   const boss = isBossR(S.round) && S.spawned === 0;
-  const hp = waveHp(S.round) * (boss ? 8 : 1);
+  /* **체력을 흩뿌린다.** 모두 같은 체력이면 한 웨이브가 통째로 죽거나 통째로 살아남는다 —
+     화력이 감당하는 동안은 한 대도 안 맞다가, 한계를 넘는 순간 수십 마리가 동시에 도달해
+     끝난다(재 보니 처음 맞은 라운드와 죽는 라운드가 1~5 라운드밖에 차이가 안 났다).
+     편차를 주면 두꺼운 놈부터 새어 들어와 본진을 조금씩 깎고, 그 비율이 라운드를 따라
+     서서히 는다. 낭떠러지가 비탈이 된다. */
+  const hp = waveHp(S.round) * (boss ? 8 : 0.55 + Math.random() * 1.15);
   const lanes = waveLanes(S.round);
   // 같은 갈래라도 조금씩 흩뿌린다 — 한 줄로 오면 한 타워가 다 잡는다
   const th = lanes[S.spawned % lanes.length] + (Math.random() - 0.5) * 0.5;
@@ -1049,7 +1067,8 @@ function spawnMob() {
        (타워가 쏘는 총량 = 사거리 ÷ 속도). 실제로 31 로 올렸더니 아무렇게나 세운 봇이
        5.2R → 2.8R 로 주저앉았다. 더 걸리는 2.6초는 배속으로 넘긴다. */
     speed: (boss ? 15 : 24) * (1 + (S.round - 1) * 0.02),   // px/초
-    dmg: Math.round((2 + S.round * 0.6) * (boss ? 4 : 1)),
+    // 한 대는 가볍게, 대신 **여럿이 오래** — 그래야 고치고 막는 병과가 값을 한다
+    dmg: Math.round((2 + S.round * 0.28) * (boss ? 4 : 1)),
     slow: 0, slowT: 0, atkT: 0,
   });
   S.spawned++;

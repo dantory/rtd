@@ -6,6 +6,8 @@
  *      node tools/probe.mjs [판수]
  */
 const RUNS = Number(process.argv[2] || 6);
+// 두 번째 인자 auto → 게임의 자동 운영(⚙)을 켜고 잰다. 사람이 켜 두고 보는 그대로다.
+const AUTO = process.argv[3] === 'auto';
 const list = await (await fetch("http://127.0.0.1:9333/json/list")).json();
 const ws = new WebSocket(list.find(x => x.type === "page").webSocketDebuggerUrl);
 await new Promise(r => { ws.onopen = r; });
@@ -22,15 +24,18 @@ const out = await ev(`(() => {
   Object.assign(META,{relics:0,best:0,
     up:Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0])),
     seen:Object.fromEntries(KIND_IDS.map(k=>[k,0]))});
+  const AUTO = ${AUTO};
   const rows=[];
   for(let run=0; run<${RUNS}; run++){
-    newGame(); S.auto=false; S.gap=0; S.autoRun=false;
-    let g=0, stalled=null;
+    newGame(); S.auto=false; S.gap=0; S.autoRun=AUTO;
+    let g=0, stalled=null, firstHit=0, lowest=1;
     while(!S.over && S.round<=30 && g++<250){
-      let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&n++<40) roll();
-      while(canMerge()) merge();
+      if(!AUTO){ let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&n++<40) roll();
+        while(canMerge()) merge(); fillFree(); }
       startWave();
-      let t=0; while(S.running && t<300){ tick(1/30); t+=1/30; }
+      let t=0; while(S.running && t<300){ tick(1/30); t+=1/30;
+        const f=S.coreHp/S.coreMax; if(f<lowest) lowest=f;
+        if(!firstHit && S.coreHp<S.coreMax) firstHit=S.round; }
       if (S.running) {                       // 300 초가 지나도 안 끝났다 = 교착
         stalled = { round:S.round, mobs:S.mobs.length, spawned:S.spawned, toSpawn:S.toSpawn,
           coreHp:Math.round(S.coreHp), stuck:S.mobs.filter(m=>m.stuck).length,
@@ -39,13 +44,13 @@ const out = await ev(`(() => {
         break;
       }
     }
-    rows.push({ round:S.round, over:S.over, stalled });
+    rows.push({ round:S.round, over:S.over, stalled, firstHit, lowest:+lowest.toFixed(2) });
   }
   return rows;
 })()`);
 
 for (const r of out) {
-  console.log(r.stalled ? `R${r.round} 교착 ${JSON.stringify(r.stalled)}` : `R${r.round} ${r.over ? "죽음" : "정상종료"}`);
+  console.log(r.stalled ? `R${r.round} 교착 ${JSON.stringify(r.stalled)}` : `R${r.round} ${r.over ? "죽음" : "정상종료"} · 처음 맞은 라운드 ${r.firstHit || "-"} · 최저체력 ${Math.round(r.lowest*100)}%`);
 }
 const st = out.filter(r => r.stalled).length;
 console.log(`\n교착 ${st}/${out.length} · 죽음 ${out.filter(r => r.over).length}/${out.length}`);
