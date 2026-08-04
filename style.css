@@ -244,14 +244,17 @@
   @media (max-width: 360px){ .hud{font-size:11px} .title{letter-spacing:1px} }
 
   /* 편성 화면 — 상점과 같은 틀을 쓴다. 뒤에서 게임은 계속 돈다(방치형이니 멈출 이유가 없다). */
-  #squad,#settings{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
+  #squad,#settings,#offline{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
     align-items:center;justify-content:center;text-align:center;
     backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-  #squad.on,#settings.on{display:flex}
-  #squad .box,#settings .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  #squad.on,#settings.on,#offline.on{display:flex}
+  #squad .box,#settings .box,#offline .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
     padding:22px 20px;box-shadow:0 18px 60px rgba(0,0,0,.6);max-width:94vw;max-height:88vh;overflow-y:auto}
-  #squad h2,#settings h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
-  #settings .box{min-width:min(320px,88vw)}
+  #squad h2,#settings h2,#offline h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
+  #settings .box,#offline .box{min-width:min(320px,88vw)}
+  /* 쌓인 유물은 크게 — 이 창에서 눈이 먼저 가야 할 곳이다 */
+  #offline .offgain{color:var(--amber);font-size:30px;letter-spacing:1px;margin:16px 0 2px}
+  #offline .offgain b{font-weight:normal}
   #squad .sqh{margin:16px 0 7px;font-size:11px;letter-spacing:2px;color:var(--dim);font-weight:normal}
   /* 자리는 **가로로 늘어놓는다.** 벙커에 끼운 것을 한눈에 세는 게 이 화면의 전부다. */
   .sqslots{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:7px}

@@ -1,4 +1,4 @@
-import { $, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, META, META_KEY, metaLife, noteSeen, refreshSlots, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
+import { $, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, META, META_KEY, metaLife, noteSeen, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { canMerge, dmgOf, fillFree, inBox, isOut, merge, mergeGroups, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
 import { drawShop, drawTowers, mobEls, paint, startWave, WAVE_GAP, waveLanes } from "./combat.js";
@@ -132,6 +132,44 @@ export function drawSquad() {
     : `같은 병과 같은 등급 <b>셋</b>이 모이면 한 등급 위가 된다 — 총 화력은 그대로인데 <b>자리가 둘 빈다</b>`;
 }
 export const openSquad = () => { drawSquad(); $("squad").classList.add("on"); };
+
+/* ══════════════════════════════════════════════════════════════
+   오프라인 진행 — **비운 사이에도 뭔가 쌓여 있어야 방치형이다.**
+   ──────────────────────────────────────────────────────────────
+   탭을 닫아 두면 루프가 멈춰 아무것도 안 는다. "들어올 때마다 조금 늘어 있는" 것이
+   방치형의 마지막 보상이라, 나가 있던 시간을 유물로 환산해 돌아왔을 때 한 번 준다.
+   시간당 지급은 relicsFor(best) 에 비례한다 — 멀리 가 본 사람일수록 방치의 값도 커진다.
+   상한 8시간(그 이상은 안 쌓임 — 켜 두기만 하면 무한히 버는 걸 막는다). */
+export const OFFLINE_CAP_H  = 8;
+export const OFFLINE_MIN_MS = 5 * 60 * 1000;     // 5분 미만은 소음이라 안 띄운다
+/** 나가 있던 사이 쌓인 유물을 계산한다. 지급하지는 않는다 — 받는 것은 [받는다] 버튼이 한다.
+ *  줄 게 없으면(첫 실행·5분 미만·기록 0) null 을 돌려 창을 안 띄운다. */
+export function offlineReport() {
+  const prev = META.lastSeen;                    // 타임스탬프 — `| 0` 은 32비트로 잘려 못 쓴다
+  if (!(prev > 0)) return null;                  // 첫 실행 — 비어 있던 시간이 없다
+  const elapsed = Math.max(0, Date.now() - prev);   // 시계를 되돌려도 음수는 0
+  if (elapsed < OFFLINE_MIN_MS) return null;
+  const capped  = Math.min(elapsed, OFFLINE_CAP_H * 3600 * 1000);
+  const perHour = relicsFor(META.best) * 0.2;    // 시간당 최고 기록 환산의 20%
+  const gain    = Math.floor((capped / 3600000) * perHour);
+  if (gain <= 0) return null;                     // 아직 멀리 못 가 봤으면 줄 게 없다
+  return { elapsed, gain };
+}
+/** "돌아온 사이" 창을 연다. 기존 모달(#settings/#squad .box) 그대로다.
+ *  받아야 지급한다 — [받는다] 를 눌러야 유물이 는다. */
+export function openOffline(rep) {
+  const h = Math.floor(rep.elapsed / 3600000);
+  const m = Math.floor((rep.elapsed % 3600000) / 60000);
+  $("offDur").textContent  = h ? `${h}시간 ${m}분` : `${m}분`;
+  $("offGain").textContent = rep.gain;
+  $("offTake").onclick = () => {
+    META.relics += rep.gain;
+    saveMeta();
+    $("offline").classList.remove("on");
+    refresh();
+  };
+  $("offline").classList.add("on");
+}
 /* **상점은 판이 끝난 뒤에만 연다.**
    막는 도중에도 열리게 해 뒀었는데, 전투를 보다 말고 상점을 여닫는 건 몰입을 끊는다는
    판단(병수님)이다. 한 판 → 정산 → 강화 → 다시 가 리듬이 더 선명하다. 판 도중에 눌리면

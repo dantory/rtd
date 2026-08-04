@@ -178,15 +178,24 @@ export function loadMeta() {
                  id: t.id | 0, kind: t.kind, g: Math.max(1, Math.min(5, t.g | 0)),
                  slot: (t.slot === null || t.slot === undefined) ? null : (t.slot | 0),
                })) : [],
-               armyId: raw.armyId | 0 };
+               armyId: raw.armyId | 0,
+               // **마지막으로 본 시각.** 탭을 닫아 둔 사이를 재려면 나갈 때의 시각이 남아 있어야
+               // 한다. 예전 세이브엔 없으니 0 — 그 경우 오프라인 지급을 건너뛴다(없던 시간을
+               // 지어내지 않는다). saveMeta 가 갱신하므로 게임이 도는 동안 저절로 흐른다.
+               // `| 0` 을 쓰면 안 된다 — Date.now()(약 1.78e12)는 32비트를 넘어 잘려 나간다.
+               lastSeen: Number.isFinite(raw.lastSeen) && raw.lastSeen > 0 ? raw.lastSeen : 0 };
     }
   } catch { /* 손상됐으면 조용히 새로 시작 — 저장이 깨졌다고 게임이 안 켜지면 안 된다 */ }
   return { relics: 0, best: 0, up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
            seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
            lv: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
-           army: [], armyId: 0 };
+           army: [], armyId: 0, lastSeen: 0 };
 }
-export const saveMeta = () => { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch {} };
+// 저장할 때마다 지금 시각을 찍는다 — 이 값이 다음 부팅에서 "비운 시간"의 기준이 된다.
+export const saveMeta = () => {
+  META.lastSeen = Date.now();
+  try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch {}
+};
 /** 도감에 적는다. 처음 본 병과면 true — 그때만 요란하게 알린다.
  *  **최고 등급까지 남긴다.** 한 번 상급을 만들어 봤다는 기록이 다음 판을 시작하게 만든다. */
 export function noteSeen(kind, g) {
