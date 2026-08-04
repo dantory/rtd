@@ -364,7 +364,10 @@
         <button id="sqSell">고른 것 해산</button>
       </div>
       <div class="note" id="sqTip"></div>
-      <div class="stick"><button id="sqClose" style="padding:11px 26px">닫는다</button></div>
+      <!-- 테스트용 초기화는 편성 화면 구석에 — 전장 HUD 를 어지럽히지 않으면서 아무 때나 열어 누를 수 있다 -->
+      <div class="stick"><button id="sqClose" style="padding:11px 26px">닫는다</button>
+        <button id="wipeBtn" style="font-size:11px;padding:5px 12px;margin-left:10px;
+          color:var(--dim);border-color:#2a323d">초기화</button></div>
     </div></div>
     <div id="over"><div class="box">
       <h2 id="overT"></h2>
@@ -424,9 +427,7 @@
       <!-- 테스트용 — 저장(부대·유물·업그레이드·도감·최고 기록)을 지우고 처음부터.
            기록 **위**에 둔다: 로그가 30줄까지 자라서, 아래에 두면 플레이 중엔
            스크롤 밖으로 밀려나 있는지도 모르게 된다. 실수로 못 누르게 확인을 한 번 묻는다. -->
-      <h3>기록
-        <button id="wipeBtn" style="float:right;font-size:11px;padding:4px 10px;
-          color:var(--dim);border-color:#2a323d">초기화</button></h3>
+      <h3>기록</h3>
       <div id="log"></div>
     </section>
   </aside>
