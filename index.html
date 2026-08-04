@@ -190,6 +190,9 @@
   .pchip.noimg i{display:block}
 
   .tally{display:flex;flex-wrap:wrap;gap:6px}
+  .sqopen{float:right;padding:2px 10px;font-size:11px;letter-spacing:1px;
+    background:#1a2029;border:1px solid #3a4658;border-radius:4px;color:var(--steel)}
+  .sqopen:hover{border-color:var(--amber);color:var(--amber)}
   .hold{position:relative;width:44px;height:44px;padding:0;border-radius:4px;
     background:#161c24;border:1px solid #262f3a;overflow:hidden}
   .hold .spr{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);
@@ -266,6 +269,37 @@
   .rlc:hover{border-color:var(--amber)}
   @media (max-width: 420px){ aside{max-height:38vh} }
 
+  /* 편성 화면 — 상점과 같은 틀을 쓴다. 뒤에서 게임은 계속 돈다(방치형이니 멈출 이유가 없다). */
+  #squad{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
+    align-items:center;justify-content:center;text-align:center;
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  #squad.on{display:flex}
+  #squad .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:22px 20px;box-shadow:0 18px 60px rgba(0,0,0,.6);max-width:94vw;max-height:88vh;overflow-y:auto}
+  #squad h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
+  #squad .sqh{margin:16px 0 7px;font-size:11px;letter-spacing:2px;color:var(--dim);font-weight:normal}
+  /* 자리는 **가로로 늘어놓는다.** 벙커에 끼운 것을 한눈에 세는 게 이 화면의 전부다. */
+  .sqslots{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:7px}
+  .sqs{position:relative;aspect-ratio:1;border-radius:6px;background:#161c24;
+    border:1px solid #3a4658;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;padding:0;font-family:inherit}
+  .sqs.empty{border-style:dashed;border-color:#2b3441;cursor:default}
+  .sqs:not(.empty):hover{border-color:var(--amber)}
+  .sqs .spr{width:74%;height:74%;object-fit:contain;image-rendering:pixelated}
+  .sqs .ico{font-size:19px}
+  .sqs:not(.noimg) .ico{display:none}
+  .sqs .gr{position:absolute;bottom:3px;font-size:8px;letter-spacing:-1px}
+  .sqs .no{font-size:20px;color:#39424f}
+  .sqbox{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:7px}
+  .sqb{position:relative;aspect-ratio:1;border-radius:6px;background:#161c24;border:1px solid #262f3a;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+    padding:0;font-family:inherit}
+  .sqb:hover{border-color:var(--amber)}
+  .sqb .spr{width:70%;height:70%;object-fit:contain;image-rendering:pixelated}
+  .sqb .ico{font-size:17px}
+  .sqb:not(.noimg) .ico{display:none}
+  .sqb .cnt{position:absolute;right:3px;bottom:2px;font-size:10px;color:var(--fg)}
+  .sqb .gr{position:absolute;left:0;right:0;top:0;height:2px;border-radius:2px 2px 0 0}
   #over{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:400;
     align-items:center;justify-content:center;text-align:center;
     backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
@@ -311,6 +345,17 @@
       <button id="zinBtn" title="확대">＋</button>
       <button id="zoutBtn" title="축소">－</button>
     </div>
+    <!-- **편성은 따로 본다.** 전장에서 대원이 쏘는 걸 보는 건 그대로 두되(그게 이 장르의
+         재미다), 누구를 넣고 뺄지는 칩 대신 제대로 된 화면에서 고른다 — 창고가 열 기를
+         넘어가면 44px 칩으로는 무엇이 있는지조차 안 읽힌다. -->
+    <div id="squad"><div class="box">
+      <h2>벙커 편성</h2>
+      <div class="note" id="sqNote"></div>
+      <div class="sqslots" id="sqSlots"></div>
+      <h3 class="sqh">창고 <span class="dim" id="sqBoxN"></span></h3>
+      <div class="sqbox" id="sqBox"></div>
+      <button id="sqClose" style="margin-top:16px;padding:11px 26px">닫는다</button>
+    </div></div>
     <div id="over"><div class="box">
       <h2 id="overT"></h2>
       <div class="note" id="overD" style="font-size:13px"></div>
@@ -348,7 +393,8 @@
     </section>
 
     <section>
-      <h3>가진 것 <span class="dim" id="holdHint"></span></h3>
+      <h3>가진 것 <span class="dim" id="holdHint"></span>
+        <button id="squadBtn" class="sqopen">편성</button></h3>
       <div class="tally" id="tally"></div>
       <div class="rowbtn">
         <button id="mergeBtn" style="flex:1">셋을 합친다</button>
@@ -1532,6 +1578,66 @@ function openShop(mid) {
   if (mid) $("overD").textContent = "막는 동안에도 유물은 쓸 수 있다.";
   $("over").classList.add("on");
 }
+/** **편성 화면** — 자리에 누가 들어가 있고 창고에 무엇이 남았는지를 한 화면에서 본다.
+ *
+ *  전장의 진열대 칩으로도 넣고 뺄 수는 있지만, 창고가 열 기를 넘어가면 44px 칩이 빽빽해져
+ *  무엇이 있는지조차 안 읽힌다. 자리를 **가로로 늘어놓아** 벙커에 끼운 것을 그대로 세게 하고,
+ *  창고는 종류·등급으로 묶어 아래에 크게 편다. 뒤에서 게임은 계속 돈다 — 멈출 이유가 없다.
+ *
+ *  자리를 누르면 그 대원을 거두고, 창고 칸을 누르면 빈 자리에 내보낸다. */
+function drawSquad() {
+  const spots = SLOT_SPOTS.slice(0, slotMax());
+  const at = new Map(placed().map(t => [t.x + "," + t.y, t]));
+  $("sqSlots").innerHTML = spots.map(([x, y]) => {
+    const t = at.get(x + "," + y);
+    if (!t) return `<div class="sqs empty"><span class="no">+</span></div>`;
+    const K = KINDS[t.kind];
+    return `<button class="sqs" data-pull="${t.id}" title="${GNAME[t.g]} ${K.n} — 눌러서 거둔다">
+      <img class="spr" src="assets/unit/${t.kind}.png" alt=""
+        onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
+      <span class="ico">${K.ico}</span>
+      <span class="gr" style="color:${GCOL[t.g]}">${"★".repeat(Math.min(t.g,5))}</span></button>`;
+  }).join("");
+
+  const box = new Map();
+  for (const t of inBox()) {
+    const k = t.kind + ":" + t.g;
+    box.set(k, (box.get(k) || 0) + 1);
+  }
+  $("sqBox").innerHTML = [...box.entries()].map(([k, n]) => {
+    const [kind, gs] = k.split(":"), g = +gs, K = KINDS[kind];
+    return `<button class="sqb" data-push="${k}" title="${GNAME[g]} ${K.n} — 눌러서 내보낸다">
+      <span class="gr" style="background:${GCOL[g]}"></span>
+      <img class="spr" src="assets/unit/${kind}.png" alt=""
+        onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
+      <span class="ico">${K.ico}</span>
+      <span class="cnt">${n}</span></button>`;
+  }).join("") || `<div class="note">창고가 비었다. 뽑으면 여기 쌓인다.</div>`;
+
+  const free = spots.length - at.size;
+  $("sqNote").innerHTML = `자리 <b>${at.size}/${spots.length}</b>` +
+    (free ? ` · <b style="color:var(--amber)">${free}자리 비었다</b>` : "") +
+    ` — 자리를 누르면 거두고, 창고를 누르면 내보낸다`;
+  $("sqBoxN").textContent = `${inBox().length}기`;
+}
+const openSquad = () => { drawSquad(); $("squad").classList.add("on"); };
+$("sqClose").onclick = () => $("squad").classList.remove("on");
+$("squadBtn").onclick = openSquad;
+$("sqSlots").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pull]");
+  if (!b) return;
+  const t = S.towers.find(x => x.id === +b.dataset.pull);
+  if (!t) return;
+  t.x = t.y = null;
+  if (S.sel === t.id) S.sel = null;
+  refresh(); drawSquad();
+});
+$("sqBox").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-push]");
+  if (!b) return;
+  toggleOut(b.dataset.push);      // 창고에 있으면 내보낸다 — 진열대 칩과 같은 손잡이
+  drawSquad();
+});
 $("relicBtn").onclick = () => openShop(!S.over);
 $("dex").addEventListener("click", (e) => {
   const b = e.target.closest("[data-train]");
