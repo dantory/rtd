@@ -205,6 +205,17 @@
   .hold.ready{border-color:var(--good);cursor:pointer}
   .hold.ready::after{content:"";position:absolute;inset:0;
     box-shadow:inset 0 0 10px rgba(127,176,105,.45);animation:lanep 1.4s ease-in-out infinite}
+  /* 도감 — 진열대 칩보다 크게. 모은 것을 들여다보는 자리라 얼굴이 보여야 한다. */
+  .dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px}
+  .dxc{position:relative;padding:5px 3px 4px;border-radius:5px;background:#161c24;
+    border:1px solid #262f3a;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .dxc .spr{width:40px;height:40px;object-fit:contain;image-rendering:pixelated}
+  .dxc .ico{font-size:15px;line-height:1}
+  .dxc:not(.noimg) .ico{display:none}
+  .dxc .dxn{font-size:10px;color:var(--dim);letter-spacing:0}
+  .dxc .dxg{font-size:9px;letter-spacing:-1px}
+  .dxc.off{opacity:.34}
+  .dxc.off .ico{font-size:22px;color:#4a5361;display:block}
   .hold:not(.ready){opacity:.94}
   .hold.away{opacity:.46}                /* 한 기도 안 나가 있는 것 — 창고에서 대기 중이다 */
   #log{font-size:11px;color:var(--dim);line-height:1.65;max-height:150px;overflow-y:auto}
@@ -298,6 +309,10 @@
         <h3>유물로 영구히 세진다 <span class="dim">(가진 유물 <b id="shopHave">0</b>)</span></h3>
         <div class="shop" id="shop"></div>
       </div>
+      <div class="shopwrap">
+        <h3>도감 <span class="dim"><b id="dexHave">0</b>/<b id="dexAll">0</b> 병과 · 만난 최고 등급이 남는다</span></h3>
+        <div class="dex" id="dex"></div>
+      </div>
       <button id="again" style="margin-top:16px;padding:11px 26px">한 판 더</button>
     </div></div>
   </div>
@@ -349,25 +364,38 @@ const $ = (id) => document.getElementById(id);
    합성이 "조금 나아짐"이면 셋을 모을 이유가 없다. 등급마다 피해가 3배씩 뛴다.
    대신 사거리·속도는 종류가 정한다 — 그래야 어느 종류를 키울지가 선택이 된다.
    ══════════════════════════════════════════════════════════ */
+/** **벙커에 넣는 건 포탑이 아니라 대원이다.**
+ *  자리에 놓는 것이 구조물이면 아무리 "할당"이라 불러도 화면에는 타워를 세우는 게임으로
+ *  보인다. 병과가 곧 벙커의 성격이다 — 무엇을 넣느냐로 공격도 방어도 갈린다.
+ *  뒤의 넷은 **때리는 것 말고 다른 일**을 한다. 숫자만 다른 병과는 늘려 봐야 목록만 길어진다. */
 const KINDS = {
-  gun:   { n:"기관포", ico:"⌖", col:"#c9ccd1", dmg:6,  rng:140, cd:0.55, fx:"hit",
+  gun:   { n:"소총병", ico:"⌖", col:"#c9ccd1", dmg:6,  rng:140, cd:0.55, fx:"hit",
            d:"고르게 쏜다" },
-  cannon:{ n:"박격포", ico:"◉", col:"#d0785a", dmg:22, rng:118, cd:1.5,  splash:44, fx:"blast",
+  cannon:{ n:"척탄병", ico:"◉", col:"#d0785a", dmg:22, rng:118, cd:1.5,  splash:44, fx:"blast",
            d:"느리지만 터진다" },
-  frost: { n:"냉각탑", ico:"❆", col:"#6ba8d6", dmg:4,  rng:132, cd:0.7,  slow:0.45, fx:"frost",
+  frost: { n:"냉동병", ico:"❆", col:"#6ba8d6", dmg:4,  rng:132, cd:0.7,  slow:0.45, fx:"frost",
            d:"느리게 만든다" },
-  bolt:  { n:"전탑",   ico:"⚡", col:"#a978c9", dmg:11, rng:172, cd:0.9,  chain:2, fx:"spark",
+  bolt:  { n:"전격병", ico:"⚡", col:"#a978c9", dmg:11, rng:172, cd:0.9,  chain:2, fx:"spark",
            d:"멀리, 여럿에게 튄다" },
   // ── 뽑기에 결이 생기게 넷을 더한다. **숫자만 다른 유닛은 늘려 봐야 목록만 길어진다** —
   //    저마다 "이건 이럴 때 쓴다"가 달라야 뽑을 때마다 판이 달라진다.
-  flame: { n:"화염방사", ico:"🔥", col:"#e08a3c", dmg:5, rng:96, cd:0.3, splash:30, fx:"blast",
+  flame: { n:"화염병", ico:"🔥", col:"#e08a3c", dmg:5, rng:96, cd:0.3, splash:30, fx:"blast",
            d:"코앞을 빠르게 태운다" },
-  rail:  { n:"레일건", ico:"↟", col:"#dfe6ee", dmg:46, rng:230, cd:2.4, pierce:3, fx:"spark",
+  rail:  { n:"저격수", ico:"↟", col:"#dfe6ee", dmg:46, rng:230, cd:2.4, pierce:3, fx:"spark",
            d:"아주 멀리, 뚫고 지나간다" },
-  drone: { n:"정찰기", ico:"✈", col:"#7fb069", dmg:7, rng:150, cd:0.8, bounty:2, fx:"hit",
+  drone: { n:"정찰병", ico:"✈", col:"#7fb069", dmg:7, rng:150, cd:0.8, bounty:2, fx:"hit",
            d:"잡을 때마다 골드를 더 준다" },
-  mine:  { n:"지뢰밭", ico:"◇", col:"#e0c458", dmg:34, rng:70, cd:2.0, splash:52, arm:true, fx:"blast",
+  mine:  { n:"공병",   ico:"◇", col:"#e0c458", dmg:34, rng:70, cd:2.0, splash:52, arm:true, fx:"blast",
            d:"붙은 놈들을 한꺼번에" },
+  // ── 때리는 것 말고 다른 일을 하는 넷 ──
+  medic:  { n:"위생병", ico:"✚", col:"#e2b8b8", dmg:3, rng:110, cd:1.1, heal:7, fx:"hit",
+            d:"싸우는 동안 본진을 고친다" },
+  guard:  { n:"방패병", ico:"▣", col:"#8f9aa8", dmg:8, rng:88, cd:0.9, armor:0.24, fx:"hit",
+            d:"본진이 받는 피해를 줄인다" },
+  rocket: { n:"로켓병", ico:"➶", col:"#6f8f5a", dmg:62, rng:196, cd:2.8, splash:58, fx:"blast",
+            d:"한 발이 무겁다" },
+  officer:{ n:"지휘관", ico:"★", col:"#d6a84a", dmg:9, rng:150, cd:1.0, aura:0.22, fx:"hit",
+            d:"벙커 전원의 피해를 올린다" },
 };
 const KIND_IDS = Object.keys(KINDS);
 const GRADE = [1,2,3,4,5];
@@ -380,11 +408,32 @@ const GCOL  = ["", "#8a8f98", "#7fb069", "#6ba8d6", "#a978c9", "#e0a458"];
  *  그대로 두니 화력이 5분의 1 이 되어 3~5 라운드에서 죽었고, 뽑기 횟수가 모자라 같은 것
  *  셋을 모을 수가 없어 합성까지 같이 죽었다. 자리 수가 줄면 개당 화력은 그만큼 올라야 한다. */
 const BUNKER_DMG = 4.5;
-const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * BUNKER_DMG * gradeMul(t.g) * metaDmg());
-const rngOf  = (t) => KINDS[t.kind].rng + (t.g - 1) * 9;
+/** 지휘관은 **벙커 전원**의 피해를 올린다. 사거리를 두지 않는 건 벙커이기 때문이다 —
+ *  같은 건물 안이라 누가 누구 옆인지를 따질 것이 없다. 여럿 넣으면 그만큼 쌓인다. */
+const auraMul = () => 1 + placed().reduce(
+  (s, t) => s + (KINDS[t.kind].aura || 0) * (1 + (t.g - 1) * 0.5), 0);
+const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * BUNKER_DMG * gradeMul(t.g) * metaDmg() * auraMul());
+/** 방패병이 있으면 본진이 받는 피해가 준다. 여럿 넣으면 곱으로 쌓이되 바닥을 둔다 —
+ *  방패병만 채워 무적이 되면 그건 방어가 아니라 정답이 하나뿐인 판이 된다. */
+const armorMul = () => {
+  let m = 1;
+  for (const t of placed()) {
+    const a = KINDS[t.kind].armor;
+    if (a) m *= 1 - a * (1 + (t.g - 1) * 0.35);
+  }
+  return Math.max(0.28, m);
+};
+/** **반대편 대원도 닿아야 한다.**
+ *  자리는 사방으로 흩어 열리는데 적은 한 갈래로 온다. 본진이 3×3(192px)이라 반대편
+ *  대원까지는 300px 이 넘는데 사거리는 88~230 이었다 — 셋 중 하나만 싸우고 둘은 구경만
+ *  하다 본진이 무너졌다(여섯 판 중 두 판이 1R). 벙커 하나에 다 들어가 있는 것이니
+ *  사거리는 그 벙커를 덮을 만해야 한다. 병과별 차이는 배수라 그대로 남는다. */
+const BUNKER_RNG = 1.9;
+const rngOf  = (t) => Math.round((KINDS[t.kind].rng + (t.g - 1) * 9) * BUNKER_RNG);
 const sellOf = (t) => Math.round(12 * gradeMul(t.g) * 0.55);
 // 타워도 맞는다. 등급이 오르면 단단해지되 피해만큼 뛰지는 않는다 —
 // 세다고 안 부서지면 바깥에 세우는 데 값이 없어진다.
+// 대원은 이제 안 죽는다(벙커가 대신 맞는다). 이 값은 표시용으로만 남는다.
 const hpOf   = (t) => Math.round(28 + t.g * 22);
 
 /* ══════════════════════════════════════════════════════════════
@@ -495,12 +544,25 @@ function loadMeta() {
     const raw = JSON.parse(localStorage.getItem(META_KEY));
     if (raw && typeof raw === "object") {
       return { relics: raw.relics | 0, best: raw.best | 0,
-               up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, (raw.up?.[k]) | 0])) };
+               up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, (raw.up?.[k]) | 0])),
+               // 도감 — **모으는 재미는 남는 데서 온다.** 판이 끝나면 사라지는 수집은 수집이 아니다.
+               seen: Object.fromEntries(KIND_IDS.map(k => [k, (raw.seen?.[k]) | 0])) };
     }
   } catch { /* 손상됐으면 조용히 새로 시작 — 저장이 깨졌다고 게임이 안 켜지면 안 된다 */ }
-  return { relics: 0, best: 0, up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])) };
+  return { relics: 0, best: 0, up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
+           seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])) };
 }
 const saveMeta = () => { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch {} };
+/** 도감에 적는다. 처음 본 병과면 true — 그때만 요란하게 알린다.
+ *  **최고 등급까지 남긴다.** 한 번 상급을 만들어 봤다는 기록이 다음 판을 시작하게 만든다. */
+function noteSeen(kind, g) {
+  const cur = META.seen[kind] | 0;
+  if (g <= cur) return false;
+  META.seen[kind] = g;
+  saveMeta();
+  return cur === 0;
+}
+const seenCount = () => KIND_IDS.filter(k => META.seen[k]).length;
 const upCost = (k) => UPGRADES[k].base + UPGRADES[k].per * META.up[k];
 // 넘긴 라운드가 곧 보상이다. 보스 라운드(5의 배수)를 넘기면 덤이 붙는다.
 const relicsFor = (round) => (round - 1) + Math.floor((round - 1) / 5) * 3;
@@ -751,7 +813,9 @@ function roll() {
   t.hp = t.maxHp = hpOf(t);
   S.towers.push(t);
   S.sel = t.id;
-  say(`<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 뽑았다.` + (slot ? "" : " 자리가 없어 창고로."));
+  const fresh = noteSeen(kind, g);
+  say((fresh ? `<b style="color:var(--amber)">새 병과!</b> ` : "") +
+      `<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 뽑았다.` + (slot ? "" : " 자리가 없어 창고로."));
   refresh();
   if (slot) popTower(t, "rolled");  // 어디에 떨어졌는지 눈이 따라가야 한다
 }
@@ -843,6 +907,7 @@ function mergeKey(k) {
   keep.maxHp = hpOf(keep); keep.hp = keep.maxHp;     // 합치면 새것처럼 선다
   S.sel = keep.id;
   fillFree();                                        // 셋이 하나가 되며 빈 두 자리를 메운다
+  noteSeen(kind, keep.g);                            // 합쳐 오른 등급도 도감에 남는다
   say(`셋을 합쳐 <b style="color:${GCOL[keep.g]}">${GNAME[keep.g]} ${KINDS[kind].n}</b> 이(가) 되었다.`);
   flyText(cx(keep.x), cy(keep.y), GNAME[keep.g], GCOL[keep.g]);
   refresh();
@@ -1015,36 +1080,23 @@ function tick(dt) {
     if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }
     m.atkT -= dt;
 
-    // 코앞의 타워 (한 칸 반경)
-    let block = null, bd = 1e9;
-    for (const t of placed()) {
-      const d = Math.hypot(cx(t.x) - m.x, cy(t.y) - m.y);
-      if (d < CELL * 0.72 && d < bd) { bd = d; block = t; }
-    }
+    /* **적이 노리는 건 벙커 하나다.**
+     *
+     *  전에는 코앞의 대원에게 막혀 그를 때렸다. 자리가 셋뿐인 구조에서 그러면 대원이
+     *  죽어 없어지고 화력이 통째로 사라져 그 판이 거기서 끝난다(여섯 판 중 세 판이 1R).
+     *  맞는 것을 본진으로 돌려도 마찬가지였다 — 막혀 있는 동안 그 피해가 전부 본진으로
+     *  들어가 오히려 더 빨리 무너졌다. 대원은 벙커 안에 있는 것이니 **아예 맞지 않는다.**
+     *  깎이는 것은 본진뿐이고, 그래서 방어는 받는 피해를 줄이는 일(방패병)과
+     *  깎인 것을 되돌리는 일(위생병)로 갈린다. 잃는 것은 판이지 모아 온 대원이 아니다. */
     m.stuck = false;
-    if (block) {
-      m.stuck = true;
-      if (m.atkT <= 0) {
-        m.atkT = 1;
-        block.hp -= m.dmg;
-        flyText(cx(block.x), cy(block.y), "-" + m.dmg, "#d05353");
-        if (block.hp <= 0) {
-          say(`<b style="color:${GCOL[block.g]}">${GNAME[block.g]} ${KINDS[block.kind].n}</b> 이(가) 부서졌다.`);
-          S.towers = S.towers.filter(t => t.id !== block.id);
-          if (S.sel === block.id) S.sel = null;
-          refresh();
-        }
-      }
-      continue;                                   // 막힌 동안은 전진하지 않는다
-    }
-
     const d = Math.hypot(m.x - c.x, m.y - c.y);
     if (d <= cr + 8) {                            // 본진에 붙었다
       m.stuck = true;
       if (m.atkT <= 0) {
         m.atkT = 1;
-        S.coreHp -= m.dmg;
-        flyText(c.x, c.y - cr, "-" + m.dmg, "#d05353");
+        const hit = Math.max(1, Math.round(m.dmg * armorMul()));
+        S.coreHp -= hit;
+        flyText(c.x, c.y - cr, "-" + hit, "#d05353");
         if (S.coreHp <= 0) { S.coreHp = 0; gameOver(); return; }
       }
       continue;
@@ -1055,7 +1107,22 @@ function tick(dt) {
   }
   S.mobs = S.mobs.filter(m => !m.dead);
 
-  // 타워 — **내보낸 것만 쏜다.** 창고에 있는 건 구경만 한다
+  /* 위생병 — 싸우는 동안 **본진**을 고친다. 대원이 안 죽게 된 뒤로 깎이는 것은 본진뿐이고,
+     그러니 고칠 것도 본진이다. 웨이브 도중에만 의미가 있는 힘이다. */
+  for (const t of placed()) {
+    const h = KINDS[t.kind].heal;
+    if (!h) continue;
+    t.healT = (t.healT || 0) - dt;
+    if (t.healT > 0) continue;
+    t.healT = 1.2;
+    if (S.coreHp >= S.coreMax) continue;
+    const amt = Math.round(h * gradeMul(t.g) * 0.5);
+    S.coreHp = Math.min(S.coreMax, S.coreHp + amt);
+    const c2 = coreCenter();
+    flyText(c2.x, c2.y - coreRadius(), "+" + amt, "#7fb069");
+  }
+
+  // 대원 — **내보낸 것만 쏜다.** 창고에 있는 건 구경만 한다
   for (const t of placed()) {
     t.cd = (t.cd || 0) - dt;
     if (t.cd > 0) continue;
@@ -1165,6 +1232,23 @@ function drawShop() {
       <span class="d">${u.d}</span><span class="p">유물 ${c}</span></button>`;
   }).join("");
   $("shopHave").textContent = META.relics;
+
+  /* 도감 — 아직 못 본 병과도 **자리를 비워 둔 채로 보여 준다.** 몇 개가 남았는지 보이지
+     않으면 모을 이유가 생기지 않는다. 만난 최고 등급을 별로 남겨 다음 판을 당긴다. */
+  $("dex").innerHTML = KIND_IDS.map(k => {
+    const g = META.seen[k] | 0, K = KINDS[k];
+    return g
+      ? `<div class="dxc" title="${K.n} — ${K.d}">
+           <img class="spr" src="assets/unit/${k}.png" alt=""
+             onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
+           <span class="ico">${K.ico}</span>
+           <span class="dxn">${K.n}</span>
+           <span class="dxg" style="color:${GCOL[g]}">${"★".repeat(Math.min(g,5))}</span></div>`
+      : `<div class="dxc off" title="아직 못 만났다"><span class="ico">?</span>
+           <span class="dxn">???</span></div>`;
+  }).join("");
+  $("dexHave").textContent = seenCount();
+  $("dexAll").textContent = KIND_IDS.length;
 }
 
 /* ══ 그리기 ══ */

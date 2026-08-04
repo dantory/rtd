@@ -21,6 +21,12 @@ MCP  = os.path.join(HERE, "mcp_call.py")
 TONE = ("top-down three-quarter view seen from above, dark grimy sci-fi bunker war, "
         "muted steel and rust palette, single light source from above, transparent background")
 UNIT = f"{TONE}, small squat turret emplacement standing on a metal pad, centred, whole object visible"
+# **벙커에 넣는 건 포탑이 아니라 사람이다.** 자리에 놓는 것이 구조물이면 아무리 "할당"이라
+# 불러도 화면에는 타워를 세우는 게임으로 보인다(실제로 그렇게 보였다). 한 사람씩,
+# 실루엣으로 병과가 갈리게 굽는다 — 격자에서 56px 로 줄면 자세와 든 것만 남는다.
+TROOP = (f"{TONE}, a single human soldier in dark grimy sci-fi armour standing on a riveted metal "
+         "deck plate, full body visible from head to boots, centred, facing the viewer, "
+         "clear readable silhouette")
 MOB  = f"{TONE}, hostile creature charging forward, centred, whole body visible"
 # 땅은 **위에서 똑바로** 본다 — 비스듬히 보면 이어 깔았을 때 원근이 어긋나 격자가 물결친다.
 GROUND = ("a plain square patch of ground seen from directly above, seamless tileable, "
@@ -39,15 +45,21 @@ SPRITES = {
     "unit/bunker": (f"{TONE}, a heavy fortified command bunker of riveted steel with a domed roof, "
                     f"armoured shutters, antenna mast, glowing blue core window, massive and squat", 128),
 
-    # ── 유닛 8종 ── 실루엣이 서로 달라야 한다. 격자에서 56px 로 줄어들면 색과 형태만 남는다.
-    "unit/gun":     (f"{UNIT}, twin autocannon turret with long paired barrels, pale steel", 64),
-    "unit/cannon":  (f"{UNIT}, stubby wide-mouthed mortar turret, thick short barrel pointing up, rust orange", 64),
-    "unit/frost":   (f"{UNIT}, cryo turret with frosted coils and icy blue vapour, pale cyan", 64),
-    "unit/bolt":    (f"{UNIT}, tesla coil tower with copper rings and arcing violet lightning", 64),
-    "unit/flame":   (f"{UNIT}, flamethrower nozzle turret with fuel tanks and pilot flame, ember orange", 64),
-    "unit/rail":    (f"{UNIT}, long slender railgun on a tripod, glowing rail slot, cold white", 64),
-    "unit/drone":   (f"{UNIT}, small landing pad with a hovering scout drone above it, green running lights", 64),
-    "unit/mine":    (f"{UNIT}, cluster of squat proximity mines on a plate, yellow black hazard stripes", 64),
+    # ── 대원 12종 ── **병과가 실루엣으로 갈려야 한다.** 든 것과 자세만으로 구분되게 굽는다.
+    "unit/gun":     (f"{TROOP}, holding a long assault rifle at the hip, pale steel helmet, standard trooper", 64),
+    "unit/cannon":  (f"{TROOP}, shouldering a stubby wide-mouthed grenade launcher, bulky rust orange armour", 64),
+    "unit/frost":   (f"{TROOP}, holding a cryo gun with frosted coils, icy blue vapour, pale cyan gear", 64),
+    "unit/bolt":    (f"{TROOP}, carrying a tesla coil backpack with copper rings, arcing violet lightning", 64),
+    "unit/flame":   (f"{TROOP}, holding a flamethrower with fuel tanks on the back, ember orange pilot flame", 64),
+    "unit/rail":    (f"{TROOP}, kneeling with a long slender railgun rifle, glowing rail slot, cold white gear", 64),
+    "unit/drone":   (f"{TROOP}, light scout with a small hovering drone above the shoulder, green running lights", 64),
+    "unit/mine":    (f"{TROOP}, engineer crouching with a satchel of proximity mines, yellow black hazard stripes", 64),
+    # 넷을 더한다 — **모으는 재미는 종류에서 나온다.** 다만 숫자만 다른 것은 늘려 봐야
+    # 목록만 길어지므로, 새로 오는 넷은 전부 "때리는 것 말고 다른 일"을 한다.
+    "unit/medic":   (f"{TROOP}, field medic with a red cross medkit and a healing beam emitter, white and red", 64),
+    "unit/guard":   (f"{TROOP}, heavy guard braced behind a large riveted riot shield, thick steel plating", 64),
+    "unit/rocket":  (f"{TROOP}, shouldering a large rocket launcher tube, warhead visible, dark green armour", 64),
+    "unit/officer": (f"{TROOP}, commanding officer with a peaked cap, greatcoat and raised sabre, gold trim", 64),
 
     # ── 적 6종 ── 아군과 확실히 갈리게 붉은 계열로 통일한다.
     "mob/grunt":  (f"{MOB}, small four-legged crawler drone with a single red eye, dark red chitin", 48),
