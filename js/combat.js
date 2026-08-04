@@ -412,10 +412,10 @@ export function paint() {
     $("world").appendChild(el);
   }
 
-  $("hLife").textContent = Math.max(0, Math.ceil(S.coreHp)) + "/" + S.coreMax;
+  // 체력은 벙커 곁에서 읽힌다 — 헤더에는 안 적는다(같은 숫자가 두 곳이면 눈이 갈라진다)
   const cb = $("coreBar"), cn = $("coreNum");
   if (cb) cb.style.width = Math.max(0, S.coreHp / S.coreMax * 100) + "%";
-  if (cn) cn.textContent = Math.max(0, Math.ceil(S.coreHp));
+  if (cn) cn.textContent = Math.max(0, Math.ceil(S.coreHp)) + "/" + S.coreMax;
   $("hRound").textContent = S.round;
   $("hRelic").textContent = META.relics;
   /* **살 수 있으면 살 수 있다고 말해야 한다.** 유물 버튼을 헤더 구석에 조용히 두었더니

@@ -85,8 +85,10 @@
   .core .cbar{position:absolute;left:-18%;width:136%;top:calc(-80% - 13px);height:5px;
     background:#141a22;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
   .core .cbar i{display:block;height:100%;background:linear-gradient(90deg,#4a6b3f,#7fb069);transition:width .15s}
-    /* 수치는 헤더에 이미 있다("본진 520/520"). 한 칸 위에 또 적으면 그림만 가린다. */
-  .core .cnum{display:none}
+  /* 수치는 벙커 곁에 — 지키는 것의 체력은 지키는 것 옆에서 읽혀야 한다(헤더에서 뺐다) */
+  .core .cnum{position:absolute;left:-40%;width:180%;top:calc(-80% - 32px);
+    font-size:13px;letter-spacing:1px;color:#a8c69a;text-align:center;
+    text-shadow:0 1px 3px #000, 0 0 6px rgba(0,0,0,.8);pointer-events:none}
   /* ── 유닛은 판에 안 그린다 ──
      대원은 벙커 **안**에 있다. 판에서 보이는 것은 벙커가 쏘는 탄과, 고른 대원의 사거리 링뿐.
      누가 들어가 있는지는 진열대 칩과 편성 화면이 말한다. */
