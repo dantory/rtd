@@ -64,7 +64,10 @@ const play = (place, useMeta) => [
   '    newGame();',
   '    let g=0;',
   '    while(!S.over && S.round<=30 && g++<250){',
-  '      let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&freeSlots().length&&n++<40) roll();',
+  // **자리가 찼다고 뽑기를 멈추면 안 된다.** 가진 것과 내보낸 것이 갈린 뒤로 뽑기는
+  // 자리를 채우는 일이 아니라 **합성할 셋을 모으는 일**이다. freeSlots() 를 조건에 두었더니
+  // 봇이 자리 셋을 채운 순간 뽑기를 멈춰 창고가 늘 비었고, 그래서 합성이 한 번도 안 났다.
+  '      let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&n++<40) roll();',
   '      while(canMerge()) merge();',
   place ? '      arrange();' : '',
   '      startWave();',

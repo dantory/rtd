@@ -205,7 +205,8 @@
   .hold.ready{border-color:var(--good);cursor:pointer}
   .hold.ready::after{content:"";position:absolute;inset:0;
     box-shadow:inset 0 0 10px rgba(127,176,105,.45);animation:lanep 1.4s ease-in-out infinite}
-  .hold:not(.ready){cursor:default;opacity:.82}
+  .hold:not(.ready){opacity:.94}
+  .hold.away{opacity:.46}                /* 한 기도 안 나가 있는 것 — 창고에서 대기 중이다 */
   #log{font-size:11px;color:var(--dim);line-height:1.65;max-height:150px;overflow-y:auto}
   #log b{color:var(--amber);font-weight:normal}
   /* ══════════════════════════════════════════════════════════
@@ -373,7 +374,12 @@ const gradeMul = (g) => Math.pow(3, g - 1);          // 1 · 3 · 9 · 27 · 81
 const GNAME = ["", "하급", "중급", "상급", "정예", "전설"];
 const GCOL  = ["", "#8a8f98", "#7fb069", "#6ba8d6", "#a978c9", "#e0a458"];
 
-const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * gradeMul(t.g) * metaDmg());
+/** **자리를 셋으로 조인 만큼 하나가 세야 한다.**
+ *  전에는 자리가 백열두 개여서 열댓 기가 동시에 쐈다. 벙커에 셋만 들어가는데 그때 수치를
+ *  그대로 두니 화력이 5분의 1 이 되어 3~5 라운드에서 죽었고, 뽑기 횟수가 모자라 같은 것
+ *  셋을 모을 수가 없어 합성까지 같이 죽었다. 자리 수가 줄면 개당 화력은 그만큼 올라야 한다. */
+const BUNKER_DMG = 4.5;
+const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * BUNKER_DMG * gradeMul(t.g) * metaDmg());
 const rngOf  = (t) => KINDS[t.kind].rng + (t.g - 1) * 9;
 const sellOf = (t) => Math.round(12 * gradeMul(t.g) * 0.55);
 // 타워도 맞는다. 등급이 오르면 단단해지되 피해만큼 뛰지는 않는다 —
@@ -726,8 +732,6 @@ const say = (html) => {
 function roll() {
   const c = rollCost();
   if (S.gold < c) return;
-  const free = freeSlots();
-  if (!free.length) { say("놓을 자리가 없다."); return; }
   S.gold -= c; S.rolls++;
 
   const kind = S.pool[Math.floor(Math.random() * S.pool.length)];
@@ -735,23 +739,71 @@ function roll() {
   // 상급 하나에 하급 아홉이 필요했고, 그건 열 라운드 안에 도달할 수 있는 수가 아니었다.
   const p = Math.random() + Math.min(0.34, S.round * 0.022) + META.up.luck * 0.05;
   const g = p > 0.86 ? 2 : 1;                    // 뽑기로는 중급까지만
-  const slot = free[Math.floor(Math.random() * free.length)];
-  const t = { id: nextId++, kind, g, x: slot.x, y: slot.y };
+  /* **자리가 없다고 못 뽑으면 안 된다.** 뽑는 이유의 절반은 합성할 셋을 모으는 것이고,
+     자리 셋에 막히면 그 절반이 통째로 사라진다. 남았으면 바로 내보내고 없으면 창고에 둔다. */
+  const free = freeSlots();
+  const slot = free.length ? free[Math.floor(Math.random() * free.length)] : null;
+  const t = { id: nextId++, kind, g, x: slot ? slot.x : null, y: slot ? slot.y : null };
   t.hp = t.maxHp = hpOf(t);
   S.towers.push(t);
   S.sel = t.id;
-  say(`<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 뽑았다.`);
+  say(`<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 뽑았다.` + (slot ? "" : " 자리가 없어 창고로."));
   refresh();
-  popTower(t, "rolled");            // 어디에 떨어졌는지 눈이 따라가야 한다
+  if (slot) popTower(t, "rolled");  // 어디에 떨어졌는지 눈이 따라가야 한다
 }
 
-const occupied = () => new Set(S.towers.map(t => t.x+","+t.y));
+/** **가진 것과 내보낸 것은 다르다.**
+ *
+ *  자리를 셋으로 조였더니 가진 것도 셋이 되어 같은 종류 셋을 모을 수가 없었고, 합성이
+ *  통째로 죽었다(검증 봇 최고 등급 3.0 → 1.5). 벙커에 "할당한다"는 건 가진 것 중에서
+ *  **골라 넣는다**는 뜻이지, 뽑은 것이 곧바로 자리에 꽂힌다는 뜻이 아니다.
+ *  그래서 뽑은 것은 제한 없이 쌓이고, 그중 자리에 넣은 것만 싸운다.
+ *  자리에 없는 것은 `x` 가 null 이다 — 합성·판매는 가진 것 전부를 대상으로 한다. */
+const isOut = (t) => t.x !== null;                 // 내보냈는가(자리에 있는가)
+const placed = () => S.towers.filter(isOut);
+const inBox = () => S.towers.filter(t => !isOut(t));
+const occupied = () => new Set(placed().map(t => t.x+","+t.y));
 function freeSlots() {
   const occ = occupied(), out = [];
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
     if (buildable(x, y) && !occ.has(x+","+y)) out.push({ x, y });
   }
   return out;
+}
+
+/** **빈 자리는 알아서 채운다.** 자리를 비워 두는 건 손해일 뿐 결정이 아니다 — 합치고 나서
+ *  매번 손으로 두 자리를 채우게 하면 그건 결정이 아니라 잔일이다. 센 것부터 내보내고,
+ *  무엇을 내보낼지는 진열대의 칩을 눌러 언제든 바꾼다. */
+function fillFree() {
+  const box = inBox().sort((a, b) => (b.g - a.g) || (dmgOf(b) - dmgOf(a)));
+  for (const t of box) {
+    const free = freeSlots();
+    if (!free.length) break;
+    const s = free[Math.floor(Math.random() * free.length)];
+    t.x = s.x; t.y = s.y;
+  }
+}
+
+/** 진열대의 칩을 눌렀을 때 — 창고에 있으면 내보내고, 다 나가 있으면 하나 거둔다. */
+function toggleOut(key) {
+  const [kind, gs] = key.split(":"); const g = +gs;
+  const mine = S.towers.filter(t => t.kind === kind && t.g === g);
+  const waiting = mine.filter(t => !isOut(t));
+  if (waiting.length) {
+    const free = freeSlots();
+    if (!free.length) { say("자리가 다 찼다. 하나를 거두거나 증축해야 한다."); return; }
+    const t = waiting[0], s = free[Math.floor(Math.random() * free.length)];
+    t.x = s.x; t.y = s.y; S.sel = t.id;
+    refresh(); popTower(t, "rolled");
+  } else {
+    const out = mine.filter(isOut);
+    if (!out.length) return;
+    const t = out[out.length - 1];
+    t.x = t.y = null;
+    if (S.sel === t.id) S.sel = null;
+    say(`<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 거뒀다.`);
+    refresh();
+  }
 }
 
 /* ══ 합성 — 같은 종류·같은 등급 셋 ══ */
@@ -777,14 +829,16 @@ function mergeKey(k) {
   const [kind, gs] = k.split(":");
   const g = +gs;
   const arr = mergeGroups().get(k).slice(0, 3);
-  // **가장 좋은 자리를 남긴다** — 합쳤더니 구석에 서 있으면 억울하다
-  arr.sort((a, b) => coverOf(b) - coverOf(a));
+  // **가장 좋은 자리를 남긴다** — 합쳤더니 구석에 서 있으면 억울하다.
+  // 자리에 나가 있는 것이 창고에 있는 것보다 늘 먼저다(창고 것은 덮는 게 없다).
+  arr.sort((a, b) => (isOut(b) - isOut(a)) || (coverOf(b) - coverOf(a)));
   const keep = arr[0];
   const gone = new Set(arr.slice(1).map(t => t.id));
   S.towers = S.towers.filter(t => !gone.has(t.id));
   keep.g = g + 1;
   keep.maxHp = hpOf(keep); keep.hp = keep.maxHp;     // 합치면 새것처럼 선다
   S.sel = keep.id;
+  fillFree();                                        // 셋이 하나가 되며 빈 두 자리를 메운다
   say(`셋을 합쳐 <b style="color:${GCOL[keep.g]}">${GNAME[keep.g]} ${KINDS[kind].n}</b> 이(가) 되었다.`);
   flyText(cx(keep.x), cy(keep.y), GNAME[keep.g], GCOL[keep.g]);
   refresh();
@@ -819,6 +873,7 @@ function sell() {
   S.towers = S.towers.filter(x => x.id !== t.id);
   S.sel = null;
   say(`${GNAME[t.g]} ${KINDS[t.kind].n} 을(를) 팔았다. +${sellOf(t)}`);
+  fillFree();                       // 판 자리는 창고에 있는 것이 이어받는다
   refresh();
 }
 
@@ -955,7 +1010,7 @@ function tick(dt) {
 
     // 코앞의 타워 (한 칸 반경)
     let block = null, bd = 1e9;
-    for (const t of S.towers) {
+    for (const t of placed()) {
       const d = Math.hypot(cx(t.x) - m.x, cy(t.y) - m.y);
       if (d < CELL * 0.72 && d < bd) { bd = d; block = t; }
     }
@@ -993,8 +1048,8 @@ function tick(dt) {
   }
   S.mobs = S.mobs.filter(m => !m.dead);
 
-  // 타워
-  for (const t of S.towers) {
+  // 타워 — **내보낸 것만 쏜다.** 창고에 있는 건 구경만 한다
+  for (const t of placed()) {
     t.cd = (t.cd || 0) - dt;
     if (t.cd > 0) continue;
     const K = KINDS[t.kind], r = rngOf(t), tx = cx(t.x), ty = cy(t.y);
@@ -1099,7 +1154,7 @@ function drawShop() {
 function drawTowers() {
   const old = [...document.querySelectorAll("#world .tw, #world .rng")];
   old.forEach(e => e.remove());
-  for (const t of S.towers) {
+  for (const t of placed()) {
     const K = KINDS[t.kind], sel = S.sel === t.id;
     const el = document.createElement("div");
     el.className = "tw";
@@ -1187,10 +1242,10 @@ function refresh() {
   $("rollCost").textContent = rollCost();
   /* **자리가 몇 개 남았는지가 늘 보여야 한다.** 그게 이 판의 진짜 제약이고,
      꽉 찼을 때 무엇을 해야 하는지(합치거나 판다)까지 여기서 말해 준다. */
-  const full = S.towers.length >= slotMax();
-  $("rollNote").innerHTML = full
-    ? `자리 <b>${S.towers.length}/${slotMax()}</b> — 다 찼다. 셋을 합치거나 하나를 팔아야 더 놓는다.`
-    : `자리 <b>${S.towers.length}/${slotMax()}</b> · 뽑을수록 값이 오른다.`;
+  const waiting = inBox().length;
+  $("rollNote").innerHTML =
+    `자리 <b>${placed().length}/${slotMax()}</b>` +
+    (waiting ? ` · 창고에 <b>${waiting}</b>기 — 칩을 눌러 바꿔 넣는다` : ` · 뽑을수록 값이 오른다`);
   // 이번 판에 나올 것들. 안 보여 주면 "왜 저건 안 나오지"가 답답함으로만 남는다.
   $("poolRow").innerHTML = `<span class="dim">이번 판에 나오는 것</span>` +
     S.pool.map(k => `<span class="pchip" title="${KINDS[k].n} — ${KINDS[k].d}">
@@ -1214,12 +1269,15 @@ function refresh() {
     const arr = m.get(kind + ":" + g);
     if (!arr) continue;
     const ready = g < 5 && arr.length >= 3;
-    cells.push(`<button class="hold${ready ? " ready" : ""}" data-hold="${kind}:${g}"
-        title="${GNAME[g]} ${KINDS[kind].n} — ${KINDS[kind].d}">
+    /* **몇 기를 내보냈는지가 칩에 적혀 있어야 한다.** 가진 것과 나가 있는 것이 갈린
+       순간부터 "둘 있는데 하나만 싸우는 중"이 늘 벌어진다 — 그게 안 보이면 왜 약한지 모른다. */
+    const out = arr.filter(isOut).length;
+    cells.push(`<button class="hold${ready ? " ready" : ""}${out ? "" : " away"}" data-hold="${kind}:${g}"
+        title="${GNAME[g]} ${KINDS[kind].n} — ${KINDS[kind].d} · 눌러서 내보내거나 거둔다">
       <img class="spr" src="assets/unit/${kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${KINDS[kind].ico}</span>
-      <span class="cnt">${arr.length}</span>
+      <span class="cnt">${out}/${arr.length}</span>
       <span class="gr" style="background:${GCOL[g]}"></span></button>`);
   }
   $("tally").innerHTML = cells.join("") || `<div class="note">아직 없다. 먼저 뽑아라.</div>`;
@@ -1232,15 +1290,23 @@ function refresh() {
   $("selInfo").innerHTML = t ? `<div class="sel-info">
       <div class="nm" style="color:${GCOL[t.g]}">${GNAME[t.g]} ${KINDS[t.kind].n}</div>
       <div class="st">피해 ${dmgOf(t)} · 사거리 ${rngOf(t)} · ${KINDS[t.kind].d}<br>
-        본진 둘레를 ${Math.round(coverOf(t)/24*100)}% 덮는다 · 체력 ${t.hp}/${t.maxHp} · 팔면 ${sellOf(t)}<br>
-        <span style="color:var(--steel)">빈 칸을 누르면 그리로 옮긴다.</span></div></div>`
+        ${isOut(t)
+          /* 창고에 있는 것에 "둘레를 0% 덮는다"고 적으면 약해서 0 인 줄 안다. 자리에
+             나가 있을 때만 덮는 각을 말하고, 창고에 있으면 그 사실을 말한다. */
+          ? `본진 둘레를 ${Math.round(coverOf(t)/24*100)}% 덮는다 · 체력 ${t.hp}/${t.maxHp} · 팔면 ${sellOf(t)}<br>
+             <span style="color:var(--steel)">빈 칸을 누르면 그리로 옮긴다.</span>`
+          : `<span style="color:var(--amber)">창고에 있다 — 아직 안 싸운다.</span>
+             체력 ${t.hp}/${t.maxHp} · 팔면 ${sellOf(t)}<br>
+             <span style="color:var(--steel)">진열대의 칩을 누르면 내보낸다.</span>`}</div></div>`
     : `<div class="note helpnote">타워를 누르면 사거리가 보이고, 빈 칸을 누르면 그리로 옮긴다.</div>`;
 }
 
+/* 진열대의 칩은 **내보내고 거두는 손잡이**다. 합성은 아래 버튼이 맡는다 —
+   한 번 누르는 데 두 가지 뜻이 붙으면 어느 쪽이 일어날지 모른 채 누르게 된다. */
 $("tally").addEventListener("click", (e) => {
   const b = e.target.closest("[data-hold]");
-  if (!b || !b.classList.contains("ready")) return;
-  mergeKey(b.dataset.hold);           // 진열대에서 바로 — 버튼을 찾아 누를 필요가 없다
+  if (!b) return;
+  toggleOut(b.dataset.hold);
 });
 $("rollBtn").onclick = roll;
 $("mergeBtn").onclick = merge;
@@ -1379,11 +1445,11 @@ function newGame() {
   mobEls.forEach(el => el.remove()); mobEls.clear();
   // 선발대 — 빈손으로 시작하지 않는다는 감각이 영구 성장의 첫 체감이다
   for (let i = 0; i < META.up.start; i++) {
+    // 자리가 모자라도 받기는 받는다 — 창고에 들어갈 뿐이다
     const free = freeSlots();
-    if (!free.length) break;
-    const slot = free[Math.floor(Math.random() * free.length)];
+    const slot = free.length ? free[Math.floor(Math.random() * free.length)] : null;
     const t0 = { id: nextId++, kind: KIND_IDS[Math.floor(Math.random()*KIND_IDS.length)],
-                 g: 2, x: slot.x, y: slot.y };
+                 g: 2, x: slot ? slot.x : null, y: slot ? slot.y : null };
     t0.hp = t0.maxHp = hpOf(t0);
     S.towers.push(t0);
   }
@@ -1403,7 +1469,7 @@ $("shop").addEventListener("click", (e) => {
   saveMeta(); drawShop(); paint();
   /* 증축은 **다음 판부터**가 아니라 지금 눈에 보여야 한다. 상점은 판이 끝난 뒤에 열리므로
      여기서 자리를 열어 두면, 새 판이 시작될 때 이미 넓어진 앞마당이 깔려 있다. */
-  if (k === "slots") { refreshSlots(); drawGrid(); }
+  if (k === "slots") { refreshSlots(); fillFree(); drawGrid(); }
 });
 Object.assign(window, { META, newGame, drawShop, relicsFor, upCost, UPGRADES, saveMeta, metaDmg });
 
