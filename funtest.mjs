@@ -39,7 +39,7 @@ const play = (place, useMeta) => [
   // **업그레이드 키를 손으로 적지 말 것.** 새 업그레이드를 하나 더하면 여기만 빠져서
   // 그 값이 undefined 가 되고, 그걸 쓰는 계산이 통째로 NaN 이 된다 — slots 를 더했을 때
   // 자리가 0 개가 되어 봇이 1R 에 전멸했다. 게임이 아니라 이 자가 틀린 것이었다.
-  '  Object.assign(META,{relics:0,best:0,',
+  '  Object.assign(META,{relics:0,best:0,army:[],armyId:0,',
   '    up:Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0])),',
   '    seen:Object.fromEntries(KIND_IDS.map(k=>[k,0])),',
   '    lv:Object.fromEntries(KIND_IDS.map(k=>[k,0]))});',
@@ -52,13 +52,18 @@ const play = (place, useMeta) => [
        아무거나 — 가진 것을 섞어서 앞에서부터 */
   '  const arrange = () => { fillFree(); };',
   '  const shuffleOut = () => {',
-  '    S.towers.forEach(t => { t.x = t.y = null; });',
-  '    const box = S.towers.slice();',
+  '    META.army.forEach(t => { t.slot = null; });',
+  '    const box = META.army.slice();',
   '    for (let i=box.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const q=box[i];box[i]=box[j];box[j]=q;}',
-  '    for (const t of box) { const f = freeSlots(); if (!f.length) break; t.x=f[0].x; t.y=f[0].y; }',
+  '    for (const t of box) { const f = freeSlots(); if (!f.length) break; t.slot = f[0]; }',
+  '    syncArmy();',
   '  };',
   '  const runs=[], grades=[];',
   `  for (let run=0; run<${RUNS}; run++) {`,
+  // **부대를 먼저 꾸린다.** 판 안에서 뽑던 것이 판 밖 일이 됐으므로, 출격 전에 유물을
+  // 털어 징집하고 합친다. 이것이 사람이 정산 화면에서 하는 일 그대로다.
+  '    let r=0; while(META.relics>=recruitCost() && r++<40) recruit();',
+  '    while(canMerge()) merge();',
   '    newGame();',
   // 봇은 웨이브를 손으로 시작한다. 자동 진행을 켠 채 두면 tick 루프 안에서 다음 웨이브가
   // 저 혼자 이어져, 봇이 뽑고 합칠 틈 없이 라운드만 흘러간다.
@@ -69,15 +74,14 @@ const play = (place, useMeta) => [
   // **자리가 찼다고 뽑기를 멈추면 안 된다.** 가진 것과 내보낸 것이 갈린 뒤로 뽑기는
   // 자리를 채우는 일이 아니라 **합성할 셋을 모으는 일**이다. freeSlots() 를 조건에 두었더니
   // 봇이 자리 셋을 채운 순간 뽑기를 멈춰 창고가 늘 비었고, 그래서 합성이 한 번도 안 났다.
-  '      let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&n++<40) roll();',
-  '      while(canMerge()) merge();',
+
   place ? '      arrange();' : '      shuffleOut();',
   '      startWave();',
   '      let t=0; while(S.running && t<300){ tick(1/30); t+=1/30; }',
   '      if (S.running) break;',
   '    }',
   '    runs.push(S.round);',
-  '    grades.push(Math.max(1, ...S.towers.map(t=>t.g)));',
+  '    grades.push(Math.max(1, ...META.army.map(t=>t.g), 1));',
   useMeta ? [
   '    let k=0;',
   '    while(k++<30){',

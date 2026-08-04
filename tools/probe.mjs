@@ -21,17 +21,19 @@ await new Promise(r => setTimeout(r, 1000));
 
 const out = await ev(`(() => {
   localStorage.removeItem("rtd.meta.v1");
-  Object.assign(META,{relics:0,best:0,
+  Object.assign(META,{relics:0,best:0,army:[],armyId:0,
     up:Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0])),
-    seen:Object.fromEntries(KIND_IDS.map(k=>[k,0]))});
+    seen:Object.fromEntries(KIND_IDS.map(k=>[k,0])),
+    lv:Object.fromEntries(KIND_IDS.map(k=>[k,0]))});
   const AUTO = ${AUTO};
   const rows=[];
   for(let run=0; run<${RUNS}; run++){
+    let r=0; while(META.relics>=recruitCost() && r++<40) recruit();
+    while(canMerge()) merge();
     newGame(); S.auto=false; S.gap=0; S.autoRun=AUTO;
     let g=0, stalled=null, firstHit=0, lowest=1;
     while(!S.over && S.round<=30 && g++<250){
-      if(!AUTO){ let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&n++<40) roll();
-        while(canMerge()) merge(); fillFree(); }
+      if(!AUTO) fillFree();
       startWave();
       let t=0; while(S.running && t<300){ tick(1/30); t+=1/30;
         const f=S.coreHp/S.coreMax; if(f<lowest) lowest=f;

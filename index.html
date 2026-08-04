@@ -326,12 +326,16 @@
   .shopwrap h3 b{color:var(--amber);font-weight:normal}
   /* 폭에 맞춰 저절로 접히게 한다. 열 수를 미디어쿼리로 박아 두었더니 그 규칙이 아래에 있어
      폰에서도 2열이 이겨 카드 절반이 화면 밖으로 잘려 나갔다. */
-  .shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:7px;text-align:left}
+  /* minmax 의 최소값이 화면보다 크면 칸이 화면 밖으로 밀린다(360px 에서 13px 넘쳤다).
+     min(140px,100%) 로 두면 좁을 때는 100% 가 이겨 저절로 한 열로 접힌다. */
+  .shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:7px;text-align:left}
   /* **격자 칸은 안의 글보다 작아질 수 있어야 한다.** grid 아이템의 min-width 는 auto 라서
      카드 안 문구가 칸을 바깥으로 밀어냈고, 그래서 폭을 아무리 제한해도 오른쪽이 잘렸다. */
-  .shop>*, .dex>*, .sqslots>*, .sqbox>*{min-width:0}
+  .shop>*, .dex>*, .sqslots>*, .sqbox>*{min-width:0;overflow:hidden}
   .up{display:flex;align-items:center;gap:11px;padding:9px 12px}
-  .up{flex-direction:column;align-items:flex-start;gap:3px;min-width:190px}
+  /* min-width:190px 이 격자 칸(146px)보다 커서 카드가 칸 밖으로 밀려 나갔다 —
+     "폭을 제한했는데 왜 잘리지"의 마지막 조각. 격자가 폭을 정하게 두고 여기서는 안 잡는다. */
+  .up{flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
   .up .n{color:var(--amber);width:auto}
   .up .d{color:var(--dim);font-size:11px;line-height:1.4}
   .up .p{color:var(--good);font-size:11px}
@@ -344,7 +348,6 @@
   <span class="sub">뽑고 · 합치고 · 막는다</span>
   <div class="hud">
     <span>라운드 <b id="hRound">1</b></span>
-    <span>골드 <b id="hGold">0</b></span>
     <span class="life">본진 <b id="hLife">—</b></span>
     <!-- 눌러서 언제든 상점을 연다 — 벽에 부딪힌 그 자리에서 강해질 수 있어야 한다 -->
     <button class="rlc" id="relicBtn" title="유물 상점">유물 <b id="hRelic">0</b></button>
@@ -371,11 +374,25 @@
       <div class="sqslots" id="sqSlots"></div>
       <h3 class="sqh">창고 <span class="dim" id="sqBoxN"></span></h3>
       <div class="sqbox" id="sqBox"></div>
+      <!-- 합치고 해산하는 것도 부대를 다루는 일이다. 전장이 아니라 여기에 둔다. -->
+      <div class="rowbtn" style="gap:7px;margin-top:12px">
+        <button id="sqMerge" style="flex:1">셋을 합친다</button>
+        <button id="sqSell">고른 것 해산</button>
+      </div>
+      <div class="note" id="sqTip"></div>
       <div class="stick"><button id="sqClose" style="padding:11px 26px">닫는다</button></div>
     </div></div>
     <div id="over"><div class="box">
       <h2 id="overT"></h2>
       <div class="note" id="overD" style="font-size:13px"></div>
+      <div class="shopwrap">
+        <h3>부대 <span class="dim">가진 유물 <b id="shopHave2">0</b></span></h3>
+        <div class="rowbtn" style="gap:7px">
+          <button id="recruitBtn" style="flex:1">징집 <span class="c" id="recCost"></span></button>
+          <button id="toSquad" style="flex:1">편성</button>
+        </div>
+        <div class="note" id="armyNote"></div>
+      </div>
       <div class="shopwrap">
         <h3>유물로 영구히 세진다 <span class="dim">(가진 유물 <b id="shopHave">0</b>)</span></h3>
         <div class="shop" id="shop"></div>
@@ -392,12 +409,11 @@
 
   <aside>
     <section>
+      <!-- 판 안에서는 뽑지도 합치지도 않는다. 짜 놓은 것이 굴러가는 걸 볼 뿐이다. -->
       <div class="toprow">
-        <button class="wide roll" id="rollBtn">뽑는다 <span class="c" id="rollCost"></span></button>
         <button class="wide roll" id="waveBtn2"></button>
       </div>
       <div class="note" id="rollNote"></div>
-      <div class="poolrow" id="poolRow"></div>
       <div class="note helpnote" style="margin-top:10px;color:#5f6874">
         가운데 <b style="color:var(--steel)">본진</b>을 지킨다. 적은 <b>사방에서</b> 곧장 밀려온다.<br>
         가는 길에 타워가 있으면 <b>그걸 먼저</b> 친다 — 바깥에 세우면 방벽이 되지만 얻어맞는다.<br>
@@ -415,10 +431,7 @@
       <h3>가진 것 <span class="dim" id="holdHint"></span>
         <button id="squadBtn" class="sqopen">편성</button></h3>
       <div class="tally" id="tally"></div>
-      <div class="rowbtn">
-        <button id="mergeBtn" style="flex:1">셋을 합친다</button>
-        <button id="sellBtn">판다</button>
-      </div>
+
       <div class="note helpnote">같은 등급 셋이 모이면 한 등급 위가 된다.</div>
       <div id="selInfo"></div>
     </section>
@@ -505,7 +518,6 @@ const armorMul = () => {
  *  사거리는 그 벙커를 덮을 만해야 한다. 병과별 차이는 배수라 그대로 남는다. */
 const BUNKER_RNG = 1.9;
 const rngOf  = (t) => Math.round((KINDS[t.kind].rng + (t.g - 1) * 9) * BUNKER_RNG * kindRngMul(t.kind));
-const sellOf = (t) => Math.round(12 * gradeMul(t.g) * 0.55);
 // 타워도 맞는다. 등급이 오르면 단단해지되 피해만큼 뛰지는 않는다 —
 // 세다고 안 부서지면 바깥에 세우는 데 값이 없어진다.
 // 대원은 이제 안 죽는다(벙커가 대신 맞는다). 이 값은 표시용으로만 남는다.
@@ -606,11 +618,9 @@ const onDeck = (x, y) =>
    ══════════════════════════════════════════════════════════ */
 const META_KEY = "rtd.meta.v1";
 const UPGRADES = {
-  gold:  { n:"밑천",   d:"시작 골드 +35",       base:3, per:2 },
   dmg:   { n:"벼림",   d:"모든 피해 +13%",      base:4, per:3 },
   life:  { n:"성벽",   d:"본진 체력 +90",       base:3, per:2 },
-  cheap: { n:"흥정",   d:"뽑기 값 -1 (바닥 6)", base:5, per:4 },
-  start: { n:"선발대", d:"시작할 때 중급 하나", base:6, per:6 },
+  cheap: { n:"흥정",   d:"징집 값 -1 (바닥 2)", base:5, per:4 },
   luck:  { n:"안목",   d:"중급이 더 자주 나온다", base:5, per:4 },
   // **자리 자체가 성장이다.** 첫 판은 셋뿐이라 무엇을 넣을지가 매번 결정이 되고,
   // 판을 거듭해 늘려 놓으면 예전엔 못 굴리던 조합이 굴러간다 — 불어나는 맛이 여기에 있다.
@@ -626,12 +636,21 @@ function loadMeta() {
                // 도감 — **모으는 재미는 남는 데서 온다.** 판이 끝나면 사라지는 수집은 수집이 아니다.
                seen: Object.fromEntries(KIND_IDS.map(k => [k, (raw.seen?.[k]) | 0])),
                // 병과별 훈련 등급. 모은 것을 **키우는** 축 — 수집이 장식으로 끝나지 않게 한다.
-               lv: Object.fromEntries(KIND_IDS.map(k => [k, (raw.lv?.[k]) | 0])) };
+               lv: Object.fromEntries(KIND_IDS.map(k => [k, (raw.lv?.[k]) | 0])),
+               /* **부대는 판을 넘어 남는다.** 판마다 뽑아 쓰고 버리면 그건 내 대원이 아니라
+                  그 판의 소모품이다 — 모으는 재미도, 편성이라는 말도 성립하지 않는다.
+                  각 대원은 slot 을 가진다: 번호면 그 자리에 서고, null 이면 창고에 있다. */
+               army: Array.isArray(raw.army) ? raw.army.filter(t => KINDS[t?.kind]).map(t => ({
+                 id: t.id | 0, kind: t.kind, g: Math.max(1, Math.min(5, t.g | 0)),
+                 slot: (t.slot === null || t.slot === undefined) ? null : (t.slot | 0),
+               })) : [],
+               armyId: raw.armyId | 0 };
     }
   } catch { /* 손상됐으면 조용히 새로 시작 — 저장이 깨졌다고 게임이 안 켜지면 안 된다 */ }
   return { relics: 0, best: 0, up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
            seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
-           lv: Object.fromEntries(KIND_IDS.map(k => [k, 0])) };
+           lv: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
+           army: [], armyId: 0 };
 }
 const saveMeta = () => { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch {} };
 /** 도감에 적는다. 처음 본 병과면 true — 그때만 요란하게 알린다.
@@ -668,34 +687,25 @@ const upCost = (k) => UPGRADES[k].base + UPGRADES[k].per * META.up[k];
 // 넘긴 라운드가 곧 보상이다. 보스 라운드(5의 배수)를 넘기면 덤이 붙는다.
 /** 죽을 때 받는 유물. **멀리 갈수록 가파르게** 준다 — 한 라운드를 더 미는 것이
  *  다음 판을 눈에 띄게 바꿔야 "막히면 강해져서 돌파한다"가 성립한다. */
-const relicsFor = (round) => Math.floor((round - 1) * 1.6 + Math.pow(Math.max(0, round - 1), 1.35) / 3);
+const relicsFor = (round) => Math.floor((round - 1) * 2.4 + Math.pow(Math.max(0, round - 1), 1.4) / 2);
 /** **막는 중에도 유물이 들어온다.** 죽어야만 강해질 수 있으면 벽에 부딪힌 순간
  *  할 수 있는 게 죽기를 기다리는 것뿐이다. 세 라운드마다 한 줌씩, 멀리 갈수록 굵게. */
-const relicTick = (round) => (round % 3 === 0 ? 1 + Math.floor(round / 8) : 0);
+const relicTick = (round) => (round % 2 === 0 ? 1 + Math.floor(round / 6) : 0);
 // **돌파가 체감되어야 한다.** 스무 판을 해도 8%씩 오르면 벽은 그대로 벽이다.
-const metaGold = () => 90 + META.up.gold * 35;
 /* **맞기 시작한 뒤에도 버틸 시간이 있어야 한다.** 260 이면 적 몇이 붙는 순간 몇 초 만에
    끝나서, 처음 맞은 라운드와 죽는 라운드가 붙어 버렸다(재 보니 1~5 라운드 차). 두껍게 두고
    대신 한 대를 가볍게 하면, 새어 든 놈들이 조금씩 깎다 잡히는 구간이 길어진다. */
 const metaLife = () => 520 + META.up.life * 90;   // 본진 체력
 const metaDmg  = () => 1 + META.up.dmg * 0.13;
 
-/** **이번 판에 나올 유닛은 다섯 종뿐이다.**
- *  여덟 종을 다 풀면 같은 것 셋 모으기가 두 배로 어려워져 합성이 사실상 막힌다.
- *  다섯으로 좁히면 확률이 돌아오고, 무엇보다 **판마다 나오는 조합이 달라진다** —
- *  "이번 판은 레일건이 없네"가 곧 그 판의 성격이 된다. 유즈맵에서 재밌던 그 결이다. */
-const POOL_SIZE = 5;
-function rollPool() {
-  const a = [...KIND_IDS];
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a.slice(0, POOL_SIZE);
-}
+/* 판마다 다섯 종만 나오게 하던 장치(rollPool)는 걷어냈다. 부대가 판을 넘어 남게 된
+   뒤로는 "이번 판에 뭐가 나오나"가 아니라 **지금까지 무엇을 모았나**가 그 판의 성격이다.
+   대신 나오는 병과 자체를 최고 기록에 따라 열어 준다(poolSize). */
 
 /* ══ 상태 ══ */
+/* 한 판 동안만 사는 값들. **부대는 여기 없다** — META.army 에 있고 판을 넘어 남는다. */
 const S = {
-  pool: [],
-  gold: 90, life: 20, coreHp: 0, coreMax: 0, round: 1, rolls: 0,
-  towers: [],       // { id, kind, g, x, y }  (x,y = 격자 슬롯)
+  coreHp: 0, coreMax: 0, round: 1,
   mobs: [], shots: [],
   running: false, spawned: 0, toSpawn: 0, spawnT: 0,
   sel: null, over: false,
@@ -703,13 +713,13 @@ const S = {
   // 웨이브를 알아서 잇는다. 기본은 켜짐 — 매 라운드 버튼을 찾아 누르는 게 제일 성가시다.
   auto: (() => { try { return localStorage.getItem("rtd.auto") !== "0"; } catch { return true; } })(),
   gap: 0,            // 다음 웨이브까지 남은 시간
+  bounty: 0,         // 정찰병이 더 벌어들인 몫 — 라운드 유물에 얹힌다
   // 뽑기·합성까지 알아서. 이게 켜져 있어야 진짜 방치형이 된다.
   autoRun: (() => { try { return localStorage.getItem("rtd.autorun") !== "0"; } catch { return true; } })(),
   autoT: 0,
 };
 let nextId = 1;
 
-const rollCost = () => Math.max(6, 12 - META.up.cheap) + Math.round(S.rolls * 1.15);  // 뽑을수록 비싸진다
 /** **압박은 서서히 와야 한다.**
  *
  *  재 보니 본진이 처음 맞는 게 15~22 라운드였고 죽는 건 20~24 라운드였다. 무손상으로
@@ -917,29 +927,38 @@ const say = (html) => {
    "뽑는다"가 벌금이 된다. 다만 상급 이상은 뽑기로 못 나온다 — **합성만이 길**이어야
    셋을 모으는 행동에 값이 생긴다.
    ══════════════════════════════════════════════════════════ */
-function roll() {
-  const c = rollCost();
-  if (S.gold < c) return;
-  S.gold -= c; S.rolls++;
-
-  const kind = S.pool[Math.floor(Math.random() * S.pool.length)];
-  // **중급이 섞여 나와야 상급까지 길이 열린다.** 예전 식은 1라운드 확률이 0% 여서
-  // 상급 하나에 하급 아홉이 필요했고, 그건 열 라운드 안에 도달할 수 있는 수가 아니었다.
-  const p = Math.random() + Math.min(0.34, S.round * 0.022) + META.up.luck * 0.05;
-  const g = p > 0.86 ? 2 : 1;                    // 뽑기로는 중급까지만
-  /* **자리가 없다고 못 뽑으면 안 된다.** 뽑는 이유의 절반은 합성할 셋을 모으는 것이고,
-     자리 셋에 막히면 그 절반이 통째로 사라진다. 남았으면 바로 내보내고 없으면 창고에 둔다. */
-  const free = freeSlots();
-  const slot = free.length ? free[Math.floor(Math.random() * free.length)] : null;
-  const t = { id: nextId++, kind, g, x: slot ? slot.x : null, y: slot ? slot.y : null };
-  t.hp = t.maxHp = hpOf(t);
-  S.towers.push(t);
-  S.sel = t.id;
+/** **징집** — 유물로 새 대원을 부대에 들인다. 판이 끝난 뒤 정산 화면에서만.
+ *
+ *  전에는 판마다 골드로 뽑아 그 판에서만 쓰고 버렸다. 그러면 대원이 내 것이 아니라
+ *  그 판의 소모품이고, "보유한 유닛을 배치한다"는 말이 성립하지 않는다.
+ *  값은 부대가 커질수록 오른다 — 그래야 유물이 쌓였다고 무한히 불리지 못한다. */
+/* 계수가 0.6 이던 때는 부대가 스물만 돼도 한 기에 열여섯이 들어, 판당 두어 기밖에 못
+   늘렸다. 열두 병과에서 같은 종류 같은 등급 셋을 모으려면 부대가 그보다 훨씬 커야 한다
+   — 그래서 합성이 죽었다(등급 1.8). 값은 오르되 완만하게. 합성이 부대를 줄이면
+   징집 값도 같이 내려가므로, 합치는 것 자체가 다음 징집을 싸게 만든다. */
+const recruitCost = () => Math.max(2, 4 - META.up.cheap) + Math.floor(META.army.length * 0.22);
+/** **병과는 차차 열린다.**
+ *  열두 종류를 처음부터 다 풀면 같은 종류 같은 등급 셋이 좀처럼 안 모여 합성이 죽는다
+ *  (실제로 등급 1.8 까지 떨어졌다). 넷으로 시작해 최고 기록이 오를 때마다 하나씩 연다 —
+ *  초반에는 셋을 모으기 쉽고, 멀리 갈수록 새 얼굴이 나와 도감이 채워진다. */
+const poolSize = () => Math.min(KIND_IDS.length, 4 + Math.floor(META.best / 5));
+const nextUnlockAt = () => (poolSize() >= KIND_IDS.length ? 0 : (poolSize() - 3) * 5);
+function recruit() {
+  const c = recruitCost();
+  if (META.relics < c) return;
+  META.relics -= c;
+  const pool = KIND_IDS.slice(0, poolSize());
+  const kind = pool[Math.floor(Math.random() * pool.length)];
+  // 중급이 섞여 나와야 상급까지 길이 열린다. 안목이 그 확률을 올린다.
+  const g = Math.random() + META.up.luck * 0.06 > 0.86 ? 2 : 1;
+  const t = { id: ++META.armyId, kind, g, slot: null };
+  META.army.push(t);
   const fresh = noteSeen(kind, g);
+  fillFree();                        // 자리가 비어 있으면 바로 세운다
+  syncArmy(); saveMeta();
   say((fresh ? `<b style="color:var(--amber)">새 병과!</b> ` : "") +
-      `<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 뽑았다.` + (slot ? "" : " 자리가 없어 창고로."));
-  refresh();
-  if (slot) popTower(t, "rolled");  // 어디에 떨어졌는지 눈이 따라가야 한다
+      `<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 들였다.`);
+  drawShop(); refresh();
 }
 
 /** **가진 것과 내보낸 것은 다르다.**
@@ -949,15 +968,34 @@ function roll() {
  *  **골라 넣는다**는 뜻이지, 뽑은 것이 곧바로 자리에 꽂힌다는 뜻이 아니다.
  *  그래서 뽑은 것은 제한 없이 쌓이고, 그중 자리에 넣은 것만 싸운다.
  *  자리에 없는 것은 `x` 가 null 이다 — 합성·판매는 가진 것 전부를 대상으로 한다. */
-const isOut = (t) => t.x !== null;                 // 내보냈는가(자리에 있는가)
-const placed = () => S.towers.filter(isOut);
-const inBox = () => S.towers.filter(t => !isOut(t));
-const occupied = () => new Set(placed().map(t => t.x+","+t.y));
+/** **부대는 META.army 에 있다** — S.towers 가 아니다.
+ *
+ *  판마다 뽑아 쓰고 버리는 구조에서는 대원이 그 판의 소모품이었다. 이제 대원은 판을 넘어
+ *  남고, 판은 **가진 것 중에서 골라 내보내는** 일이 된다. 자리는 slot 번호로 들고 있고
+ *  (null 이면 창고), 화면 좌표 x·y 는 판을 시작할 때 그 번호에서 만들어 붙인다.
+ *  좌표를 저장하지 않는 건 자리 수가 늘면(증축) 같은 번호도 다른 칸이 되기 때문이다. */
+const isOut = (t) => t.slot !== null && t.slot < slotMax();
+const placed = () => META.army.filter(isOut);
+const inBox  = () => META.army.filter(t => !isOut(t));
+const occupied = () => new Set(placed().map(t => t.slot));
+
+/** 자리 번호에서 좌표와 체력을 만들어 붙인다. 판을 시작할 때와 자리 수가 바뀔 때 부른다. */
+function syncArmy() {
+  const taken = new Set();
+  for (const t of META.army) {
+    // 증축을 되돌린 적은 없지만, 저장이 깨져 자리 번호가 범위를 벗어나면 창고로 돌린다
+    if (t.slot !== null && (t.slot >= slotMax() || taken.has(t.slot))) t.slot = null;
+    if (t.slot !== null) taken.add(t.slot);
+    const p = t.slot === null ? null : SLOT_SPOTS[t.slot];
+    t.x = p ? p[0] : null;
+    t.y = p ? p[1] : null;
+    t.maxHp = hpOf(t); t.hp = t.maxHp; t.cd = 0; t.healT = 0;
+  }
+}
+/** 비어 있는 자리 **번호**들. 좌표가 아니라 번호를 다루는 게 부대의 언어다. */
 function freeSlots() {
   const occ = occupied(), out = [];
-  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-    if (buildable(x, y) && !occ.has(x+","+y)) out.push({ x, y });
-  }
+  for (let i = 0; i < slotMax(); i++) if (!occ.has(i)) out.push(i);
   return out;
 }
 
@@ -970,8 +1008,7 @@ function fillFree() {
   for (const t of box) {
     const free = freeSlots();
     if (!free.length) break;
-    const s = free[Math.floor(Math.random() * free.length)];
-    t.x = s.x; t.y = s.y;
+    t.slot = free[0];
   }
   /* **창고가 더 세면 바꿔 넣는다.**
      합쳐서 만든 상급이 창고에 앉아 있고 자리엔 하급이 서 있으면 자동 운영이 일을 반만 한
@@ -982,28 +1019,30 @@ function fillFree() {
     if (!best) break;
     const worst = placed().sort((a, b) => rank(a) - rank(b))[0];
     if (!worst || rank(best) <= rank(worst)) break;
-    best.x = worst.x; best.y = worst.y;
-    worst.x = worst.y = null;
+    best.slot = worst.slot;
+    worst.slot = null;
   }
+  syncArmy(); saveMeta();
 }
 
 /** 진열대의 칩을 눌렀을 때 — 창고에 있으면 내보내고, 다 나가 있으면 하나 거둔다. */
 function toggleOut(key) {
   const [kind, gs] = key.split(":"); const g = +gs;
-  const mine = S.towers.filter(t => t.kind === kind && t.g === g);
+  const mine = META.army.filter(t => t.kind === kind && t.g === g);
   const waiting = mine.filter(t => !isOut(t));
   if (waiting.length) {
     const free = freeSlots();
     if (!free.length) { say("자리가 다 찼다. 하나를 거두거나 증축해야 한다."); return; }
-    const t = waiting[0], s = free[Math.floor(Math.random() * free.length)];
-    t.x = s.x; t.y = s.y; S.sel = t.id;
-    refresh(); popTower(t, "rolled");
+    waiting[0].slot = free[0];
+    S.sel = waiting[0].id;
+    syncArmy(); saveMeta(); refresh(); popTower(waiting[0], "rolled");
   } else {
     const out = mine.filter(isOut);
     if (!out.length) return;
     const t = out[out.length - 1];
-    t.x = t.y = null;
+    t.slot = null;
     if (S.sel === t.id) S.sel = null;
+    syncArmy(); saveMeta();
     say(`<b>${GNAME[g]} ${KINDS[kind].n}</b> 을(를) 거뒀다.`);
     refresh();
   }
@@ -1012,7 +1051,7 @@ function toggleOut(key) {
 /* ══ 합성 — 같은 종류·같은 등급 셋 ══ */
 function mergeGroups() {
   const m = new Map();
-  for (const t of S.towers) {
+  for (const t of META.army) {
     const k = t.kind + ":" + t.g;
     if (!m.has(k)) m.set(k, []);
     m.get(k).push(t);
@@ -1037,7 +1076,7 @@ function mergeKey(k) {
   arr.sort((a, b) => (isOut(b) - isOut(a)) || (coverOf(b) - coverOf(a)));
   const keep = arr[0];
   const gone = new Set(arr.slice(1).map(t => t.id));
-  S.towers = S.towers.filter(t => !gone.has(t.id));
+  META.army = META.army.filter(t => !gone.has(t.id));
   keep.g = g + 1;
   keep.maxHp = hpOf(keep); keep.hp = keep.maxHp;     // 합치면 새것처럼 선다
   S.sel = keep.id;
@@ -1076,15 +1115,18 @@ const coreRadius = () => CELL * CORE.w / 2;
  *  웨이브 화살표도 여기 선다 — 가리키는 곳과 나오는 곳이 다르면 미리 보여 주는 뜻이 없다. */
 const spawnRadius = () => coreRadius() + CELL * (RING + 1.6);
 
-function sell() {
-  const t = S.towers.find(x => x.id === S.sel);
+/** 해산 — 부대에서 내보내고 유물을 조금 돌려받는다. 쓸 데 없는 하급이 창고에 쌓이는 걸
+ *  덜어 내는 길이자, 징집 값이 부대 크기를 따라 오르므로 **줄이는 것도 선택**이 된다. */
+const sellOf = (t) => Math.max(1, Math.round(gradeMul(t.g) * 0.8));
+function sell(id) {
+  const t = META.army.find(x => x.id === (id === undefined ? S.sel : id));
   if (!t) return;
-  S.gold += sellOf(t);
-  S.towers = S.towers.filter(x => x.id !== t.id);
-  S.sel = null;
-  say(`${GNAME[t.g]} ${KINDS[t.kind].n} 을(를) 팔았다. +${sellOf(t)}`);
-  fillFree();                       // 판 자리는 창고에 있는 것이 이어받는다
-  refresh();
+  META.relics += sellOf(t);
+  META.army = META.army.filter(x => x.id !== t.id);
+  if (S.sel === t.id) S.sel = null;
+  fillFree(); syncArmy(); saveMeta();
+  say(`${GNAME[t.g]} ${KINDS[t.kind].n} 을(를) 해산했다. 유물 +${sellOf(t)}`);
+  drawShop(); refresh();
 }
 
 /* ══ 배치 옮기기 — 빈 슬롯을 누르면 고른 타워가 그리로 간다 ══ */
@@ -1092,10 +1134,11 @@ $("grid").addEventListener("click", (e) => {
   const el = e.target.closest("[data-x]");
   if (!el) return;
   const x = +el.dataset.x, y = +el.dataset.y;
-  const here = S.towers.find(t => t.x === x && t.y === y);
+  const here = placed().find(t => t.x === x && t.y === y);
   if (here) { S.sel = (S.sel === here.id) ? null : here.id; refresh(); return; }
-  const t = S.towers.find(t => t.id === S.sel);
-  if (t) { t.x = x; t.y = y; refresh(); }
+  const t = META.army.find(t => t.id === S.sel);
+  if (t && isOut(t)) { const s2 = SLOT_SPOTS.findIndex(p => p[0] === x && p[1] === y);
+    if (s2 >= 0 && s2 < slotMax() && !occupied().has(s2)) { t.slot = s2; syncArmy(); saveMeta(); refresh(); } }
 });
 
 /* ══════════════════════════════════════════════════════════════
@@ -1166,11 +1209,14 @@ function hurt(m, d, from) {
   m.hp -= d;
   if (m.hp <= 0) {
     m.dead = true;
-    const bounty = from && KINDS[from.kind].bounty ? KINDS[from.kind].bounty : 1;
-    const g = Math.max(1, Math.round(2 + S.round * 0.5)) * (m.boss ? 14 : 1) * bounty;
-    S.gold += g;
-    const p = mobPos(m);
-    flyText(p.x, p.y, "+" + g, "#e0a458");
+    /* 골드가 사라졌으니 정찰병의 몫도 유물 쪽으로 옮겨 간다(relicTick 에서 셈한다).
+       띄우는 숫자도 골드가 아니라 **그 몫**이다 — 없는 재화를 띄우면 거짓말이 된다. */
+    const extra = (from && KINDS[from.kind].bounty ? KINDS[from.kind].bounty : 1) - 1;
+    S.bounty += extra;
+    if (extra > 0 || m.boss) {
+      const p = mobPos(m);
+      flyText(p.x, p.y, m.boss ? "처치" : "+" + extra, "#e0a458");
+    }
   }
 }
 
@@ -1263,10 +1309,7 @@ function tick(dt) {
     S.autoT = (S.autoT || 0) - dt;
     if (S.autoT <= 0) {
       S.autoT = 0.4;
-      while (canMerge()) merge();            // 합치는 게 먼저다 — 자리가 나야 뽑은 게 나간다
-      let n = 0;
-      while (S.gold >= rollCost() && n++ < 4) roll();
-      fillFree();
+      fillFree();   // 뽑기·합성은 판 밖 일이 됐다. 판 안에서는 빈 자리만 메운다.
     }
   }
 
@@ -1363,18 +1406,17 @@ function tick(dt) {
     S.gap = WAVE_GAP;
     // 웨이브가 끝나면 성한 것은 추스른다. 안 그러면 바깥에 두는 값이 너무 비싸다 —
     // 잃는 것은 **완전히 부서졌을 때뿐**이어야 한다.
-    for (const t of S.towers) t.hp = t.maxHp;
-    const bonus = 24 + S.round * 9;
-    S.gold += bonus;
-    const rel = relicTick(S.round);
+    for (const t of placed()) t.hp = t.maxHp;
+    const rel = relicTick(S.round) + Math.floor(S.bounty / 12);
+    if (rel) S.bounty = 0;
     if (rel) {
       const first = META.relics === 0;      // 이 판에서 처음 손에 쥐는 유물인가
       META.relics += rel; saveMeta();
       // 처음 한 번은 어디서 쓰는지까지 말해 준다. 두 번째부터는 잔소리다.
       if (first) say('유물이 쌓인다 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 병과를 올린다.');
     }
-    say(`${S.round}라운드를 막았다. <b>+${bonus}</b>` +
-        (rel ? ` · <b style="color:var(--amber)">유물 +${rel}</b>` : ""));
+    say(`${S.round}라운드를 막았다.` +
+        (rel ? ` <b style="color:var(--amber)">유물 +${rel}</b>` : ""));
     S.round++;
     drawGrid();            // 다음 웨이브가 오는 갈래가 바뀌었다
     refresh();
@@ -1410,6 +1452,13 @@ function drawShop() {
       <span class="d">${u.d}</span><span class="p">유물 ${c}</span></button>`;
   }).join("");
   $("shopHave").textContent = META.relics;
+  $("shopHave2").textContent = META.relics;
+  $("recCost").textContent = recruitCost();
+  $("recruitBtn").disabled = META.relics < recruitCost();
+  const nx = nextUnlockAt();
+  $("armyNote").innerHTML =
+    `부대 <b>${META.army.length}</b>기 · 자리 <b>${slotMax()}</b> · 나오는 병과 <b>${poolSize()}</b>/${KIND_IDS.length}` +
+    (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 열린다` : "");
 
   /* 도감 — 아직 못 본 병과도 **자리를 비워 둔 채로 보여 준다.** 몇 개가 남았는지 보이지
      않으면 모을 이유가 생기지 않는다. 만난 최고 등급을 별로 남겨 다음 판을 당긴다. */
@@ -1494,8 +1543,8 @@ function paint() {
   for (const [id, el] of mobEls) if (!alive.has(id)) { el.remove(); mobEls.delete(id); }
 
   // 타워 체력바는 매 프레임 바뀐다 — 구성이 그대로여도 여기서 다시 쓴다
-  if (S.towers.some(t => t.hp < t.maxHp) || towersHurtLast) {
-    towersHurtLast = S.towers.some(t => t.hp < t.maxHp);
+  if (placed().some(t => t.hp < t.maxHp) || towersHurtLast) {
+    towersHurtLast = placed().some(t => t.hp < t.maxHp);
     drawTowers();
   }
 
@@ -1509,7 +1558,6 @@ function paint() {
     $("world").appendChild(el);
   }
 
-  $("hGold").textContent = Math.floor(S.gold);
   $("hLife").textContent = Math.max(0, Math.ceil(S.coreHp)) + "/" + S.coreMax;
   const cb = $("coreBar"), cn = $("coreNum");
   if (cb) cb.style.width = Math.max(0, S.coreHp / S.coreMax * 100) + "%";
@@ -1525,24 +1573,17 @@ function paint() {
   $("relicBtn").classList.toggle("hot", canBuy && S.over && !$("over").classList.contains("on"));
   $("relicBtn").title = S.over ? (canBuy ? "쓸 수 있는 유물이 있다 — 눌러서 상점" : "유물 상점")
                                : "판이 끝나면 쓴다";
-  $("rollBtn").disabled = S.gold < rollCost() || S.over;
 }
 
 /* ══ 패널 ══ */
 function refresh() {
   drawTowers();
-  $("rollCost").textContent = rollCost();
   /* **자리가 몇 개 남았는지가 늘 보여야 한다.** 그게 이 판의 진짜 제약이고,
      꽉 찼을 때 무엇을 해야 하는지(합치거나 판다)까지 여기서 말해 준다. */
   const waiting = inBox().length;
   $("rollNote").innerHTML =
     `자리 <b>${placed().length}/${slotMax()}</b>` +
-    (waiting ? ` · 창고에 <b>${waiting}</b>기 — 칩을 눌러 바꿔 넣는다` : ` · 뽑을수록 값이 오른다`);
-  // 이번 판에 나올 것들. 안 보여 주면 "왜 저건 안 나오지"가 답답함으로만 남는다.
-  $("poolRow").innerHTML = `<span class="dim">이번 판에 나오는 것</span>` +
-    S.pool.map(k => `<span class="pchip" title="${KINDS[k].n} — ${KINDS[k].d}">
-      <img src="assets/unit/${k}.png" alt="" onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
-      <i>${KINDS[k].ico}</i></span>`).join("");
+    (waiting ? ` · 창고에 <b>${waiting}</b>기 — 「편성」에서 바꿔 넣는다` : ` · 부대 ${META.army.length}기`);
   /* 기다리는 동안에도 버튼은 살아 있다 — 다 됐으면 굳이 셋을 셀 이유가 없다. */
   const resting = !S.running && !S.over && S.auto && S.gap > 0;
   const long  = S.running ? "막는 중…" : resting ? `${S.round}라운드 — 지금 시작` : `${S.round}라운드 시작`;
@@ -1581,22 +1622,20 @@ function refresh() {
       <span class="gr" style="background:${GCOL[g]}"></span></button>`);
   }
   $("tally").innerHTML = cells.join("") || `<div class="note">아직 없다. 먼저 뽑아라.</div>`;
-  $("mergeBtn").disabled = !canMerge() || S.over;
   const readyN = [...m.entries()].filter(([k, a]) => +k.split(":")[1] < 5 && a.length >= 3).length;
   $("holdHint").textContent = readyN ? `· ${readyN}가지를 합칠 수 있다` : "";
 
-  const t = S.towers.find(x => x.id === S.sel);
-  $("sellBtn").disabled = !t || S.over;
+  const t = META.army.find(x => x.id === S.sel);
   $("selInfo").innerHTML = t ? `<div class="sel-info">
       <div class="nm" style="color:${GCOL[t.g]}">${GNAME[t.g]} ${KINDS[t.kind].n}</div>
       <div class="st">피해 ${dmgOf(t)} · 사거리 ${rngOf(t)} · ${KINDS[t.kind].d}<br>
         ${isOut(t)
           /* 창고에 있는 것에 "둘레를 0% 덮는다"고 적으면 약해서 0 인 줄 안다. 자리에
              나가 있을 때만 덮는 각을 말하고, 창고에 있으면 그 사실을 말한다. */
-          ? `본진 둘레를 ${Math.round(coverOf(t)/24*100)}% 덮는다 · 체력 ${t.hp}/${t.maxHp} · 팔면 ${sellOf(t)}<br>
+          ? `본진 둘레를 ${Math.round(coverOf(t)/24*100)}% 덮는다 · 체력 ${t.hp}/${t.maxHp}<br>
              <span style="color:var(--steel)">빈 칸을 누르면 그리로 옮긴다.</span>`
           : `<span style="color:var(--amber)">창고에 있다 — 아직 안 싸운다.</span>
-             체력 ${t.hp}/${t.maxHp} · 팔면 ${sellOf(t)}<br>
+             체력 ${t.hp}/${t.maxHp}<br>
              <span style="color:var(--steel)">진열대의 칩을 누르면 내보낸다.</span>`}</div></div>`
     : `<div class="note helpnote">타워를 누르면 사거리가 보이고, 빈 칸을 누르면 그리로 옮긴다.</div>`;
 }
@@ -1608,9 +1647,6 @@ $("tally").addEventListener("click", (e) => {
   if (!b) return;
   toggleOut(b.dataset.hold);
 });
-$("rollBtn").onclick = roll;
-$("mergeBtn").onclick = merge;
-$("sellBtn").onclick = sell;
 $("waveBtn").onclick = startWave;
 $("waveBtn2").onclick = startWave;
 /* ∞ 를 끄면 손으로 시작한다 — 정비를 오래 하고 싶을 때가 있다. 켜고 끄는 건 판을 넘어 남는다. */
@@ -1675,29 +1711,48 @@ function drawSquad() {
     (free ? ` · <b style="color:var(--amber)">${free}자리 비었다</b>` : "") +
     ` — 자리를 누르면 거두고, 창고를 누르면 내보낸다`;
   $("sqBoxN").textContent = `${inBox().length}기`;
+  const k = canMerge();
+  $("sqMerge").disabled = !k;
+  $("sqMerge").textContent = k
+    ? `${GNAME[+k.split(":")[1]]} ${KINDS[k.split(":")[0]].n} 셋을 합친다` : "셋을 합친다";
+  const sel = META.army.find(t => t.id === S.sel);
+  $("sqSell").disabled = !sel;
+  $("sqTip").innerHTML = sel
+    ? `고른 것: <b style="color:${GCOL[sel.g]}">${GNAME[sel.g]} ${KINDS[sel.kind].n}</b> — 해산하면 유물 +${sellOf(sel)}`
+    : `같은 병과 같은 등급 <b>셋</b>이 모이면 한 등급 위가 된다 — 총 화력은 그대로인데 <b>자리가 둘 빈다</b>`;
 }
 const openSquad = () => { drawSquad(); $("squad").classList.add("on"); };
 $("sqClose").onclick = () => $("squad").classList.remove("on");
+$("sqMerge").onclick = () => { merge(); drawSquad(); };
+$("sqSell").onclick = () => { sell(); drawSquad(); };
 $("squadBtn").onclick = openSquad;
 $("sqSlots").addEventListener("click", (e) => {
   const b = e.target.closest("[data-pull]");
   if (!b) return;
-  const t = S.towers.find(x => x.id === +b.dataset.pull);
+  if (e.shiftKey) { S.sel = +b.dataset.pull; drawSquad(); return; }
+  const t = META.army.find(x => x.id === +b.dataset.pull);
   if (!t) return;
-  t.x = t.y = null;
+  t.slot = null;
   if (S.sel === t.id) S.sel = null;
-  refresh(); drawSquad();
+  syncArmy(); saveMeta(); refresh(); drawSquad();
 });
 $("sqBox").addEventListener("click", (e) => {
   const b = e.target.closest("[data-push]");
   if (!b) return;
-  toggleOut(b.dataset.push);      // 창고에 있으면 내보낸다 — 진열대 칩과 같은 손잡이
+  const [kind, gs] = b.dataset.push.split(":");
+  /* 한 번 누르면 고르고, 이미 고른 것을 또 누르면 내보낸다.
+     해산할 대상을 집을 길이 있어야 "쓸모없는 하급을 정리한다"가 가능해진다. */
+  const same = META.army.find(t => t.kind === kind && t.g === +gs && !isOut(t));
+  if (same && S.sel !== same.id) { S.sel = same.id; drawSquad(); refresh(); return; }
+  toggleOut(b.dataset.push);
   drawSquad();
 });
 /* **상점은 판이 끝난 뒤에만 연다.**
    막는 도중에도 열리게 해 뒀었는데, 전투를 보다 말고 상점을 여닫는 건 몰입을 끊는다는
    판단(병수님)이다. 한 판 → 정산 → 강화 → 다시 가 리듬이 더 선명하다. 판 도중에 눌리면
    무엇을 기다리는지만 알려 준다 — 눌러도 아무 일이 없으면 고장으로 읽힌다. */
+$("recruitBtn").onclick = recruit;
+$("toSquad").onclick = () => openSquad();
 $("relicBtn").onclick = () => {
   if (S.over) { openShop(false); return; }
   say(`유물 <b style="color:var(--amber)">${META.relics}</b> — 판이 끝나면 쓴다.`);
@@ -1816,39 +1871,37 @@ addEventListener("orientationchange", () => setTimeout(focusView, 300));
 addEventListener("load", () => setTimeout(focusView, 120));
 addEventListener("keydown", (e) => {
   if (e.key === " ") { e.preventDefault(); if (!S.running) startWave(); }
-  if (e.key === "r" || e.key === "R") roll();
   if (e.key === "m" || e.key === "M") merge();
 });
 
 // 검증 도구용 창구
-Object.assign(window, { S, KINDS, GNAME, roll, merge, sell, startWave, refresh, tick, canMerge,
+Object.assign(window, { S, META, KINDS, GNAME, recruit, merge, sell, startWave, refresh, tick, canMerge,
   freeSlots, waveHp, waveN, waveLanes, coreCenter, coreRadius, distToCore, hpOf, coverOf,
   cx, cy, rngOf, dmgOf, buildable, CORE, drawGrid, layout, KIND_IDS, GRADE, mergeGroups,
   V, fitView, focusView, zoomAt, applyView, clampView, CELL, WORLD_W, WORLD_H, mobPos, RING,
-  COLS, ROWS, spawnRadius, refreshSlots, slotMax, UPGRADES, kindCost, kindLv, fillFree, inBox, placed });
+  COLS, ROWS, spawnRadius, refreshSlots, slotMax, UPGRADES, kindCost, kindLv, fillFree, inBox, placed, syncArmy, recruitCost, SLOT_SPOTS, openSquad });
   // 판 크기와 **자리 수**를 밖에 내준다 — 검증 하네스가 자를 직접 재게
 
 function newGame() {
   refreshSlots();            // 증축한 만큼 자리를 연다 — 판을 시작할 때 한 번
   Object.assign(S, {
-    gold: metaGold(), coreHp: metaLife(), coreMax: metaLife(), round: 1, rolls: 0,
+    coreHp: metaLife(), coreMax: metaLife(), round: 1,
     towers: [], mobs: [], shots: [],
     running: false, spawned: 0, toSpawn: 0, spawnT: 0, sel: null, over: false,
-    pool: rollPool(), speed: S.speed || 1,      // 배속은 판을 넘어 유지한다
+    speed: S.speed || 1,                        // 배속은 판을 넘어 유지한다
     // 첫 웨이브도 알아서 온다. 다만 처음 한 번은 뽑을 틈이 있어야 하니 조금 길게 준다.
     auto: S.auto, gap: S.auto ? WAVE_GAP * 2.4 : 0,
-    autoRun: S.autoRun, autoT: 0,
+    autoRun: S.autoRun, autoT: 0, bounty: 0,
   });
   mobEls.forEach(el => el.remove()); mobEls.clear();
-  // 선발대 — 빈손으로 시작하지 않는다는 감각이 영구 성장의 첫 체감이다
-  for (let i = 0; i < META.up.start; i++) {
-    // 자리가 모자라도 받기는 받는다 — 창고에 들어갈 뿐이다
-    const free = freeSlots();
-    const slot = free.length ? free[Math.floor(Math.random() * free.length)] : null;
-    const t0 = { id: nextId++, kind: KIND_IDS[Math.floor(Math.random()*KIND_IDS.length)],
-                 g: 2, x: slot ? slot.x : null, y: slot ? slot.y : null };
-    t0.hp = t0.maxHp = hpOf(t0);
-    S.towers.push(t0);
+  fillFree(); syncArmy();          // 편성해 둔 대로 세우고 체력을 채운다
+  /* **첫 부대는 그냥 준다.** 빈손으로는 편성이라는 말이 성립하지 않는다.
+     매 판 주면 부대가 무한 증식하므로, 부대가 비어 있을 때 한 번만 채운다. */
+  for (let i = META.army.length; i < 4; i++) {
+    const t0 = { id: ++META.armyId, slot: null,
+                 kind: KIND_IDS[Math.floor(Math.random() * KIND_IDS.length)], g: 1 };
+    META.army.push(t0);
+    noteSeen(t0.kind, t0.g);
   }
   $("over").classList.remove("on");
   $("log").innerHTML = "";

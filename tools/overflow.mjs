@@ -16,8 +16,7 @@ const SCREENS = [
   ["전장", ""],
   ["결과(상점)", `META.relics=40; META.seen.gun=3; META.seen.cannon=2; META.seen.rail=1;
       drawShop(); document.getElementById('over').classList.add('on');`],
-  ["편성", `S.gold=900; for(let i=0;i<10;i++) roll(); refresh();
-      document.getElementById('squadBtn').click();`],
+  ["편성", `META.relics=200; for(let i=0;i<10;i++) recruit(); refresh(); openSquad();`],
 ];
 
 const PROBE = `(() => {
