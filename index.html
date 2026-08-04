@@ -35,11 +35,12 @@
     display:flex;flex-direction:column;user-select:none;
     /* 폰에서 길게 눌러 메뉴가 뜨거나 당겨서 새로고침되면 판이 그대로 끊긴다 */
     -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
-  header{display:flex;align-items:baseline;gap:14px;padding:9px 16px;
+  /* baseline 이 아니라 center — 글줄과 버튼(유물·설정)이 섞여 있어 baseline 로 두면 들쭉날쭉하다 */
+  header{display:flex;align-items:center;gap:14px;padding:9px 16px;
     border-bottom:1px solid var(--line);background:var(--panel)}
   .title{color:var(--amber);letter-spacing:3px;font-weight:bold}
   .sub{color:var(--dim);font-size:12px}
-  .hud{margin-left:auto;display:flex;gap:18px;font-size:13px}
+  .hud{margin-left:auto;display:flex;align-items:center;gap:18px;font-size:13px}
   .hud b{color:var(--amber);font-weight:normal}
   .hud .life b{color:var(--bad)}
   main{flex:1;display:flex;min-height:0}
@@ -260,6 +261,10 @@
   @keyframes relicPulse{0%,100%{box-shadow:0 0 0 0 rgba(214,168,74,0)}
     50%{box-shadow:0 0 0 3px rgba(214,168,74,.28)}}
   @media (max-width: 420px){ aside{max-height:38vh} }
+  /* 좁은 폰에서 헤더가 두 줄로 감기지 않게 — 부제를 숨기고 간격을 조인다 */
+  @media (max-width: 480px){ .sub{display:none} header{gap:8px}
+    .hud{gap:8px} .rlc{padding:2px 6px} #setBtn{padding:4px 8px !important} }
+  @media (max-width: 360px){ .hud{font-size:11px} .title{letter-spacing:1px} }
 
   /* 편성 화면 — 상점과 같은 틀을 쓴다. 뒤에서 게임은 계속 돈다(방치형이니 멈출 이유가 없다). */
   #squad,#settings{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
@@ -336,6 +341,7 @@
     <span class="life">벙커 <b id="hLife">—</b></span>
     <!-- 눌러서 언제든 상점을 연다 — 벽에 부딪힌 그 자리에서 강해질 수 있어야 한다 -->
     <button class="rlc" id="relicBtn" title="유물 상점">유물 <b id="hRelic">0</b></button>
+    <button id="setBtn" title="설정" style="padding:4px 11px;margin-left:-6px">≡</button>
   </div>
 </header>
 
@@ -349,7 +355,6 @@
       <button id="fitBtn" title="전체 보기">⤢</button>
       <button id="zinBtn" title="확대">＋</button>
       <button id="zoutBtn" title="축소">－</button>
-      <button id="setBtn" title="설정">≡</button>
     </div>
     <!-- **편성은 따로 본다.** 전장에서 대원이 쏘는 걸 보는 건 그대로 두되(그게 이 장르의
          재미다), 누구를 넣고 뺄지는 칩 대신 제대로 된 화면에서 고른다 — 창고가 열 기를
