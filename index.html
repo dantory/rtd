@@ -255,10 +255,13 @@
     .wavesec h3, .wavesec #waveBtn{display:none}
     .wavesec{margin-top:-4px}
     #log{max-height:54px}
-    .shop{grid-template-columns:1fr}
     #over .box{padding:18px 16px;max-width:94vw;max-height:88vh;overflow-y:auto}
   }
-  @media (max-width: 420px){ .hud .rlc{display:none} aside{max-height:38vh} }
+  /* 유물은 **누를 수 있는 것**이라는 게 보여야 한다 — 상점으로 가는 유일한 문이다. */
+  .rlc{padding:2px 8px;font-size:inherit;font-family:inherit;color:var(--fg);
+    background:rgba(40,32,18,.5);border:1px solid #4a3d22;border-radius:4px;cursor:pointer}
+  .rlc:hover{border-color:var(--amber)}
+  @media (max-width: 420px){ aside{max-height:38vh} }
 
   #over{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:400;
     align-items:center;justify-content:center;text-align:center;
@@ -270,8 +273,9 @@
   #over>div{max-width:520px}
   .shopwrap h3{font-size:12px;letter-spacing:1px;color:var(--dim);font-weight:normal;margin:18px 0 8px}
   .shopwrap h3 b{color:var(--amber);font-weight:normal}
-  .shop{display:grid;grid-template-columns:1fr 1fr;gap:7px;text-align:left}
-  @media (max-height:760px){ .shop{grid-template-columns:1fr 1fr 1fr} }
+  /* 폭에 맞춰 저절로 접히게 한다. 열 수를 미디어쿼리로 박아 두었더니 그 규칙이 아래에 있어
+     폰에서도 2열이 이겨 카드 절반이 화면 밖으로 잘려 나갔다. */
+  .shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:7px;text-align:left}
   .up{display:flex;align-items:center;gap:11px;padding:9px 12px}
   .up{flex-direction:column;align-items:flex-start;gap:3px;min-width:190px}
   .up .n{color:var(--amber);width:auto}
@@ -288,7 +292,8 @@
     <span>라운드 <b id="hRound">1</b></span>
     <span>골드 <b id="hGold">0</b></span>
     <span class="life">본진 <b id="hLife">—</b></span>
-    <span class="rlc">유물 <b id="hRelic">0</b></span>
+    <!-- 눌러서 언제든 상점을 연다 — 벽에 부딪힌 그 자리에서 강해질 수 있어야 한다 -->
+    <button class="rlc" id="relicBtn" title="유물 상점">유물 <b id="hRelic">0</b></button>
   </div>
 </header>
 
@@ -529,9 +534,9 @@ const onDeck = (x, y) =>
    ══════════════════════════════════════════════════════════ */
 const META_KEY = "rtd.meta.v1";
 const UPGRADES = {
-  gold:  { n:"밑천",   d:"시작 골드 +25",       base:3, per:2 },
-  dmg:   { n:"벼림",   d:"모든 피해 +8%",       base:4, per:3 },
-  life:  { n:"성벽",   d:"본진 체력 +40",       base:3, per:2 },
+  gold:  { n:"밑천",   d:"시작 골드 +35",       base:3, per:2 },
+  dmg:   { n:"벼림",   d:"모든 피해 +13%",      base:4, per:3 },
+  life:  { n:"성벽",   d:"본진 체력 +65",       base:3, per:2 },
   cheap: { n:"흥정",   d:"뽑기 값 -1 (바닥 6)", base:5, per:4 },
   start: { n:"선발대", d:"시작할 때 중급 하나", base:6, per:6 },
   luck:  { n:"안목",   d:"중급이 더 자주 나온다", base:5, per:4 },
@@ -566,10 +571,16 @@ function noteSeen(kind, g) {
 const seenCount = () => KIND_IDS.filter(k => META.seen[k]).length;
 const upCost = (k) => UPGRADES[k].base + UPGRADES[k].per * META.up[k];
 // 넘긴 라운드가 곧 보상이다. 보스 라운드(5의 배수)를 넘기면 덤이 붙는다.
-const relicsFor = (round) => (round - 1) + Math.floor((round - 1) / 5) * 3;
-const metaGold = () => 90 + META.up.gold * 25;
-const metaLife = () => 260 + META.up.life * 40;   // 본진 체력
-const metaDmg  = () => 1 + META.up.dmg * 0.08;
+/** 죽을 때 받는 유물. **멀리 갈수록 가파르게** 준다 — 한 라운드를 더 미는 것이
+ *  다음 판을 눈에 띄게 바꿔야 "막히면 강해져서 돌파한다"가 성립한다. */
+const relicsFor = (round) => Math.floor((round - 1) * 1.6 + Math.pow(Math.max(0, round - 1), 1.35) / 3);
+/** **막는 중에도 유물이 들어온다.** 죽어야만 강해질 수 있으면 벽에 부딪힌 순간
+ *  할 수 있는 게 죽기를 기다리는 것뿐이다. 세 라운드마다 한 줌씩, 멀리 갈수록 굵게. */
+const relicTick = (round) => (round % 3 === 0 ? 1 + Math.floor(round / 8) : 0);
+// **돌파가 체감되어야 한다.** 스무 판을 해도 8%씩 오르면 벽은 그대로 벽이다.
+const metaGold = () => 90 + META.up.gold * 35;
+const metaLife = () => 260 + META.up.life * 65;   // 본진 체력
+const metaDmg  = () => 1 + META.up.dmg * 0.13;
 
 /** **이번 판에 나올 유닛은 다섯 종뿐이다.**
  *  여덟 종을 다 풀면 같은 것 셋 모으기가 두 배로 어려워져 합성이 사실상 막힌다.
@@ -1221,7 +1232,10 @@ function tick(dt) {
     for (const t of S.towers) t.hp = t.maxHp;
     const bonus = 24 + S.round * 9;
     S.gold += bonus;
-    say(`${S.round}라운드를 막았다. <b>+${bonus}</b>`);
+    const rel = relicTick(S.round);
+    if (rel) { META.relics += rel; saveMeta(); }
+    say(`${S.round}라운드를 막았다. <b>+${bonus}</b>` +
+        (rel ? ` · <b style="color:var(--amber)">유물 +${rel}</b>` : ""));
     S.round++;
     drawGrid();            // 다음 웨이브가 오는 갈래가 바뀌었다
     refresh();
@@ -1455,7 +1469,20 @@ $("autoBtn").onclick = () => {
   try { localStorage.setItem("rtd.auto", S.auto ? "1" : "0"); } catch {}
   refresh();
 };
-$("again").onclick = newGame;
+/** 상점을 연다. **판 도중에도 연다** — 벽에 부딪혔을 때 할 수 있는 게 죽기를 기다리는
+ *  것뿐이면 그건 돌파가 아니다. 도중에 열면 게임은 뒤에서 계속 돈다(방치형이니까). */
+function openShop(mid) {
+  drawShop();
+  $("over").classList.toggle("mid", !!mid);
+  $("again").textContent = mid ? "계속한다" : "한 판 더";
+  if (mid) $("overD").textContent = "막는 동안에도 유물은 쓸 수 있다.";
+  $("over").classList.add("on");
+}
+$("relicBtn").onclick = () => openShop(!S.over);
+$("again").onclick = () => {
+  if ($("over").classList.contains("mid")) { $("over").classList.remove("on"); refresh(); }
+  else newGame();
+};
 /* ══════════════════════════════════════════════════════════════
    보는 자리 — 끌어서 옮기고, 오므려서 줄인다.
    ──────────────────────────────────────────────────────────────
@@ -1616,6 +1643,12 @@ $("shop").addEventListener("click", (e) => {
   /* 증축은 **다음 판부터**가 아니라 지금 눈에 보여야 한다. 상점은 판이 끝난 뒤에 열리므로
      여기서 자리를 열어 두면, 새 판이 시작될 때 이미 넓어진 앞마당이 깔려 있다. */
   if (k === "slots") { refreshSlots(); fillFree(); drawGrid(); }
+  /* 판 도중에 산 것도 **지금** 들어야 한다. 다음 판부터 세진다면 벽 앞에서 사는 의미가 없다.
+     피해·뽑기값은 계산할 때마다 META 를 보므로 저절로 붙고, 체력만 여기서 늘려 준다. */
+  if (k === "life" && !S.over) {
+    const d = metaLife() - S.coreMax;
+    if (d > 0) { S.coreMax += d; S.coreHp += d; }
+  }
 });
 Object.assign(window, { META, newGame, drawShop, relicsFor, upCost, UPGRADES, saveMeta, metaDmg });
 
