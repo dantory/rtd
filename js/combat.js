@@ -1,7 +1,7 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, META, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, META, newlySeen, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { drawGrid, px, say } from "./view.js";
-import { armorMul, coreCenter, coreRadius, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruitCost, rngOf, spawnRadius } from "./army.js";
+import { armorMul, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
 
 
@@ -393,21 +393,33 @@ export function drawShop() {
     (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 열린다` : "");
 
   /* 도감 — 아직 못 본 병과도 **자리를 비워 둔 채로 보여 준다.** 몇 개가 남았는지 보이지
-     않으면 모을 이유가 생기지 않는다. 만난 최고 등급을 별로 남겨 다음 판을 당긴다. */
-  $("dex").innerHTML = KIND_IDS.map(k => {
+     않으면 모을 이유가 생기지 않는다. 만난 최고 등급을 별로 남기고, 수치·다음 목표까지 적어
+     도감이 "수집의 지도"가 되게 한다. */
+  const dxRow = (lb, cur, nxt) =>
+    `<span class="dxs"><i>${lb}</i>${cur}${nxt != null && nxt !== cur ? `<b>→${nxt}</b>` : ""}</span>`;
+  $("dex").innerHTML = KIND_IDS.map((k, i) => {
     const g = META.seen[k] | 0, K = KINDS[k];
-    if (!g) return `<div class="dxc off" title="아직 못 만났다"><span class="ico">?</span>
-           <span class="dxn">???</span></div>`;
-    /* 만난 병과는 **키울 수 있다.** 도감이 보여 주기만 하면 모은 것이 결과에 안 남는다 —
-       누를 수 있게 해 두면 "이번엔 저격수를 밀어 보자"가 성립한다. */
-    const lv = kindLv(k), c = kindCost(k), can = META.relics >= c;
+    if (!g) {
+      /* ??? 도 **다음 목표**를 적는다. 넷째부터 최고 라운드 (i-3)*5 마다 하나씩 열리니(poolSize),
+         "무엇이, 언제 열리는지"가 보이면 못 본 칸도 밀어 볼 이유가 된다. */
+      const at = Math.max(0, i - 3) * 5;
+      return `<div class="dxc off" title="아직 못 만났다"><span class="ico">?</span>
+           <span class="dxn">???</span>
+           <span class="dxt">${at ? `최고 <b>${at}R</b> 에 열린다` : "곧 열린다"}</span></div>`;
+    }
+    /* 만난 병과는 **키울 수 있다.** 누를 수 있게 해 두면 "이번엔 저격수를 밀어 보자"가 성립하고,
+       카드에 지금 피해·사거리·특기와 한 단계 위 값을 적어 무엇이 얼마나 오를지 미리 보인다. */
+    const lv = kindLv(k), c = kindCost(k), can = META.relics >= c, s = dexStat(k);
     return `<button class="dxc train${can ? " can" : ""}" data-train="${k}"
-         title="${K.n} — ${K.d}&#10;훈련 ${lv}등급 · 피해 +${Math.round(kindLv(k)*16)}% · 특기 +${Math.round(kindLv(k)*11)}%">
+         title="${K.n} — ${K.d}&#10;훈련 ${lv}등급 · 다음 등급 유물 ${c}">
+       ${newlySeen.has(k) ? `<span class="dxnew">NEW</span>` : ""}
        <img class="spr" src="assets/unit/${k}.png" alt=""
          onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
        <span class="ico">${K.ico}</span>
        <span class="dxn">${K.n}</span>
        <span class="dxg" style="color:${GCOL[g]}">${"★".repeat(Math.min(g,5))}</span>
+       <span class="dxst">${dxRow("피해", s.dmg, s.dmgN)}${dxRow("사거리", s.rng, s.rngN)}${
+         s.sLb ? dxRow(s.sLb, s.sCur, s.sNxt) : ""}</span>
        <span class="dxt">훈련 ${lv} <b>유물 ${c}</b></span></button>`;
   }).join("");
   $("dexHave").textContent = seenCount();

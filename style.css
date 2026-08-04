@@ -169,21 +169,36 @@
   .hold.ready::after{content:"";position:absolute;inset:0;
     box-shadow:inset 0 0 10px rgba(127,176,105,.45);animation:lanep 1.4s ease-in-out infinite}
   /* 도감 — 진열대 칩보다 크게. 모은 것을 들여다보는 자리라 얼굴이 보여야 한다. */
-  .dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px}
-  .dxc{position:relative;padding:5px 3px 4px;border-radius:5px;background:#161c24;
+  .dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
+  .dxc{position:relative;padding:6px 3px 4px;border-radius:5px;background:#161c24;
     border:1px solid #262f3a;display:flex;flex-direction:column;align-items:center;gap:2px}
-  .dxc .spr{width:40px;height:40px;object-fit:contain;image-rendering:pixelated}
-  .dxc .ico{font-size:15px;line-height:1}
+  .dxc .spr{width:46px;height:46px;object-fit:contain;image-rendering:pixelated}
+  .dxc .ico{font-size:17px;line-height:1}
   .dxc:not(.noimg) .ico{display:none}
   .dxc .dxn{font-size:10px;color:var(--dim);letter-spacing:0}
-  .dxc .dxg{font-size:9px;letter-spacing:-1px}
+  .dxc .dxg{font-size:11px;letter-spacing:-1px}
+  /* 수치판 — 카드 폭을 꽉 채워 "이름:값"으로 읽히게. 좁은 폰(74px 칸)에서 삐져나오지 않도록
+     8.5px·nowrap 로 눌러 담는다(tools/overflow.mjs 로 확인). →뒤가 한 단계 위 훈련값이다. */
+  .dxc .dxst{width:100%;display:flex;flex-direction:column;gap:1px;margin:1px 0}
+  .dxc .dxs{display:flex;justify-content:space-between;align-items:baseline;gap:3px;
+    font-size:8.5px;line-height:1.25;color:#949ca8;letter-spacing:-.2px;white-space:nowrap}
+  .dxc .dxs i{font-style:normal;color:#5f6874}
+  .dxc .dxs b{font-weight:600;color:var(--good)}
   .dxc .dxt{font-size:9px;color:#5f6874;letter-spacing:0}
+  /* NEW — 이번 세션에 처음 얻은 병과. 칸이 overflow:hidden 이라 밖으로 못 삐치니 안쪽 귀에 붙인다. */
+  .dxc .dxnew{position:absolute;top:3px;right:3px;z-index:2;background:var(--amber);color:#1a1206;
+    font-size:8px;font-weight:700;line-height:1;padding:2px 3px;border-radius:3px}
   .dxc.train{cursor:default;font-family:inherit}
   .dxc.train.can{cursor:pointer;border-color:#4a3d22}
   .dxc.train.can .dxt b{color:var(--amber)}
   .dxc.train.can:hover{border-color:var(--amber)}
-  .dxc.off{opacity:.34}
-  .dxc.off .ico{font-size:22px;color:#4a5361;display:block}
+  /* 잠긴 칸 — 얼굴은 죽이되 **언제 열리는지는 또렷하게**. opacity 로 통째 흐리면 목표까지
+     안 읽혀, 아이콘·이름만 색으로 눌러 두고 해금 라운드는 밝게 남긴다. */
+  .dxc.off{border-style:dashed}
+  .dxc.off .ico{font-size:22px;color:#3a424e;display:block}
+  .dxc.off .dxn{color:#454e5a}
+  .dxc.off .dxt{text-align:center;color:var(--steel)}
+  .dxc.off .dxt b{color:var(--fg)}
   .hold:not(.ready){opacity:.94}
   .hold.away{opacity:.46}                /* 한 기도 안 나가 있는 것 — 창고에서 대기 중이다 */
   /* 토스트 — 다른 통로가 없는 피드백만 잠깐 띄운다 (상시 로그는 뺐다) */

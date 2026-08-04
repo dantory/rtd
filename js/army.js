@@ -1,4 +1,4 @@
-import { BUNKER_DMG, CORE, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, kindRngMul, KINDS, kindSkill, META, metaDmg, noteSeen, RING, S, saveMeta, SLOT_SPOTS, slotMax } from "./core.js";
+import { BUNKER_DMG, CORE, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, kindLv, kindRngMul, KINDS, kindSkill, META, metaDmg, noteSeen, RING, S, saveMeta, SLOT_SPOTS, slotMax } from "./core.js";
 import { CELL, px, py, say } from "./view.js";
 import { drawShop, flyText, popTower } from "./combat.js";
 import { refresh } from "./ui.js";
@@ -227,3 +227,37 @@ export const BUNKER_RNG = 1.45;
    밖 일이 된다 — 저격수가 등급·훈련으로 크면 실제로 넘는다(334 > 326). */
 export const rngOf  = (t) => Math.min(spawnRadius() - 30,
   Math.round((KINDS[t.kind].rng + (t.g - 1) * 9) * BUNKER_RNG * kindRngMul(t.kind)));
+
+/* 병과마다 다른 **특기의 대표값**. 훈련(kindSkill)만큼 자라는 것과 등급 계단마다 늘어나는 것이
+   섞여 있어, 각 병과가 무엇을 키우는지(둔화·범위·연쇄·관통·회복·감쇄·지휘…)를 lv 로 계산한다.
+   전투식(combat.js)과 같은 상수를 쓰되 도감은 등급1·판 상태와 무관한 값을 보여 준다. */
+const DEX_SKILL = {
+  frost:   (k, lv) => ["둔화", Math.round(Math.min(0.8, KINDS.frost.slow   * kindSkill(k, lv)) * 100) + "%"],
+  guard:   (k, lv) => ["감쇄", Math.round(Math.min(0.6, KINDS.guard.armor  * kindSkill(k, lv)) * 100) + "%"],
+  officer: (k, lv) => ["지휘", Math.round(KINDS.officer.aura * kindSkill(k, lv) * 100) + "%"],
+  cannon:  (k, lv) => ["범위", "" + Math.round(KINDS.cannon.splash * kindSkill(k, lv))],
+  flame:   (k, lv) => ["범위", "" + Math.round(KINDS.flame.splash  * kindSkill(k, lv))],
+  mine:    (k, lv) => ["범위", "" + Math.round(KINDS.mine.splash   * kindSkill(k, lv))],
+  rocket:  (k, lv) => ["범위", "" + Math.round(KINDS.rocket.splash * kindSkill(k, lv))],
+  medic:   (k, lv) => ["회복", "" + Math.max(1, Math.round(KINDS.medic.heal * 0.5 * kindSkill(k, lv)))],
+  bolt:    (k, lv) => ["연쇄", "" + (KINDS.bolt.chain  + Math.floor(lv / 3))],
+  rail:    (k, lv) => ["관통", "" + (KINDS.rail.pierce + Math.floor(lv / 3))],
+  drone:   (k)     => ["유물", "" + KINDS.drone.bounty],
+};
+/** 도감 카드에 적는 대표 수치 — **판 상태(출격·라운드·지휘관 버프)에 안 흔들리게** 등급1·전역
+ *  업그레이드를 뺀 병과 고유값만 본다. 카드에서 바뀌는 축은 훈련이라 지금 값과 한 단계 위 값을
+ *  같이 준다("41 → 47"). 실제 전투값은 등급과 지휘관으로 더 크다 — 여기 값은 병과끼리 견주고
+ *  훈련이 무엇을 올리는지 읽으라고 있는 것이다. */
+export function dexStat(k) {
+  const K = KINDS[k], lv = kindLv(k), s = DEX_SKILL[k];
+  const cur = s ? s(k, lv) : null, nxt = s ? s(k, lv + 1) : null;
+  return {
+    dmg:  Math.round(K.dmg * BUNKER_DMG * kindDmgMul(k, lv)),
+    dmgN: Math.round(K.dmg * BUNKER_DMG * kindDmgMul(k, lv + 1)),
+    rng:  Math.round(K.rng * BUNKER_RNG * kindRngMul(k, lv)),
+    rngN: Math.round(K.rng * BUNKER_RNG * kindRngMul(k, lv + 1)),
+    sLb:  cur ? cur[0] : null,
+    sCur: cur ? cur[1] : null,
+    sNxt: nxt ? nxt[1] : null,
+  };
+}

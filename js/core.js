@@ -196,6 +196,10 @@ export const saveMeta = () => {
   META.lastSeen = Date.now();
   try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch {}
 };
+/** 이번 세션에 **처음** 만난 병과. 정산 도감에 NEW 를 붙였다가 다음에 켜면 사라진다.
+ *  META 에 저장하지 않는다 — "방금 새로 얻었다"는 이 판을 도는 동안만 뜻이 있는 신호라,
+ *  세이브에 남기면 영영 NEW 로 남아 뱃지의 의미가 죽는다. */
+export const newlySeen = new Set();
 /** 도감에 적는다. 처음 본 병과면 true — 그때만 요란하게 알린다.
  *  **최고 등급까지 남긴다.** 한 번 상급을 만들어 봤다는 기록이 다음 판을 시작하게 만든다. */
 export function noteSeen(kind, g) {
@@ -203,7 +207,8 @@ export function noteSeen(kind, g) {
   if (g <= cur) return false;
   META.seen[kind] = g;
   saveMeta();
-  return cur === 0;
+  if (cur === 0) { newlySeen.add(kind); return true; }   // 처음이면 도감 카드에도 NEW 를 남긴다
+  return false;
 }
 export const seenCount = () => KIND_IDS.filter(k => META.seen[k]).length;
 
@@ -215,9 +220,11 @@ export const seenCount = () => KIND_IDS.filter(k => META.seen[k]).length;
      · 특기 — 그 병과만의 수치(터지는 범위·회복량·방어·지휘 등). 곧 스킬이다
    만난 적 없는 병과는 못 키운다. 모으는 것이 먼저다. */
 export const kindLv    = (k) => META.lv[k] | 0;
-export const kindDmgMul= (k) => 1 + kindLv(k) * 0.16;
-export const kindRngMul= (k) => 1 + kindLv(k) * 0.05;
-export const kindSkill = (k) => 1 + kindLv(k) * 0.11;
+/* lv 를 덤으로 받는다 — 기본은 지금 훈련 등급이지만, 도감이 "한 단계 위" 값을 미리
+   보여 줄 때(dexStat) 같은 식을 lv+1 로 다시 쓰려고 열어 둔다. 인자를 안 주면 예전 그대로다. */
+export const kindDmgMul= (k, lv = kindLv(k)) => 1 + lv * 0.16;
+export const kindRngMul= (k, lv = kindLv(k)) => 1 + lv * 0.05;
+export const kindSkill = (k, lv = kindLv(k)) => 1 + lv * 0.11;
 export const kindCost  = (k) => 3 + kindLv(k) * 3;
 export const upCost = (k) => UPGRADES[k].base + UPGRADES[k].per * META.up[k];
 // 넘긴 라운드가 곧 보상이다. 보스 라운드(5의 배수)를 넘기면 덤이 붙는다.
