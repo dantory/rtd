@@ -24,7 +24,7 @@ const out = await ev(`(() => {
     seen:Object.fromEntries(KIND_IDS.map(k=>[k,0]))});
   const rows=[];
   for(let run=0; run<${RUNS}; run++){
-    newGame(); S.auto=false; S.gap=0;
+    newGame(); S.auto=false; S.gap=0; S.autoRun=false;
     let g=0, stalled=null;
     while(!S.over && S.round<=30 && g++<250){
       let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&n++<40) roll();
