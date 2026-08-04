@@ -137,6 +137,10 @@
   @keyframes flare{0%{box-shadow:0 0 0 0 rgba(224,164,88,.9)}100%{box-shadow:0 0 0 16px rgba(224,164,88,0)}}
   .tw.rolled{animation:pop .28s ease-out}
   .tw.merged{animation:pop .32s ease-out, flare .55s ease-out}
+  /* 별이 하나 느는 것만으로는 **불어난 것이 안 보인다.** 합쳐진 자리에서 링이 한 번 퍼진다. */
+  .tw.merged::after{content:"";position:absolute;inset:-4px;border-radius:6px;
+    border:2px solid currentColor;opacity:0;animation:mergeRing .6s ease-out}
+  @keyframes mergeRing{0%{transform:scale(.7);opacity:.95}100%{transform:scale(1.9);opacity:0}}
 
   .mob{position:absolute;pointer-events:none;transition:none;border-radius:50%}
   .mob .spr{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
@@ -956,12 +960,25 @@ function freeSlots() {
  *  매번 손으로 두 자리를 채우게 하면 그건 결정이 아니라 잔일이다. 센 것부터 내보내고,
  *  무엇을 내보낼지는 진열대의 칩을 눌러 언제든 바꾼다. */
 function fillFree() {
-  const box = inBox().sort((a, b) => (b.g - a.g) || (dmgOf(b) - dmgOf(a)));
+  const rank = (t) => t.g * 1e6 + dmgOf(t);
+  const box = inBox().sort((a, b) => rank(b) - rank(a));
   for (const t of box) {
     const free = freeSlots();
     if (!free.length) break;
     const s = free[Math.floor(Math.random() * free.length)];
     t.x = s.x; t.y = s.y;
+  }
+  /* **창고가 더 세면 바꿔 넣는다.**
+     합쳐서 만든 상급이 창고에 앉아 있고 자리엔 하급이 서 있으면 자동 운영이 일을 반만 한
+     것이다. 무엇보다 합성 결과가 자리에 안 나가면 **합친 순간이 화면에 안 보인다** —
+     기여는 절대적인데(빼면 25R → 12R) 플레이어에게는 아무 일도 안 일어난 것처럼 보였다. */
+  for (;;) {
+    const best = inBox().sort((a, b) => rank(b) - rank(a))[0];
+    if (!best) break;
+    const worst = placed().sort((a, b) => rank(a) - rank(b))[0];
+    if (!worst || rank(best) <= rank(worst)) break;
+    best.x = worst.x; best.y = worst.y;
+    worst.x = worst.y = null;
   }
 }
 
@@ -1022,9 +1039,15 @@ function mergeKey(k) {
   fillFree();                                        // 셋이 하나가 되며 빈 두 자리를 메운다
   noteSeen(kind, keep.g);                            // 합쳐 오른 등급도 도감에 남는다
   say(`셋을 합쳐 <b style="color:${GCOL[keep.g]}">${GNAME[keep.g]} ${KINDS[kind].n}</b> 이(가) 되었다.`);
-  flyText(cx(keep.x), cy(keep.y), GNAME[keep.g], GCOL[keep.g]);
-  refresh();
-  popTower(keep, "merged");
+  refresh();                       // 자리 배치가 먼저다 — 그래야 연출이 제자리에서 터진다
+  if (isOut(keep)) {
+    flyText(cx(keep.x), cy(keep.y), "★ " + GNAME[keep.g], GCOL[keep.g]);
+    popTower(keep, "merged");
+  } else {
+    // 창고에서 합쳐졌으면 띄울 자리가 없다. 본진 위에 올려 적어도 무슨 일이 났는지는 보인다.
+    const c = coreCenter();
+    flyText(c.x, c.y - coreRadius() - 14, "★ " + GNAME[keep.g] + " " + KINDS[kind].n, GCOL[keep.g]);
+  }
 }
 // **본진을 얼마나 감싸는가.** 본진 둘레를 한 바퀴 돌며 사거리에 드는 각도를 센다 —
 // 합성 때 어느 자리를 남길지, 그리고 지금 자리가 쓸 만한지의 기준.
