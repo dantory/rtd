@@ -1,12 +1,13 @@
-/** 벙커디펜스가 묻는 것은 **"어디에 세울까"가 결과를 바꾸는가** 다.
+/** 이 판이 묻는 것은 **"무엇을 내보낼까"가 결과를 바꾸는가** 다.
  *
- *  길을 따라가는 타워디펜스에서는 배치가 사실상 "길 옆이냐" 하나뿐이었다. 가운데를 지키고
- *  사방에서 오게 하면 배치가 진짜 결정이 된다 — 그게 사실인지 숫자로 확인한다.
+ *  자리를 셋으로 조이기 전에는 "어디에 세울까"를 쟀다. 자리가 고정된 뒤로 위치 선택이
+ *  사라졌는데 자는 그대로여서 늘 ✗ 가 떴다 — 실패가 아니라 무의미해진 자였다.
+ *  지금 결정은 가진 것 중 무엇을 벙커에 올리느냐다.
  *
- *  그래서 **같은 뽑기·합성을 하되 배치만 다른 봇 둘**을 나란히 돌린다.
- *    아무렇게나  — 뽑힌 자리 그대로 둔다
- *    보고 세운다 — 이번 웨이브가 오는 갈래 쪽으로 고르게 나눠 세운다
- *  둘의 차이가 곧 "배치가 게임인가"의 답이다.
+ *  그래서 **같은 뽑기·합성을 하되 내보내는 기준만 다른 봇 둘**을 나란히 돌린다.
+ *    아무거나  — 가진 것을 섞어서 앞에서부터
+ *    골라 낸다 — 등급·피해가 높은 것부터(게임의 fillFree 와 같은 기준)
+ *  둘의 차이가 곧 "고르는 것이 게임인가"의 답이다.
  *
  *      node funtest.mjs [판수]      # serve.mjs(8772) + 크롬(9333)
  */
@@ -39,25 +40,22 @@ const play = (place, useMeta) => [
   // 그 값이 undefined 가 되고, 그걸 쓰는 계산이 통째로 NaN 이 된다 — slots 를 더했을 때
   // 자리가 0 개가 되어 봇이 1R 에 전멸했다. 게임이 아니라 이 자가 틀린 것이었다.
   '  Object.assign(META,{relics:0,best:0,',
-  '    up:Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0]))});',
+  '    up:Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0])),',
+  '    seen:Object.fromEntries(KIND_IDS.map(k=>[k,0])),',
+  '    lv:Object.fromEntries(KIND_IDS.map(k=>[k,0]))});',
   '  refreshSlots();',
-  '  const arrange = () => {',
-  '    const lanes = waveLanes(S.round), c = coreCenter();',
-  // 판 크기는 **게임에서 가져온다.** 13×9 로 박아 뒀더니 판을 21×21 로 넓힌 순간
-  // 후보 칸이 구석 21칸만 잡혀, 보고 세운 봇이 오히려 1R 에 죽었다 — 게임이 아니라
-  // 이 자를 잘못 대고 있었던 것이다.
-  '    const cells=[]; for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++) if(buildable(x,y)) cells.push({x,y});',
-  '    const used=new Set();',
-  '    S.towers.forEach((t,i)=>{',
-  '      const th=lanes[i%lanes.length];',
-  // 세우는 반지름도 링 두께에서 뽑는다(전엔 195 로 박혀 있었다) — 링이 두꺼워지면 같이 따라간다.
-  '      const R=coreRadius()+CELL*(RING*0.78);',
-  '      const ax=c.x+Math.cos(th)*R, ay=c.y+Math.sin(th)*R;',
-  '      let b=null,bd=1e9;',
-  '      for(const s of cells){const k=s.x+","+s.y; if(used.has(k))continue;',
-  '        const d=Math.hypot(cx(s.x)-ax,cy(s.y)-ay); if(d<bd){bd=d;b=s;}}',
-  '      if(b){used.add(b.x+","+b.y); t.x=b.x; t.y=b.y;}',
-  '    });',
+  /* **무엇을 내보낼까가 결과를 바꾸는가.**
+     자리가 셋으로 고정된 뒤로 "어디에 세울까"는 결정이 아니게 됐다. 옛 자는 위치를 재고
+     있었고, 그래서 늘 ✗ 가 떴다 — 실패가 아니라 무의미해진 것이었다. 지금 이 판이 묻는
+     것은 가진 것 중 무엇을 자리에 올리느냐다. 봇 둘을 그 축으로 갈라 세운다.
+       고른다   — 등급·피해가 높은 것부터(게임의 fillFree 와 같은 기준)
+       아무거나 — 가진 것을 섞어서 앞에서부터 */
+  '  const arrange = () => { fillFree(); };',
+  '  const shuffleOut = () => {',
+  '    S.towers.forEach(t => { t.x = t.y = null; });',
+  '    const box = S.towers.slice();',
+  '    for (let i=box.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;const q=box[i];box[i]=box[j];box[j]=q;}',
+  '    for (const t of box) { const f = freeSlots(); if (!f.length) break; t.x=f[0].x; t.y=f[0].y; }',
   '  };',
   '  const runs=[], grades=[];',
   `  for (let run=0; run<${RUNS}; run++) {`,
@@ -73,7 +71,7 @@ const play = (place, useMeta) => [
   // 봇이 자리 셋을 채운 순간 뽑기를 멈춰 창고가 늘 비었고, 그래서 합성이 한 번도 안 났다.
   '      let n=0; while(S.gold>=(Math.max(6,12-META.up.cheap)+S.rolls*2)&&n++<40) roll();',
   '      while(canMerge()) merge();',
-  place ? '      arrange();' : '',
+  place ? '      arrange();' : '      shuffleOut();',
   '      startWave();',
   '      let t=0; while(S.running && t<300){ tick(1/30); t+=1/30; }',
   '      if (S.running) break;',
@@ -83,8 +81,12 @@ const play = (place, useMeta) => [
   useMeta ? [
   '    let k=0;',
   '    while(k++<30){',
-  '      const key=Object.keys(UPGRADES).filter(x=>META.relics>=upCost(x)).sort((a,b)=>upCost(a)-upCost(b))[0];',
-  '      if(!key) break; META.relics-=upCost(key); META.up[key]++;',
+  // 유물은 **전역 업그레이드와 병과 훈련 양쪽**에 쓴다 — 한쪽만 사면 성장 축을 반만 재는 셈이다.
+  '      const ups=Object.keys(UPGRADES).filter(x=>META.relics>=upCost(x)).map(x=>({k:x,c:upCost(x),t:0}));',
+  '      const trs=KIND_IDS.filter(x=>META.seen[x]&&META.relics>=kindCost(x)).map(x=>({k:x,c:kindCost(x),t:1}));',
+  '      const key=[...ups,...trs].sort((a,b)=>a.c-b.c)[0];',
+  '      if(!key) break; META.relics-=key.c;',
+  '      if(key.t) META.lv[key.k]++; else META.up[key.k]++;',
   '    }',
   '    saveMeta();'].join("\n") : '',
   '  }',
@@ -98,17 +100,17 @@ const smart  = await ev(play(true,  false));
 const growth = await ev(play(true,  true));
 
 console.log(`\n═══ 벙커디펜스 지표 (각 ${RUNS}판) ═══\n`);
-console.log(`── 아무렇게나 세운다   평균 ${blind.avg}R · 최고등급 ${blind.grade}`);
+console.log(`── 아무거나 내보낸다   평균 ${blind.avg}R · 최고등급 ${blind.grade}`);
 console.log(`   ${blind.seq.join(" · ")}`);
-console.log(`── 오는 쪽을 보고 세운다  평균 ${smart.avg}R · 최고등급 ${smart.grade}`);
+console.log(`── 센 것을 골라 내보낸다 평균 ${smart.avg}R · 최고등급 ${smart.grade}`);
 console.log(`   ${smart.seq.join(" · ")}`);
-console.log(`── 보고 세우고 + 유물을 쓴다  평균 ${growth.avg}R`);
+console.log(`── 골라 내보내고 + 유물을 쓴다 평균 ${growth.avg}R`);
 console.log(`   ${growth.seq.join(" → ")}\n`);
 
 const chk = (n, ok, d) => console.log(`${ok ? "✓" : "✗"} ${n}${d ? "  — " + d : ""}`);
 console.log("── 판정 ──");
-chk("배치가 결과를 크게 바꾼다 (이 구조의 존재 이유)", smart.avg > blind.avg + 3,
-    `아무렇게나 ${blind.avg}R → 보고 세우면 ${smart.avg}R`);
+chk("무엇을 내보내느냐가 결과를 바꾼다 (이 구조의 존재 이유)", smart.avg > blind.avg + 3,
+    `아무거나 ${blind.avg}R → 골라 내보내면 ${smart.avg}R`);
 chk("합성으로 등급이 오른다", smart.grade >= 2.5, `평균 최고 ${smart.grade}등급`);
 const f = growth.seq.slice(0,2).reduce((a,b)=>a+b,0)/2, l = growth.seq.slice(-2).reduce((a,b)=>a+b,0)/2;
 chk("판을 거듭하면 더 간다 (유물)", l >= f, `처음 2판 ${f.toFixed(1)}R → 마지막 2판 ${l.toFixed(1)}R`);

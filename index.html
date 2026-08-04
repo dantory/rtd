@@ -214,6 +214,11 @@
   .dxc:not(.noimg) .ico{display:none}
   .dxc .dxn{font-size:10px;color:var(--dim);letter-spacing:0}
   .dxc .dxg{font-size:9px;letter-spacing:-1px}
+  .dxc .dxt{font-size:9px;color:#5f6874;letter-spacing:0}
+  .dxc.train{cursor:default;font-family:inherit}
+  .dxc.train.can{cursor:pointer;border-color:#4a3d22}
+  .dxc.train.can .dxt b{color:var(--amber)}
+  .dxc.train.can:hover{border-color:var(--amber)}
   .dxc.off{opacity:.34}
   .dxc.off .ico{font-size:22px;color:#4a5361;display:block}
   .hold:not(.ready){opacity:.94}
@@ -417,15 +422,16 @@ const BUNKER_DMG = 4.5;
 /** 지휘관은 **벙커 전원**의 피해를 올린다. 사거리를 두지 않는 건 벙커이기 때문이다 —
  *  같은 건물 안이라 누가 누구 옆인지를 따질 것이 없다. 여럿 넣으면 그만큼 쌓인다. */
 const auraMul = () => 1 + placed().reduce(
-  (s, t) => s + (KINDS[t.kind].aura || 0) * (1 + (t.g - 1) * 0.5), 0);
-const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * BUNKER_DMG * gradeMul(t.g) * metaDmg() * auraMul());
+  (s, t) => s + (KINDS[t.kind].aura || 0) * (1 + (t.g - 1) * 0.5) * kindSkill(t.kind), 0);
+const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * BUNKER_DMG * gradeMul(t.g) * metaDmg()
+                                 * auraMul() * kindDmgMul(t.kind));
 /** 방패병이 있으면 본진이 받는 피해가 준다. 여럿 넣으면 곱으로 쌓이되 바닥을 둔다 —
  *  방패병만 채워 무적이 되면 그건 방어가 아니라 정답이 하나뿐인 판이 된다. */
 const armorMul = () => {
   let m = 1;
   for (const t of placed()) {
     const a = KINDS[t.kind].armor;
-    if (a) m *= 1 - a * (1 + (t.g - 1) * 0.35);
+    if (a) m *= 1 - Math.min(0.6, a * (1 + (t.g - 1) * 0.35) * kindSkill(t.kind));
   }
   return Math.max(0.28, m);
 };
@@ -435,7 +441,7 @@ const armorMul = () => {
  *  하다 본진이 무너졌다(여섯 판 중 두 판이 1R). 벙커 하나에 다 들어가 있는 것이니
  *  사거리는 그 벙커를 덮을 만해야 한다. 병과별 차이는 배수라 그대로 남는다. */
 const BUNKER_RNG = 1.9;
-const rngOf  = (t) => Math.round((KINDS[t.kind].rng + (t.g - 1) * 9) * BUNKER_RNG);
+const rngOf  = (t) => Math.round((KINDS[t.kind].rng + (t.g - 1) * 9) * BUNKER_RNG * kindRngMul(t.kind));
 const sellOf = (t) => Math.round(12 * gradeMul(t.g) * 0.55);
 // 타워도 맞는다. 등급이 오르면 단단해지되 피해만큼 뛰지는 않는다 —
 // 세다고 안 부서지면 바깥에 세우는 데 값이 없어진다.
@@ -552,11 +558,14 @@ function loadMeta() {
       return { relics: raw.relics | 0, best: raw.best | 0,
                up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, (raw.up?.[k]) | 0])),
                // 도감 — **모으는 재미는 남는 데서 온다.** 판이 끝나면 사라지는 수집은 수집이 아니다.
-               seen: Object.fromEntries(KIND_IDS.map(k => [k, (raw.seen?.[k]) | 0])) };
+               seen: Object.fromEntries(KIND_IDS.map(k => [k, (raw.seen?.[k]) | 0])),
+               // 병과별 훈련 등급. 모은 것을 **키우는** 축 — 수집이 장식으로 끝나지 않게 한다.
+               lv: Object.fromEntries(KIND_IDS.map(k => [k, (raw.lv?.[k]) | 0])) };
     }
   } catch { /* 손상됐으면 조용히 새로 시작 — 저장이 깨졌다고 게임이 안 켜지면 안 된다 */ }
   return { relics: 0, best: 0, up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
-           seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])) };
+           seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
+           lv: Object.fromEntries(KIND_IDS.map(k => [k, 0])) };
 }
 const saveMeta = () => { try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch {} };
 /** 도감에 적는다. 처음 본 병과면 true — 그때만 요란하게 알린다.
@@ -569,6 +578,26 @@ function noteSeen(kind, g) {
   return cur === 0;
 }
 const seenCount = () => KIND_IDS.filter(k => META.seen[k]).length;
+
+/* ══ 병과 훈련 — **모은 것을 키우는 축** ══
+   전역 업그레이드(모든 피해 +13%)만 있으면 열두 병과가 다 같은 속도로 세진다. 그러면
+   무엇을 모았는지가 결과에 안 남고, 도감은 그저 장식이 된다. 병과마다 따로 키우면
+   "이번 판은 저격수를 밀어 보자"가 성립하고, **뽑기 운이 아니라 내가 정한 방향**이 된다.
+     · 등급 — 그 병과의 피해와 사거리
+     · 특기 — 그 병과만의 수치(터지는 범위·회복량·방어·지휘 등). 곧 스킬이다
+   만난 적 없는 병과는 못 키운다. 모으는 것이 먼저다. */
+const kindLv    = (k) => META.lv[k] | 0;
+const kindDmgMul= (k) => 1 + kindLv(k) * 0.16;
+const kindRngMul= (k) => 1 + kindLv(k) * 0.05;
+const kindSkill = (k) => 1 + kindLv(k) * 0.11;
+const kindCost  = (k) => 3 + kindLv(k) * 3;
+function trainKind(k) {
+  if (!META.seen[k]) return;                    // 만나 본 적 없는 병과는 훈련시킬 수 없다
+  const c = kindCost(k);
+  if (META.relics < c) return;
+  META.relics -= c; META.lv[k] = kindLv(k) + 1;
+  saveMeta(); drawShop(); refresh();
+}
 const upCost = (k) => UPGRADES[k].base + UPGRADES[k].per * META.up[k];
 // 넘긴 라운드가 곧 보상이다. 보스 라운드(5의 배수)를 넘기면 덤이 붙는다.
 /** 죽을 때 받는 유물. **멀리 갈수록 가파르게** 준다 — 한 라운드를 더 미는 것이
@@ -1147,7 +1176,7 @@ function tick(dt) {
     if (t.healT > 0) continue;
     t.healT = 1.2;
     if (S.coreHp >= S.coreMax) continue;
-    const amt = Math.round(h * gradeMul(t.g) * 0.5);
+    const amt = Math.round(h * gradeMul(t.g) * 0.5 * kindSkill(t.kind));
     S.coreHp = Math.min(S.coreMax, S.coreHp + amt);
     const c2 = coreCenter();
     flyText(c2.x, c2.y - coreRadius(), "+" + amt, "#7fb069");
@@ -1175,14 +1204,16 @@ function tick(dt) {
     boom(bp.x, bp.y, K.fx || "hit");
 
     hurt(best, d, t);
-    if (K.slow) { best.slow = Math.max(best.slow, K.slow); best.slowT = 1.1; }
+    // 훈련 등급이 오르면 그 병과의 특기도 같이 자란다 — 그게 곧 스킬 성장이다
+    const sk = kindSkill(t.kind);
+    if (K.slow) { best.slow = Math.max(best.slow, Math.min(0.8, K.slow * sk)); best.slowT = 1.1; }
     if (K.splash) for (const m of S.mobs) {
       if (m === best || m.dead) continue;
       const p = mobPos(m);
-      if (Math.hypot(p.x - bp.x, p.y - bp.y) <= K.splash) hurt(m, Math.round(d * 0.55));
+      if (Math.hypot(p.x - bp.x, p.y - bp.y) <= K.splash * sk) hurt(m, Math.round(d * 0.55));
     }
     if (K.chain) {
-      let n = K.chain;
+      let n = K.chain + Math.floor(kindLv(t.kind) / 3);
       for (const m of S.mobs) {
         if (n <= 0) break;
         if (m === best || m.dead) continue;
@@ -1196,7 +1227,7 @@ function tick(dt) {
     }
     // 관통 — 탄이 지나간 **직선 위**의 것들도 맞는다. 한 갈래로 몰려오면 값을 한다.
     if (K.pierce) {
-      let n = K.pierce;
+      let n = K.pierce + Math.floor(kindLv(t.kind) / 3);
       const ux = (bp.x - tx) / (Math.hypot(bp.x - tx, bp.y - ty) || 1);
       const uy = (bp.y - ty) / (Math.hypot(bp.x - tx, bp.y - ty) || 1);
       for (const m of S.mobs) {
@@ -1271,15 +1302,19 @@ function drawShop() {
      않으면 모을 이유가 생기지 않는다. 만난 최고 등급을 별로 남겨 다음 판을 당긴다. */
   $("dex").innerHTML = KIND_IDS.map(k => {
     const g = META.seen[k] | 0, K = KINDS[k];
-    return g
-      ? `<div class="dxc" title="${K.n} — ${K.d}">
-           <img class="spr" src="assets/unit/${k}.png" alt=""
-             onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
-           <span class="ico">${K.ico}</span>
-           <span class="dxn">${K.n}</span>
-           <span class="dxg" style="color:${GCOL[g]}">${"★".repeat(Math.min(g,5))}</span></div>`
-      : `<div class="dxc off" title="아직 못 만났다"><span class="ico">?</span>
+    if (!g) return `<div class="dxc off" title="아직 못 만났다"><span class="ico">?</span>
            <span class="dxn">???</span></div>`;
+    /* 만난 병과는 **키울 수 있다.** 도감이 보여 주기만 하면 모은 것이 결과에 안 남는다 —
+       누를 수 있게 해 두면 "이번엔 저격수를 밀어 보자"가 성립한다. */
+    const lv = kindLv(k), c = kindCost(k), can = META.relics >= c;
+    return `<button class="dxc train${can ? " can" : ""}" data-train="${k}"
+         title="${K.n} — ${K.d}&#10;훈련 ${lv}등급 · 피해 +${Math.round(kindLv(k)*16)}% · 특기 +${Math.round(kindLv(k)*11)}%">
+       <img class="spr" src="assets/unit/${k}.png" alt=""
+         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
+       <span class="ico">${K.ico}</span>
+       <span class="dxn">${K.n}</span>
+       <span class="dxg" style="color:${GCOL[g]}">${"★".repeat(Math.min(g,5))}</span>
+       <span class="dxt">훈련 ${lv} <b>유물 ${c}</b></span></button>`;
   }).join("");
   $("dexHave").textContent = seenCount();
   $("dexAll").textContent = KIND_IDS.length;
@@ -1479,6 +1514,10 @@ function openShop(mid) {
   $("over").classList.add("on");
 }
 $("relicBtn").onclick = () => openShop(!S.over);
+$("dex").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-train]");
+  if (b) trainKind(b.dataset.train);
+});
 $("again").onclick = () => {
   if ($("over").classList.contains("mid")) { $("over").classList.remove("on"); refresh(); }
   else newGame();
@@ -1601,7 +1640,7 @@ Object.assign(window, { S, KINDS, GNAME, roll, merge, sell, startWave, refresh, 
   freeSlots, waveHp, waveN, waveLanes, coreCenter, coreRadius, distToCore, hpOf, coverOf,
   cx, cy, rngOf, dmgOf, buildable, CORE, drawGrid, layout, KIND_IDS, GRADE, mergeGroups,
   V, fitView, focusView, zoomAt, applyView, clampView, CELL, WORLD_W, WORLD_H, mobPos, RING,
-  COLS, ROWS, spawnRadius, refreshSlots, slotMax, UPGRADES });
+  COLS, ROWS, spawnRadius, refreshSlots, slotMax, UPGRADES, kindCost, kindLv, fillFree, inBox, placed });
   // 판 크기와 **자리 수**를 밖에 내준다 — 검증 하네스가 자를 직접 재게
 
 function newGame() {
