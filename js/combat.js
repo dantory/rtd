@@ -11,6 +11,49 @@ import { refresh } from "./ui.js";
    ══════════════════════════════════════════════════════════ */
 export const WAVE_GAP = 3.5;                  // 웨이브 사이에 숨 돌리는 시간(초)
 
+/* **종류가 다르게 굴러야 낭떠러지가 비탈이 된다.** 전에는 여섯 종이 겉모습만 달랐다 —
+   그러면 화력이 감당하는 동안은 다 같이 죽고, 한계를 넘는 순간 다 같이 새어 든다(재 보니
+   처음 맞은 라운드와 죽는 라운드가 1~2R). 결을 종마다 벌려 두면 두껍고 느린 놈(brute)이
+   먼저 새어 들어와 본진을 조금씩 깎고, 얇고 빠른 놈(runner)은 그래도 잡히며, 그 간격이
+   라운드를 따라 벌어진다. 덤으로 위생병·냉동병처럼 때리지 않는 병과가 값을 하기 시작한다.
+   수치는 시작점일 뿐 — probe 로 재서 벽 20~28R 을 유지하도록 튜닝한다. */
+const MOB = {
+  grunt:  { hp: 0.85, sp: 1.0 },                       // 기준
+  runner: { hp: 0.5,  sp: 1.5 },                       // 빠르고 얇다 — 그래도 잡힌다
+  brute:  { hp: 3.2,  sp: 0.55 },                      // 아주 느리고 아주 두껍다 — 홀로 새어 들어 본진을 조금씩 깎는다
+  swarm:  { hp: 0.35, sp: 1.2, pack: [2, 3] },         // 한 번에 여럿, 낱개는 얇다
+  shield: { hp: 1.0,  sp: 0.85, guard: 5 },            // 처음 5대를 크게 감쇄
+  boss:   { hp: 8,    sp: 0.625 },                     // 옛 15px/초 = 24×0.625, 그대로
+};
+
+/* 보스(5의 배수)는 능력 하나를 안고 온다 — 라운드마다 돌려 쓴다. "큰 놈 하나 더"가 아니라
+   사건이 되게. haste=곁의 적을 몰아친다, spawn=쓰러지며 새끼를 흩는다,
+   ward=멀리서는 잘 안 박힌다(가까이 붙어야 온전히 들어간다). */
+const BOSS_POWERS = ["haste", "spawn", "ward"];
+export const bossPower = (r) => BOSS_POWERS[(Math.floor(r / 5) - 1 + BOSS_POWERS.length) % BOSS_POWERS.length];
+export const bossNote = (r) => ({
+  haste: "큰 놈이 온다 — 곁의 적을 몰아친다",
+  spawn: "큰 놈이 온다 — 쓰러지며 새끼를 흩는다",
+  ward:  "큰 놈이 온다 — 멀리서는 잘 안 박힌다",
+}[bossPower(r)]);
+
+/** 보스가 쓰러진 자리에서 새끼가 흩어진다 — runner 결의 얇은 몹 4마리. 소환 수(S.spawned)에는
+ *  세지 않는다: 웨이브가 끝나려면 이 새끼들까지 치워야 하니 S.mobs 로만 남긴다. */
+function spawnBrood(boss) {
+  const c = coreCenter();
+  for (let i = 0; i < 4; i++) {
+    const th = Math.atan2(boss.y - c.y, boss.x - c.x) + (Math.random() - 0.5) * 1.2;
+    const hp = waveHp(S.round) * 0.5;
+    S.mobs.push({
+      id: nextId++, hp, maxHp: hp, boss: false, th, kind: "runner",
+      x: boss.x + (Math.random() - 0.5) * 20, y: boss.y + (Math.random() - 0.5) * 20,
+      speed: 24 * MOB.runner.sp * (1 + (S.round - 1) * 0.02),
+      dmg: Math.round(2 + S.round * 0.28),
+      slow: 0, slowT: 0, atkT: 0, guard: 0,
+    });
+  }
+}
+
 export function startWave() {
   if (S.running || S.over) return;
   S.gap = 0;                           // 손으로 눌렀으면 기다리던 시간은 없던 일이 된다
@@ -30,37 +73,48 @@ export function waveLanes(r) {
 
 export function spawnMob() {
   const boss = isBossR(S.round) && S.spawned === 0;
-  /* **체력을 흩뿌린다.** 모두 같은 체력이면 한 웨이브가 통째로 죽거나 통째로 살아남는다 —
-     화력이 감당하는 동안은 한 대도 안 맞다가, 한계를 넘는 순간 수십 마리가 동시에 도달해
-     끝난다(재 보니 처음 맞은 라운드와 죽는 라운드가 1~5 라운드밖에 차이가 안 났다).
-     편차를 주면 두꺼운 놈부터 새어 들어와 본진을 조금씩 깎고, 그 비율이 라운드를 따라
-     서서히 는다. 낭떠러지가 비탈이 된다. */
-  const hp = waveHp(S.round) * (boss ? 8 : 0.55 + Math.random() * 1.15);
   const lanes = waveLanes(S.round);
-  // 같은 갈래라도 조금씩 흩뿌린다 — 한 줄로 오면 한 타워가 다 잡는다
-  const th = lanes[S.spawned % lanes.length] + (Math.random() - 0.5) * 0.5;
-  // 라운드가 오를수록 험한 놈이 섞인다. 종류는 겉모습과 결만 바꾼다 —
-  // 수치를 종마다 따로 두면 밸런스 손잡이가 배로 늘어난다.
-  const pool = S.round < 3 ? ["grunt"] : S.round < 6 ? ["grunt","runner"]
-             : S.round < 10 ? ["grunt","runner","brute"] : ["grunt","runner","brute","swarm","shield"];
+  /* 라운드가 오를수록 험한 놈이 섞인다. 이제 종류는 결이 다르다(위 MOB 표) — pool 이 곧 그 결의 조합.
+     **두꺼운 놈(brute)은 일부러 드물게 둔다**(1/5~1/8): 얇은 다수는 화력이 계속 잡아 벽을
+     늦게까지 지키고, 드물게 새어 드는 brute 만 본진을 조금씩 깎아 낭떠러지를 비탈로 편다.
+     낱개 체력의 평균이 대략 1.0 이도록 섞어 벽 대역(20~28R)을 흔들지 않는다. */
+  const pool = S.round < 3 ? ["grunt"]
+             : S.round < 6 ? ["grunt","grunt","runner"]
+             : S.round < 10 ? ["grunt","grunt","grunt","runner"]
+             : ["grunt","grunt","grunt","grunt","runner","runner","brute","swarm","shield"];
   const kind = boss ? "boss" : pool[Math.floor(Math.random() * pool.length)];
+  const prof = MOB[kind];
   const c = coreCenter();
-  // **놓을 수 있는 자리 바로 바깥에서 나온다.** 예전엔 판 대각선의 절반(526px)에서
-  // 출발했는데, 그건 배치 구역(반지름 224) 한참 밖이라 화면에 없는 데서 한참을 걸어온다 —
-  // 나오는 것도 안 보이고, 보일 때쯤엔 이미 코앞이다.
+  /* **놓을 수 있는 자리 바로 바깥에서 나온다.** 예전엔 526px(판 대각선 절반)에서 걸어와
+     화면 밖에서 한참을 왔다 — 배치 구역(반지름 224) 바로 밖 294px 로 당겼다. 그래서
+     속도의 기준은 여전히 24 로 둔다: 거리를 당긴 만큼 속도를 같이 올리면 사거리 안에
+     머무는 시간이 줄어(대원 총량 = 사거리 ÷ 속도) 난이도가 튄다. 종류 배수만 그 위에 곱한다. */
   const far = spawnRadius();
-  S.mobs.push({
-    id: nextId++, hp, maxHp: hp, boss, th, kind,
-    x: c.x + Math.cos(th) * far, y: c.y + Math.sin(th) * far,
-    /* **속도는 건드리지 않는다.** 달려올 거리가 230 → 294px 로 늘었다고 속도를 같이 올리면
-       도착 시간은 같아져도 **사거리 안에 머무는 시간이 그만큼 줄어** 난이도가 올라간다
-       (대원이 쏘는 총량 = 사거리 ÷ 속도). 실제로 31 로 올렸더니 아무렇게나 세운 봇이
-       5.2R → 2.8R 로 주저앉았다. 더 걸리는 2.6초는 배속으로 넘긴다. */
-    speed: (boss ? 15 : 24) * (1 + (S.round - 1) * 0.02),   // px/초
-    // 한 대는 가볍게, 대신 **여럿이 오래** — 그래야 고치고 막는 병과가 값을 한다
-    dmg: Math.round((2 + S.round * 0.28) * (boss ? 4 : 1)),
-    slow: 0, slowT: 0, atkT: 0,
-  });
+  // swarm 은 한 번에 2~3마리 — 낱개로 흩뿌린다. 그 외엔 한 마리.
+  const pack = prof.pack ? prof.pack[Math.floor(Math.random() * prof.pack.length)] : 1;
+  for (let i = 0; i < pack; i++) {
+    // 같은 갈래라도 조금씩 흩뿌린다 — 한 줄로 오면 한 타워가 다 잡는다
+    const th = lanes[S.spawned % lanes.length] + (Math.random() - 0.5) * 0.5;
+    /* **체력을 흩뿌린다.** 모두 같은 체력이면 한 웨이브가 통째로 죽거나 통째로 산다 —
+       편차를 주면 두꺼운 놈부터 새어 들어와 본진을 조금씩 깎는다. 종류 배수(prof.hp)를
+       그 편차 위에 곱한다 — brute 는 두껍고 runner·swarm 은 얇다. */
+    const varr = boss ? 1 : 0.55 + Math.random() * 1.15;
+    const hp = waveHp(S.round) * prof.hp * varr;
+    const m = {
+      id: nextId++, hp, maxHp: hp, boss, th, kind,
+      x: c.x + Math.cos(th) * far, y: c.y + Math.sin(th) * far,
+      speed: 24 * prof.sp * (1 + (S.round - 1) * 0.02),   // px/초 — 종류마다 결이 다르다
+      // 한 대는 가볍게, 대신 **여럿이 오래** — 그래야 고치고 막는 병과가 값을 한다.
+      // 계수를 0.28→0.22 로 낮춘다: 새어 든 놈이 본진을 천천히 깎아, 처음 맞은 뒤로 몇 라운드를
+      // 더 버틴다(낭떠러지→비탈). 벽(=새기 시작하는 라운드)은 화력 임계라 이 값과 무관하다.
+      dmg: Math.round((2 + S.round * 0.22) * (boss ? 4 : 1)),
+      slow: 0, slowT: 0, atkT: 0,
+      guard: prof.guard || 0,               // 방패병 — 처음 몇 대를 크게 감쇄
+    };
+    if (boss) m.power = bossPower(S.round);  // 보스는 능력 하나를 안고 온다
+    S.mobs.push(m);
+  }
+  // swarm 이라도 한 번의 소환은 한 번으로 센다 — waveN 은 소환 횟수다(몸은 그보다 많아질 수 있다)
   S.spawned++;
 }
 
@@ -69,6 +123,10 @@ export const mobPos = (m) => ({ x: m.x, y: m.y });
 export const distToCore = (m) => Math.hypot(m.x - coreCenter().x, m.y - coreCenter().y) - coreRadius();
 
 export function hurt(m, d, from) {
+  // 방패병 — 처음 몇 대는 크게 흘린다(70% 감쇄). 냉동·관통으로 그 대수를 빨리 벗겨야 값이 산다.
+  if (m.guard > 0) { d *= 0.3; m.guard--; }
+  // 보스 ward — 멀리서는 잘 안 박힌다. 가까이 붙어야(=위험을 감수해야) 온전히 들어간다.
+  if (m.boss && m.power === "ward" && distToCore(m) > 120) d *= 0.45;
   m.hp -= d;
   if (m.hp <= 0) {
     m.dead = true;
@@ -130,6 +188,8 @@ export function tick(dt) {
   // 이동과 교전.
   // 적이 노리는 건 벙커 하나다. 대원은 그 안에 있어 맞지 않는다.
   const c = coreCenter(), cr = coreRadius();
+  // 보스 haste — 곁의 적을 몰아친다. 오라(170px) 안의 몹은 1.5배로 온다(보스 자신은 뺀다).
+  const haste = S.mobs.find(m => m.boss && m.power === "haste");
   for (const m of S.mobs) {
     if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }
     m.atkT -= dt;
@@ -155,10 +215,14 @@ export function tick(dt) {
       }
       continue;
     }
-    const v = m.speed * (1 - m.slow) * dt;
+    let sp = m.speed;
+    if (haste && m !== haste && Math.hypot(m.x - haste.x, m.y - haste.y) < 170) sp *= 1.5;
+    const v = sp * (1 - m.slow) * dt;
     m.x += (c.x - m.x) / d * v;
     m.y += (c.y - m.y) / d * v;
   }
+  // 보스 spawn — 쓰러지며 새끼 4마리를 흩는다. 필터로 치우기 직전에 한 번만.
+  for (const m of S.mobs) if (m.dead && m.boss && m.power === "spawn" && !m.split) { m.split = true; spawnBrood(m); }
   S.mobs = S.mobs.filter(m => !m.dead);
 
   /* ══ 알아서 돌린다 ══

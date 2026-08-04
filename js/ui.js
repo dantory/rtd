@@ -1,7 +1,7 @@
 import { $, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, META, META_KEY, metaLife, noteSeen, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { canMerge, dmgOf, fillFree, inBox, isOut, merge, mergeGroups, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
-import { drawShop, drawTowers, mobEls, paint, startWave, WAVE_GAP, waveLanes } from "./combat.js";
+import { bossNote, drawShop, drawTowers, mobEls, paint, startWave, WAVE_GAP, waveLanes } from "./combat.js";
 
 
 /* ══ 패널 ══ */
@@ -29,7 +29,7 @@ export function refresh() {
   $("waveNote").textContent = S.running
     ? `${S.toSpawn}마리 중 ${S.spawned}마리 나옴 · 남은 적 ${S.mobs.length}`
     : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다` +
-      (isBossR(S.round) ? " · 큰 놈이 섞인다" : "");
+      (isBossR(S.round) ? " · " + bossNote(S.round) : "");
 
   // **가진 것은 목록이 아니라 진열대로 보여 준다.** 여덟 종이 되고 나니 글 목록은
   // 훑어야 읽히고, 그러면 "뭘 합칠 수 있나"가 한눈에 안 들어온다.
