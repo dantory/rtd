@@ -114,12 +114,36 @@
   .mob.boss{filter:drop-shadow(0 0 4px rgba(208,83,83,.8))}
   .boom{position:absolute;width:40px;height:40px;transform:translate(-50%,-50%);
     image-rendering:pixelated;pointer-events:none;animation:pop .3s ease-out}
+  /* 머즐 — 발사 순간 총안구에서 톡 튀는 섬광. 2~3프레임 느낌으로 짧게(.12s). */
+  .muzzle{position:absolute;width:12px;height:12px;border-radius:50%;pointer-events:none;
+    transform:translate(-50%,-50%) scale(.4);opacity:0;
+    box-shadow:0 0 8px 2px currentColor;mix-blend-mode:screen}
+  .muzzle.on{animation:muzzle .12s ease-out}
+  @keyframes muzzle{0%{opacity:.95;transform:translate(-50%,-50%) scale(.5)}
+    100%{opacity:0;transform:translate(-50%,-50%) scale(1.3)}}
+  /* 벙커 피격 — 스프라이트만 아주 살짝 흔든다(.core 의 합성 연출과 transform 이 안 부딪히게). */
+  .core.hit .cspr{animation:bunkerShake .15s ease-in-out}
+  @keyframes bunkerShake{0%,100%{transform:translateX(0)}
+    25%{transform:translate(-3px,1px)}50%{transform:translate(3px,-1px)}75%{transform:translate(-2px,0)}}
+  /* 붉은 비네트 — 화면 가장자리가 한 번 붉게 깜빡. #world 밖(화면 좌표)에 얹어 배율을 안 탄다. */
+  #hitVig{position:absolute;inset:0;pointer-events:none;z-index:20;opacity:0;
+    background:radial-gradient(ellipse at center,rgba(208,83,83,0) 55%,rgba(208,83,83,.32) 100%)}
+  #hitVig.on{animation:hitVig .28s ease-out}
+  @keyframes hitVig{0%{opacity:.9}100%{opacity:0}}
+  /* 보스 처치 링 — 한 번 크게 확산(잡몹 boom 과 달리 사건임을 알린다). */
+  .bossRing{position:absolute;width:40px;height:40px;border-radius:50%;pointer-events:none;
+    transform:translate(-50%,-50%);border:3px solid rgba(224,164,88,.9);
+    box-shadow:0 0 12px rgba(224,164,88,.7);animation:bossRing .6s ease-out forwards}
+  @keyframes bossRing{0%{transform:translate(-50%,-50%) scale(.3);opacity:1}
+    100%{transform:translate(-50%,-50%) scale(3.4);opacity:0}}
 
   /* 다음 웨이브가 오는 갈래 — 안 보여 주면 첫 라운드가 무조건 헛방이 된다 */
   .lane{position:absolute;color:#8c3a3a;font-size:19px;pointer-events:none;
     text-shadow:0 0 6px rgba(140,58,58,.7);animation:lanep 1.6s ease-in-out infinite}
   @keyframes lanep{0%,100%{opacity:.45}50%{opacity:1}}
-  .shot{position:absolute;width:4px;height:4px;border-radius:50%;pointer-events:none}
+  /* 탄은 진행 방향으로 늘어난 짧은 트레이서 — 길이·회전은 paint 가 인라인 transform 으로 준다 */
+  .shot{position:absolute;width:11px;height:2px;border-radius:1px;pointer-events:none;
+    transform-origin:50% 50%;box-shadow:0 0 3px currentColor}
   .rng{position:absolute;border-radius:50%;border:1px dashed #3f4a58;pointer-events:none}
   .fly{position:absolute;font-size:11px;color:var(--amber);pointer-events:none;
     animation:fly .7s ease-out forwards}

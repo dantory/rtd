@@ -138,6 +138,7 @@ export function hurt(m, d, from) {
       const p = mobPos(m);
       flyText(p.x, p.y, m.boss ? "처치" : "+" + extra, "#e0a458");
     }
+    if (m.boss) { const p = mobPos(m); bossRing(p.x, p.y); }   // 보스만 크게 — 링 확산 1회
   }
 }
 
@@ -152,6 +153,50 @@ export function boom(x, y, kind) {
   img.onerror = () => { img.remove(); S.fxBusy--; };
   $("world").appendChild(img);
   setTimeout(() => { img.remove(); S.fxBusy--; }, 300);
+}
+
+/** 발사 순간 총안구에서 튀는 짧은 섬광. **DOM 한 개를 자리만 옮겨 재쓴다** — 여러 자리가
+ *  거의 동시에 쏘지만 눈에는 벙커에서 불빛이 튀는 것으로 뭉쳐 읽히면 되니 하나면 족하다. */
+let muzzleEl = null;
+function muzzle(x, y, col) {
+  if (!muzzleEl) {
+    muzzleEl = document.createElement("div");
+    muzzleEl.className = "muzzle";
+    $("world").appendChild(muzzleEl);
+  }
+  muzzleEl.style.cssText = `left:${x}px;top:${y}px;background:${col};color:${col}`;
+  // 애니메이션을 다시 태우려면 클래스를 뗐다 붙인다(reflow 사이에 끼워야 재시작한다)
+  muzzleEl.classList.remove("on"); void muzzleEl.offsetWidth; muzzleEl.classList.add("on");
+}
+
+/** 벙커 피격 — 맞는 순간 스프라이트가 아주 살짝 흔들리고 붉은 비네트가 한 번 깜빡인다.
+ *  **과하면 역효과라** 0.5초에 한 번만(연속 피격 스로틀). 배속(6배)의 서브틱과 무관해야
+ *  하니 게임 시간이 아니라 **실제 시각**으로 잰다. */
+let lastHitFx = 0;
+function bunkerHit() {
+  const now = performance.now();
+  if (now - lastHitFx < 500) return;
+  lastHitFx = now;
+  const el = $("coreEl");
+  // 흔드는 건 스프라이트(.cspr)뿐 — .core 자체에 걸면 합성 연출(merged)의 animation 과 부딪힌다
+  if (el) { el.classList.remove("hit"); void el.offsetWidth; el.classList.add("hit"); }
+  let v = $("hitVig");
+  if (!v) {
+    // 붉은 비네트는 **화면 좌표**에 둔다 — #world 안에 넣으면 배율·이동을 같이 타 가장자리가 어긋난다
+    v = document.createElement("div");
+    v.id = "hitVig";
+    ($("field") || document.body).appendChild(v);
+  }
+  v.classList.remove("on"); void v.offsetWidth; v.classList.add("on");
+}
+
+/** 보스 처치 — 큰 사건이니 링이 한 번 크게 퍼진다(잡몹은 기존 boom 을 그대로 쓴다). */
+function bossRing(x, y) {
+  const el = document.createElement("div");
+  el.className = "bossRing";
+  el.style.cssText = `left:${x}px;top:${y}px`;
+  $("world").appendChild(el);
+  setTimeout(() => el.remove(), 600);
 }
 
 /** 합쳐지면 벙커가 한 번 빛난다 — 대원이 안에 있으니 연출도 벙커에서 터져야 맞다. */
@@ -211,6 +256,7 @@ export function tick(dt) {
         const hit = Math.max(1, Math.round(m.dmg * armorMul()));
         S.coreHp -= hit;
         flyText(c.x, c.y - cr, "-" + hit, "#d05353");
+        bunkerHit();                       // 맞는 손맛 — 흔들림·붉은 비네트(0.5초 스로틀)
         if (S.coreHp <= 0) { S.coreHp = 0; gameOver(); return; }
       }
       continue;
@@ -281,6 +327,7 @@ export function tick(dt) {
     const tx = cc.x + dirx * coreRadius() * 0.9 - diry * lat;
     const ty = cc.y + diry * coreRadius() * 0.9 + dirx * lat;
     S.shots.push({ x: tx, y: ty, tx: bp.x, ty: bp.y, life: 0.14, col: K.col });
+    muzzle(tx, ty, K.col);                  // 총안구에서 불빛이 튄다
     boom(bp.x, bp.y, K.fx || "hit");
 
     hurt(best, d, t);
@@ -475,13 +522,16 @@ export function paint() {
     drawTowers();
   }
 
-  // 탄
+  // 탄 — 점이 아니라 **진행 방향으로 늘어난 짧은 트레이서**. 나아가는 결이 보여야 "쏘고 있다"가
+  // 읽힌다. 시작점→목표 방향으로 rotate 하고 scaleX 로 늘인다(병과색은 그대로).
   document.querySelectorAll("#world .shot").forEach(e => e.remove());
   for (const s of S.shots) {
     const f = 1 - s.life / 0.14;
+    const a = Math.atan2(s.ty - s.y, s.tx - s.x);
     const el = document.createElement("div");
     el.className = "shot";
-    el.style.cssText = `left:${s.x + (s.tx - s.x) * f}px;top:${s.y + (s.ty - s.y) * f}px;background:${s.col}`;
+    el.style.cssText = `left:${s.x + (s.tx - s.x) * f}px;top:${s.y + (s.ty - s.y) * f}px;` +
+      `background:${s.col};color:${s.col};transform:translate(-50%,-50%) rotate(${a}rad) scaleX(1.7)`;
     $("world").appendChild(el);
   }
 
