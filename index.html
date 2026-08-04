@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <!--
-  랜덤 타워디펜스 — 유즈맵 감성 프로토타입.
+  벙커 디펜스 — 유즈맵 감성 방치형 프로토타입.
 
   취향에서 출발했다: 병수님은 스타/워크 **유즈맵**을 재밌어했고, 재미의 축 넷 중에서는
   **①숫자가 불어나는 것**에 손이 제일 오래 갔다. 그 교집합이 이것이다.
 
   루프는 유즈맵 랜타디 그대로다:
-      뽑는다 → 합친다 → 배치한다 → 웨이브가 자동으로 온다 → 골드 → 또 뽑는다
+      편성한다 → 출격해 관전한다 → 유물을 번다 → 징집·합성·훈련·증축 → 다시 편성한다
 
   네 가지가 각각 다른 재미를 맡는다. 하나라도 빠지면 나머지가 심심해진다.
     뽑기   무엇이 나올까 (도파민, 매번 다르다)
@@ -25,7 +25,7 @@
 <meta name="theme-color" content="#0b0d10">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>랜덤 타워디펜스</title>
+<title>벙커 디펜스</title>
 <style>
   :root{--bg:#0b0d10;--panel:#12151a;--line:#232830;--fg:#c6ccd4;--dim:#6b7480;
     --amber:#e0a458;--good:#7fb069;--bad:#d05353;--steel:#6ba8d6;--magic:#a978c9}
@@ -344,11 +344,11 @@
 </head>
 <body>
 <header>
-  <span class="title">랜덤 타워디펜스</span>
-  <span class="sub">뽑고 · 합치고 · 막는다</span>
+  <span class="title">벙커 디펜스</span>
+  <span class="sub">모으고 · 합치고 · 내보낸다</span>
   <div class="hud">
     <span>라운드 <b id="hRound">1</b></span>
-    <span class="life">본진 <b id="hLife">—</b></span>
+    <span class="life">벙커 <b id="hLife">—</b></span>
     <!-- 눌러서 언제든 상점을 연다 — 벽에 부딪힌 그 자리에서 강해질 수 있어야 한다 -->
     <button class="rlc" id="relicBtn" title="유물 상점">유물 <b id="hRelic">0</b></button>
   </div>
@@ -394,11 +394,11 @@
         <div class="note" id="armyNote"></div>
       </div>
       <div class="shopwrap">
-        <h3>유물로 영구히 세진다 <span class="dim">(가진 유물 <b id="shopHave">0</b>)</span></h3>
+        <h3>능력치 <span class="dim">판을 넘어 남는다 · 가진 유물 <b id="shopHave">0</b></span></h3>
         <div class="shop" id="shop"></div>
       </div>
       <div class="shopwrap">
-        <h3>도감 <span class="dim"><b id="dexHave">0</b>/<b id="dexAll">0</b> 병과 · 만난 최고 등급이 남는다</span></h3>
+        <h3>병과 훈련 <span class="dim">도감 <b id="dexHave">0</b>/<b id="dexAll">0</b> · 눌러서 그 병과를 키운다</span></h3>
         <div class="dex" id="dex"></div>
       </div>
       <!-- 상점+도감은 폰 화면보다 340~370px 길다. 버튼이 그 아래에 있으면 스크롤을
@@ -415,9 +415,9 @@
       </div>
       <div class="note" id="rollNote"></div>
       <div class="note helpnote" style="margin-top:10px;color:#5f6874">
-        가운데 <b style="color:var(--steel)">본진</b>을 지킨다. 적은 <b>사방에서</b> 곧장 밀려온다.<br>
-        가는 길에 타워가 있으면 <b>그걸 먼저</b> 친다 — 바깥에 세우면 방벽이 되지만 얻어맞는다.<br>
-        웨이브가 끝나면 성한 것은 스스로 추스른다.
+        가운데 <b style="color:var(--steel)">벙커</b>를 지킨다. 적은 <b>사방에서</b> 곧장 밀려온다.<br>
+        대원은 벙커 안에 있어 <b>맞지 않는다</b> — 깎이는 것은 벙커뿐이다.<br>
+        판이 끝나면 유물로 <b>징집·훈련·증축</b>을 한다.
       </div>
     </section>
 
@@ -428,11 +428,11 @@
     </section>
 
     <section>
-      <h3>가진 것 <span class="dim" id="holdHint"></span>
+      <h3>부대 <span class="dim" id="holdHint"></span>
         <button id="squadBtn" class="sqopen">편성</button></h3>
       <div class="tally" id="tally"></div>
 
-      <div class="note helpnote">같은 등급 셋이 모이면 한 등급 위가 된다.</div>
+      
       <div id="selInfo"></div>
     </section>
 
@@ -471,14 +471,14 @@ const KINDS = {
   rail:  { n:"저격수", ico:"↟", col:"#dfe6ee", dmg:46, rng:230, cd:2.4, pierce:3, fx:"spark",
            d:"아주 멀리, 뚫고 지나간다" },
   drone: { n:"정찰병", ico:"✈", col:"#7fb069", dmg:7, rng:150, cd:0.8, bounty:2, fx:"hit",
-           d:"잡을 때마다 골드를 더 준다" },
+           d:"잡을 때마다 유물을 더 준다" },
   mine:  { n:"공병",   ico:"◇", col:"#e0c458", dmg:34, rng:70, cd:2.0, splash:52, arm:true, fx:"blast",
            d:"붙은 놈들을 한꺼번에" },
   // ── 때리는 것 말고 다른 일을 하는 넷 ──
   medic:  { n:"위생병", ico:"✚", col:"#e2b8b8", dmg:3, rng:110, cd:1.1, heal:7, fx:"hit",
-            d:"싸우는 동안 본진을 고친다" },
+            d:"싸우는 동안 벙커를 고친다" },
   guard:  { n:"방패병", ico:"▣", col:"#8f9aa8", dmg:8, rng:88, cd:0.9, armor:0.24, fx:"hit",
-            d:"본진이 받는 피해를 줄인다" },
+            d:"벙커가 받는 피해를 줄인다" },
   rocket: { n:"로켓병", ico:"➶", col:"#6f8f5a", dmg:62, rng:196, cd:2.8, splash:58, fx:"blast",
             d:"한 발이 무겁다" },
   officer:{ n:"지휘관", ico:"★", col:"#d6a84a", dmg:9, rng:150, cd:1.0, aura:0.22, fx:"hit",
@@ -530,9 +530,10 @@ const hpOf   = (t) => Math.round(28 + t.g * 22);
    가운데 지킬 것을 놓고 **사방에서 몰려오게** 하면 배치가 진짜 결정이 된다 —
    한쪽에 몰아 세우면 반대쪽이 그대로 뚫리고, 고르게 펴면 어디도 두껍지 않다.
 
-   그리고 **타워가 방벽 노릇을 한다.** 적은 가는 길에 타워가 있으면 그걸 먼저 친다.
-   그래서 바깥에 세운 것은 일찍 요격하지만 얻어맞고, 안쪽에 세운 것은 안전하지만
-   본진이 먼저 맞는다. 이게 벙커디펜스의 결이다.
+   **대원은 벙커 안에 있어 맞지 않는다.** 자리가 몇 개뿐인 구조에서 대원이 죽어 없어지면
+   화력이 통째로 사라져 그 판이 거기서 끝나고, 무엇보다 모아 온 것을 전투 한 번에 잃으면
+   수집이 성립하지 않는다. 깎이는 것은 벙커 하나이고, 그래서 방어는 받는 피해를 줄이는
+   일(방패병)과 깎인 것을 되돌리는 일(위생병)로 갈린다.
    ══════════════════════════════════════════════════════════ */
 /** **판은 넉넉해야 판으로 보인다.** 처음엔 13×9(117칸) 였는데, 놓을 수 있는 자리 바깥이
  *  한두 줄뿐이라 적이 달려오는 게 아니라 화면 밖에서 툭 튀어나왔고, 판 전체를 봐도
@@ -619,7 +620,7 @@ const onDeck = (x, y) =>
 const META_KEY = "rtd.meta.v1";
 const UPGRADES = {
   dmg:   { n:"벼림",   d:"모든 피해 +13%",      base:4, per:3 },
-  life:  { n:"성벽",   d:"본진 체력 +90",       base:3, per:2 },
+  life:  { n:"성벽",   d:"벙커 체력 +90",       base:3, per:2 },
   cheap: { n:"흥정",   d:"징집 값 -1 (바닥 2)", base:5, per:4 },
   luck:  { n:"안목",   d:"중급이 더 자주 나온다", base:5, per:4 },
   // **자리 자체가 성장이다.** 첫 판은 셋뿐이라 무엇을 넣을지가 매번 결정이 되고,
@@ -874,7 +875,7 @@ function drawGrid() {
   }
   /* 잔해 — 벌판의 1/9 쯤에만 얹는다. 촘촘하면 적이 어디 있는지 안 읽히고,
      없으면 그냥 빈 땅이다. 놓는 자리(터)와 그 한 칸 밖은 비워 둔다 —
-     타워와 겹쳐 보이면 뭐가 내 것인지 헷갈린다. */
+     대원과 겹쳐 보이면 뭐가 내 것인지 헷갈린다. */
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
     if (onDeck(x, y) || inCore(x, y)) continue;
     if (Math.abs(x - (CORE.x + 1)) <= RING + 1 && Math.abs(y - (CORE.y + 1)) <= RING + 1) continue;
@@ -910,7 +911,7 @@ function drawGrid() {
       <div class="cbar"><i id="coreBar"></i></div>
       <div class="cnum" id="coreNum"></div>
     </div>`;
-  h += `<div class="vignette"></div>`;   // 맨 나중에 — 땅과 잔해만 덮고 몹·타워는 못 덮게
+  h += `<div class="vignette"></div>`;   // 맨 나중에 — 땅과 잔해만 덮고 몹·대원은 못 덮게
   $("grid").innerHTML = h;
   drawTowers();
 }
@@ -1191,7 +1192,7 @@ function spawnMob() {
     x: c.x + Math.cos(th) * far, y: c.y + Math.sin(th) * far,
     /* **속도는 건드리지 않는다.** 달려올 거리가 230 → 294px 로 늘었다고 속도를 같이 올리면
        도착 시간은 같아져도 **사거리 안에 머무는 시간이 그만큼 줄어** 난이도가 올라간다
-       (타워가 쏘는 총량 = 사거리 ÷ 속도). 실제로 31 로 올렸더니 아무렇게나 세운 봇이
+       (대원이 쏘는 총량 = 사거리 ÷ 속도). 실제로 31 로 올렸더니 아무렇게나 세운 봇이
        5.2R → 2.8R 로 주저앉았다. 더 걸리는 2.6초는 배속으로 넘긴다. */
     speed: (boss ? 15 : 24) * (1 + (S.round - 1) * 0.02),   // px/초
     // 한 대는 가볍게, 대신 **여럿이 오래** — 그래야 고치고 막는 병과가 값을 한다
@@ -1266,8 +1267,7 @@ function tick(dt) {
     if (S.spawnT <= 0) { spawnMob(); S.spawnT = 0.55; }
   }
   // 이동과 교전.
-  // **가는 길에 타워가 있으면 그걸 먼저 친다** — 그래서 바깥에 세운 타워가 방벽이 되고,
-  // 일찍 요격하는 대신 얻어맞는다. 이 맞바꿈이 "어디에 놓을까"를 진짜 결정으로 만든다.
+  // 적이 노리는 건 벙커 하나다. 대원은 그 안에 있어 맞지 않는다.
   const c = coreCenter(), cr = coreRadius();
   for (const m of S.mobs) {
     if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }
@@ -1302,8 +1302,8 @@ function tick(dt) {
 
   /* ══ 알아서 돌린다 ══
      **방치형은 손을 떼도 굴러가야 한다.** 웨이브만 이어지고 뽑기·합성을 손으로 눌러야 하면
-     그건 방치가 아니라 그냥 버튼이 하나 줄어든 것이다. 골드가 차면 뽑고, 셋이 모이면 합치고,
-     빈 자리는 채운다 — 사람에게 남는 결정은 **무엇을 내보낼지와 무엇에 유물을 쓸지**다.
+     그건 방치가 아니라 그냥 버튼이 하나 줄어든 것이다. 판 안에서 손이 갈 일은 없애고,
+     빈 자리만 채운다 — 사람에게 남는 결정은 **무엇을 내보낼지와 무엇에 유물을 쓸지**다.
      한 틱에 몰아 하지 않고 0.4초에 한 번만 손을 대, 불어나는 게 눈에 보이게 한다. */
   if (S.autoRun && !S.over) {
     S.autoT = (S.autoT || 0) - dt;
@@ -1437,7 +1437,7 @@ function gameOver() {
   $("overT").style.color = win ? "#7fb069" : "#d05353";
   $("overD").innerHTML = win
     ? `<b>${S.round}라운드</b> — 최고 기록을 넘었다.<br><b style="color:var(--amber)">유물 +${got}</b>`
-    : `<b>${S.round}라운드</b>에서 본진이 무너졌다. 최고 ${META.best}라운드.<br>` +
+    : `<b>${S.round}라운드</b>에서 벙커가 무너졌다. 최고 ${META.best}라운드.<br>` +
       `<b style="color:var(--amber)">유물 +${got}</b>`;
   drawShop();
   $("over").classList.add("on");
@@ -1598,7 +1598,7 @@ function refresh() {
   $("runBtn").title = S.autoRun ? "뽑기·합성까지 알아서 한다" : "뽑기·합성을 손으로 한다";
   const lanes = waveLanes(S.round).length;
   $("waveNote").textContent = S.running
-    ? `${S.spawned}/${S.toSpawn} 나옴 · 남은 놈 ${S.mobs.length}`
+    ? `${S.toSpawn}마리 중 <b>${S.spawned}</b>마리 나옴 · 남은 적 <b>${S.mobs.length}</b>`
     : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다` +
       (isBossR(S.round) ? " · 큰 놈이 섞인다" : "");
 
@@ -1621,7 +1621,7 @@ function refresh() {
       <span class="cnt">${out}/${arr.length}</span>
       <span class="gr" style="background:${GCOL[g]}"></span></button>`);
   }
-  $("tally").innerHTML = cells.join("") || `<div class="note">아직 없다. 먼저 뽑아라.</div>`;
+  $("tally").innerHTML = cells.join("") || `<div class="note">아직 없다. 판이 끝나면 징집한다.</div>`;
   const readyN = [...m.entries()].filter(([k, a]) => +k.split(":")[1] < 5 && a.length >= 3).length;
   $("holdHint").textContent = readyN ? `· ${readyN}가지를 합칠 수 있다` : "";
 
@@ -1632,12 +1632,12 @@ function refresh() {
         ${isOut(t)
           /* 창고에 있는 것에 "둘레를 0% 덮는다"고 적으면 약해서 0 인 줄 안다. 자리에
              나가 있을 때만 덮는 각을 말하고, 창고에 있으면 그 사실을 말한다. */
-          ? `본진 둘레를 ${Math.round(coverOf(t)/24*100)}% 덮는다 · 체력 ${t.hp}/${t.maxHp}<br>
-             <span style="color:var(--steel)">빈 칸을 누르면 그리로 옮긴다.</span>`
+          ? `벙커 둘레를 ${Math.round(coverOf(t)/24*100)}% 덮는다 · 체력 ${t.hp}/${t.maxHp}<br>
+             <span style="color:var(--steel)">빈 자리를 누르면 그리로 옮긴다.</span>`
           : `<span style="color:var(--amber)">창고에 있다 — 아직 안 싸운다.</span>
              체력 ${t.hp}/${t.maxHp}<br>
-             <span style="color:var(--steel)">진열대의 칩을 누르면 내보낸다.</span>`}</div></div>`
-    : `<div class="note helpnote">타워를 누르면 사거리가 보이고, 빈 칸을 누르면 그리로 옮긴다.</div>`;
+             <span style="color:var(--steel)">「편성」에서 내보낸다.</span>`}</div></div>`
+    : `<div class="note helpnote">대원을 누르면 사거리가 보인다. 넣고 빼는 것은 「편성」에서.</div>`;
 }
 
 /* 진열대의 칩은 **내보내고 거두는 손잡이**다. 합성은 아래 버튼이 맡는다 —
@@ -1704,13 +1704,13 @@ function drawSquad() {
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
       <span class="cnt">${n}</span></button>`;
-  }).join("") || `<div class="note">창고가 비었다. 뽑으면 여기 쌓인다.</div>`;
+  }).join("") || `<div class="note">창고가 비었다. 징집하면 여기 쌓인다.</div>`;
 
   const free = spots.length - at.size;
   $("sqNote").innerHTML = `자리 <b>${at.size}/${spots.length}</b>` +
     (free ? ` · <b style="color:var(--amber)">${free}자리 비었다</b>` : "") +
     ` — 자리를 누르면 거두고, 창고를 누르면 내보낸다`;
-  $("sqBoxN").textContent = `${inBox().length}기`;
+  $("sqBoxN").textContent = `${inBox().length}기 대기`;
   const k = canMerge();
   $("sqMerge").disabled = !k;
   $("sqMerge").textContent = k
@@ -1906,7 +1906,7 @@ function newGame() {
   $("over").classList.remove("on");
   $("log").innerHTML = "";
   refresh();
-  say("골드로 <b>뽑고</b>, 같은 것 셋을 <b>합치고</b>, 라운드를 시작해 막는다.");
+  say("<b>편성</b>한 대로 벙커가 막는다. 판이 끝나면 유물로 <b>징집·훈련·증축</b>.");
   say("전투는 알아서 돈다 — 짜 놓은 것이 얼마나 버티는지 보면 된다.");
   if (META.relics || META.best) say(`유물 <b>${META.relics}</b> · 최고 <b>${META.best}</b>라운드`);
 }
