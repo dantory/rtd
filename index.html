@@ -285,6 +285,7 @@
   <div id="field">
     <div id="world"><div id="grid"></div></div>
     <div class="viewbtns">
+      <button id="autoBtn" title="웨이브가 알아서 이어진다">∞</button>
       <button id="spdBtn" title="배속">1×</button>
       <button id="fitBtn" title="전체 보기">⤢</button>
       <button id="zinBtn" title="확대">＋</button>
@@ -527,6 +528,9 @@ const S = {
   running: false, spawned: 0, toSpawn: 0, spawnT: 0,
   sel: null, over: false,
   speed: 1,          // 배속 — 관전하는 장르라 기다림이 곧 지루함이다
+  // 웨이브를 알아서 잇는다. 기본은 켜짐 — 매 라운드 버튼을 찾아 누르는 게 제일 성가시다.
+  auto: (() => { try { return localStorage.getItem("rtd.auto") !== "0"; } catch { return true; } })(),
+  gap: 0,            // 다음 웨이브까지 남은 시간
 };
 let nextId = 1;
 
@@ -892,8 +896,11 @@ $("grid").addEventListener("click", (e) => {
    웨이브 — **자동으로 싸운다.** 내가 짜 놓은 것이 나 없이 막는 걸 지켜보는 것이
    이 장르의 심장이다. 그래서 전투 중에는 손댈 것을 일부러 두지 않았다.
    ══════════════════════════════════════════════════════════ */
+const WAVE_GAP = 3.5;                  // 웨이브 사이에 숨 돌리는 시간(초)
+
 function startWave() {
   if (S.running || S.over) return;
+  S.gap = 0;                           // 손으로 눌렀으면 기다리던 시간은 없던 일이 된다
   S.running = true;
   S.toSpawn = waveN(S.round);
   S.spawned = 0; S.spawnT = 0;
@@ -1109,9 +1116,19 @@ function tick(dt) {
   for (const s of S.shots) s.life -= dt;
   S.shots = S.shots.filter(s => s.life > 0);
 
+  /* **다음 웨이브는 알아서 온다.** 라운드마다 시작 버튼을 찾아 누르게 하면, 짜 놓은 것이
+     나 없이 막는 걸 보는 게 아니라 매 판 손이 가는 일이 된다(병수님 지적). 막고 나면
+     잠깐 숨 돌릴 틈만 주고 이어 간다 — 뽑기·합성·자리 바꾸기는 웨이브 중에도 되므로
+     이 틈은 정비 시간이 아니라 **한 라운드가 끝났다는 것을 읽을 시간**이다. */
+  if (!S.running && !S.over && S.auto && S.gap > 0) {
+    S.gap -= dt;
+    if (S.gap <= 0) { S.gap = 0; startWave(); }
+  }
+
   // 웨이브 끝
   if (S.running && S.spawned >= S.toSpawn && !S.mobs.length) {
     S.running = false;
+    S.gap = WAVE_GAP;
     // 웨이브가 끝나면 성한 것은 추스른다. 안 그러면 바깥에 두는 값이 너무 비싸다 —
     // 잃는 것은 **완전히 부서졌을 때뿐**이어야 한다.
     for (const t of S.towers) t.hp = t.maxHp;
@@ -1251,10 +1268,16 @@ function refresh() {
     S.pool.map(k => `<span class="pchip" title="${KINDS[k].n} — ${KINDS[k].d}">
       <img src="assets/unit/${k}.png" alt="" onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <i>${KINDS[k].ico}</i></span>`).join("");
-  $("waveBtn").textContent = S.running ? "막는 중…" : `${S.round}라운드 시작`;
+  /* 기다리는 동안에도 버튼은 살아 있다 — 다 됐으면 굳이 셋을 셀 이유가 없다. */
+  const resting = !S.running && !S.over && S.auto && S.gap > 0;
+  const long  = S.running ? "막는 중…" : resting ? `${S.round}라운드 — 지금 시작` : `${S.round}라운드 시작`;
+  const short = S.running ? "막는 중…" : resting ? `${S.round}R 지금` : `${S.round}R 시작`;
+  $("waveBtn").textContent = long;
   $("waveBtn").disabled = S.running || S.over;
-  $("waveBtn2").textContent = S.running ? "막는 중…" : `${S.round}R 시작`;
+  $("waveBtn2").textContent = short;
   $("waveBtn2").disabled = S.running || S.over;
+  $("autoBtn").classList.toggle("on", S.auto);
+  $("autoBtn").title = S.auto ? "웨이브가 알아서 이어진다" : "웨이브를 손으로 시작한다";
   const lanes = waveLanes(S.round).length;
   $("waveNote").textContent = S.running
     ? `${S.spawned}/${S.toSpawn} 나옴 · 남은 놈 ${S.mobs.length}`
@@ -1313,6 +1336,13 @@ $("mergeBtn").onclick = merge;
 $("sellBtn").onclick = sell;
 $("waveBtn").onclick = startWave;
 $("waveBtn2").onclick = startWave;
+/* ∞ 를 끄면 손으로 시작한다 — 정비를 오래 하고 싶을 때가 있다. 켜고 끄는 건 판을 넘어 남는다. */
+$("autoBtn").onclick = () => {
+  S.auto = !S.auto;
+  if (S.auto && !S.running && !S.over && S.gap <= 0) S.gap = WAVE_GAP;
+  try { localStorage.setItem("rtd.auto", S.auto ? "1" : "0"); } catch {}
+  refresh();
+};
 $("again").onclick = newGame;
 /* ══════════════════════════════════════════════════════════════
    보는 자리 — 끌어서 옮기고, 오므려서 줄인다.
@@ -1441,6 +1471,8 @@ function newGame() {
     towers: [], mobs: [], shots: [],
     running: false, spawned: 0, toSpawn: 0, spawnT: 0, sel: null, over: false,
     pool: rollPool(), speed: S.speed || 1,      // 배속은 판을 넘어 유지한다
+    // 첫 웨이브도 알아서 온다. 다만 처음 한 번은 뽑을 틈이 있어야 하니 조금 길게 준다.
+    auto: S.auto, gap: S.auto ? WAVE_GAP * 2.4 : 0,
   });
   mobEls.forEach(el => el.remove()); mobEls.clear();
   // 선발대 — 빈손으로 시작하지 않는다는 감각이 영구 성장의 첫 체감이다

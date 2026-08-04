@@ -62,6 +62,9 @@ const play = (place, useMeta) => [
   '  const runs=[], grades=[];',
   `  for (let run=0; run<${RUNS}; run++) {`,
   '    newGame();',
+  // 봇은 웨이브를 손으로 시작한다. 자동 진행을 켠 채 두면 tick 루프 안에서 다음 웨이브가
+  // 저 혼자 이어져, 봇이 뽑고 합칠 틈 없이 라운드만 흘러간다.
+  '    S.auto=false; S.gap=0;',
   '    let g=0;',
   '    while(!S.over && S.round<=30 && g++<250){',
   // **자리가 찼다고 뽑기를 멈추면 안 된다.** 가진 것과 내보낸 것이 갈린 뒤로 뽑기는
