@@ -6,7 +6,7 @@
     display:flex;flex-direction:column;user-select:none;
     /* 폰에서 길게 눌러 메뉴가 뜨거나 당겨서 새로고침되면 판이 그대로 끊긴다 */
     -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
-  /* baseline 이 아니라 center — 글줄과 버튼(유물·설정)이 섞여 있어 baseline 로 두면 들쭉날쭉하다 */
+  /* baseline 이 아니라 center — 글줄과 버튼(자원·설정)이 섞여 있어 baseline 로 두면 들쭉날쭉하다 */
   header{display:flex;align-items:center;gap:14px;padding:9px 16px;
     border-bottom:1px solid var(--line);background:var(--panel)}
   .title{color:var(--amber);letter-spacing:3px;font-weight:bold}
@@ -268,7 +268,7 @@
     .wavesec{margin-top:-4px}
     #over .box{padding:18px 16px;max-width:94vw;max-height:88vh;overflow-y:auto}
   }
-  /* 유물은 **누를 수 있는 것**이라는 게 보여야 한다 — 상점으로 가는 유일한 문이다. */
+  /* 자원은 **누를 수 있는 것**이라는 게 보여야 한다 — 상점으로 가는 유일한 문이다. */
   .rlc{padding:2px 8px;font-size:inherit;font-family:inherit;color:var(--fg);
     background:rgba(40,32,18,.5);border:1px solid #4a3d22;border-radius:4px;cursor:pointer}
   .rlc:hover{border-color:var(--amber)}
@@ -291,7 +291,7 @@
     padding:22px 20px;box-shadow:0 18px 60px rgba(0,0,0,.6);max-width:94vw;max-height:88vh;overflow-y:auto}
   #squad h2,#settings h2,#offline h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
   #settings .box,#offline .box{min-width:min(320px,88vw)}
-  /* 쌓인 유물은 크게 — 이 창에서 눈이 먼저 가야 할 곳이다 */
+  /* 쌓인 자원은 크게 — 이 창에서 눈이 먼저 가야 할 곳이다 */
   #offline .offgain{color:var(--amber);font-size:30px;letter-spacing:1px;margin:16px 0 2px}
   #offline .offgain b{font-weight:normal}
   #squad .sqh{margin:16px 0 7px;font-size:11px;letter-spacing:2px;color:var(--dim);font-weight:normal}

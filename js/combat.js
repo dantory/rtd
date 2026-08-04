@@ -130,7 +130,7 @@ export function hurt(m, d, from) {
   m.hp -= d;
   if (m.hp <= 0) {
     m.dead = true;
-    /* 골드가 사라졌으니 정찰병의 몫도 유물 쪽으로 옮겨 간다(relicTick 에서 셈한다).
+    /* 골드가 사라졌으니 정찰병의 몫도 자원 쪽으로 옮겨 간다(relicTick 에서 셈한다).
        띄우는 숫자도 골드가 아니라 **그 몫**이다 — 없는 재화를 띄우면 거짓말이 된다. */
     const extra = (from && KINDS[from.kind].bounty ? KINDS[from.kind].bounty : 1) - 1;
     S.bounty += extra;
@@ -274,7 +274,7 @@ export function tick(dt) {
   /* ══ 알아서 돌린다 ══
      **방치형은 손을 떼도 굴러가야 한다.** 웨이브만 이어지고 뽑기·합성을 손으로 눌러야 하면
      그건 방치가 아니라 그냥 버튼이 하나 줄어든 것이다. 판 안에서 손이 갈 일은 없애고,
-     빈 자리만 채운다 — 사람에게 남는 결정은 **무엇을 내보낼지와 무엇에 유물을 쓸지**다.
+     빈 자리만 채운다 — 사람에게 남는 결정은 **무엇을 내보낼지와 무엇에 자원을 쓸지**다.
      한 틱에 몰아 하지 않고 0.4초에 한 번만 손을 대, 불어나는 게 눈에 보이게 한다. */
   if (S.autoRun && !S.over) {
     S.autoT = (S.autoT || 0) - dt;
@@ -391,10 +391,10 @@ export function tick(dt) {
     const rel = relicTick(S.round) + Math.floor(S.bounty / 16);
     if (rel) S.bounty = 0;
     if (rel) {
-      const first = META.relics === 0;      // 이 판에서 처음 손에 쥐는 유물인가
+      const first = META.relics === 0;      // 이 판에서 처음 손에 쥐는 자원인가
       META.relics += rel; saveMeta();
       // 처음 한 번은 어디서 쓰는지까지 말해 준다. 두 번째부터는 잔소리다.
-      if (first) say('유물이 쌓인다 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 병과를 올린다.');
+      if (first) say('자원이 쌓인다 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 병과를 올린다.');
     }
     S.round++;
     drawGrid();            // 다음 웨이브가 오는 갈래가 바뀌었다
@@ -415,20 +415,20 @@ export function gameOver() {
   $("overT").textContent = win ? "승리" : "패배";
   $("overT").style.color = win ? "#7fb069" : "#d05353";
   $("overD").innerHTML = win
-    ? `<b>${S.round}라운드</b> — 최고 기록을 넘었다.<br><b style="color:var(--amber)">유물 +${got}</b>`
+    ? `<b>${S.round}라운드</b> — 최고 기록을 넘었다.<br><b style="color:var(--amber)">자원 +${got}</b>`
     : `<b>${S.round}라운드</b>에서 벙커가 무너졌다. 최고 ${META.best}라운드.<br>` +
-      `<b style="color:var(--amber)">유물 +${got}</b>`;
+      `<b style="color:var(--amber)">자원 +${got}</b>`;
   drawShop();
   $("over").classList.add("on");
 }
 
-// 유물 상점. **뚫린 화면에서 바로 세지는 게 보여야** "한 판 더"에 손이 간다.
+// 자원 상점. **뚫린 화면에서 바로 세지는 게 보여야** "한 판 더"에 손이 간다.
 export function drawShop() {
   $("shop").innerHTML = Object.entries(UPGRADES).map(([k, u]) => {
     const c = upCost(k), lv = META.up[k];
     return `<button class="up" data-up="${k}" ${META.relics < c ? "disabled" : ""}>
       <span class="n">${u.n}${lv ? ` <span class="dim">${lv}</span>` : ""}</span>
-      <span class="d">${u.d}</span><span class="p">유물 ${c}</span></button>`;
+      <span class="d">${u.d}</span><span class="p">자원 ${c}</span></button>`;
   }).join("");
   $("shopHave").textContent = META.relics;
   $("shopHave2").textContent = META.relics;
@@ -458,7 +458,7 @@ export function drawShop() {
        카드에 지금 피해·사거리·특기와 한 단계 위 값을 적어 무엇이 얼마나 오를지 미리 보인다. */
     const lv = kindLv(k), c = kindCost(k), can = META.relics >= c, s = dexStat(k);
     return `<button class="dxc train${can ? " can" : ""}" data-train="${k}"
-         title="${K.n} — ${K.d}&#10;훈련 ${lv}등급 · 다음 등급 유물 ${c}">
+         title="${K.n} — ${K.d}&#10;훈련 ${lv}등급 · 다음 등급 자원 ${c}">
        ${newlySeen.has(k) ? `<span class="dxnew">NEW</span>` : ""}
        <img class="spr" src="assets/unit/${k}.png" alt=""
          onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
@@ -467,7 +467,7 @@ export function drawShop() {
        <span class="dxg" style="color:${GCOL[g]}">${"★".repeat(Math.min(g,5))}</span>
        <span class="dxst">${dxRow("피해", s.dmg, s.dmgN)}${dxRow("사거리", s.rng, s.rngN)}${
          s.sLb ? dxRow(s.sLb, s.sCur, s.sNxt) : ""}</span>
-       <span class="dxt">훈련 ${lv} <b>유물 ${c}</b></span></button>`;
+       <span class="dxt">훈련 ${lv} <b>자원 ${c}</b></span></button>`;
   }).join("");
   $("dexHave").textContent = seenCount();
   $("dexAll").textContent = KIND_IDS.length;
@@ -541,13 +541,13 @@ export function paint() {
   if (cn) cn.textContent = Math.max(0, Math.ceil(S.coreHp)) + "/" + S.coreMax;
   $("hRound").textContent = S.round;
   $("hRelic").textContent = META.relics;
-  /* **살 수 있으면 살 수 있다고 말해야 한다.** 유물 버튼을 헤더 구석에 조용히 두었더니
+  /* **살 수 있으면 살 수 있다고 말해야 한다.** 자원 버튼을 헤더 구석에 조용히 두었더니
      "업그레이드는 한 판 끝나고만 되나"는 물음이 돌아왔다 — 언제든 열린다는 걸 화면이
      한 번도 말한 적이 없었던 것이다. 지금 살 수 있는 게 하나라도 있으면 버튼이 뛴다. */
   const canBuy = Object.keys(UPGRADES).some(k => META.relics >= upCost(k)) ||
                  KIND_IDS.some(k => META.seen[k] && META.relics >= kindCost(k));
   // 지금 쓸 수 있을 때만 뛴다 — 판 도중에 뛰면 누르라는 말이 되고, 눌러도 안 열린다.
   $("relicBtn").classList.toggle("hot", canBuy && S.over && !$("over").classList.contains("on"));
-  $("relicBtn").title = S.over ? (canBuy ? "쓸 수 있는 유물이 있다 — 눌러서 상점" : "유물 상점")
+  $("relicBtn").title = S.over ? (canBuy ? "쓸 수 있는 자원이 있다 — 눌러서 상점" : "자원 상점")
                                : "판이 끝나면 쓴다";
 }

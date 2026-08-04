@@ -128,7 +128,7 @@ export function drawSquad() {
   const sel = META.army.find(t => t.id === S.sel);
   $("sqSell").disabled = !sel;
   $("sqTip").innerHTML = sel
-    ? `고른 것: <b style="color:${GCOL[sel.g]}">${GNAME[sel.g]} ${KINDS[sel.kind].n}</b> — 해산하면 유물 +${sellOf(sel)}`
+    ? `고른 것: <b style="color:${GCOL[sel.g]}">${GNAME[sel.g]} ${KINDS[sel.kind].n}</b> — 해산하면 자원 +${sellOf(sel)}`
     : `같은 병과 같은 등급 <b>셋</b>이 모이면 한 등급 위가 된다 — 총 화력은 그대로인데 <b>자리가 둘 빈다</b>`;
 }
 export const openSquad = () => { drawSquad(); $("squad").classList.add("on"); };
@@ -137,12 +137,12 @@ export const openSquad = () => { drawSquad(); $("squad").classList.add("on"); };
    오프라인 진행 — **비운 사이에도 뭔가 쌓여 있어야 방치형이다.**
    ──────────────────────────────────────────────────────────────
    탭을 닫아 두면 루프가 멈춰 아무것도 안 는다. "들어올 때마다 조금 늘어 있는" 것이
-   방치형의 마지막 보상이라, 나가 있던 시간을 유물로 환산해 돌아왔을 때 한 번 준다.
+   방치형의 마지막 보상이라, 나가 있던 시간을 자원으로 환산해 돌아왔을 때 한 번 준다.
    시간당 지급은 relicsFor(best) 에 비례한다 — 멀리 가 본 사람일수록 방치의 값도 커진다.
    상한 8시간(그 이상은 안 쌓임 — 켜 두기만 하면 무한히 버는 걸 막는다). */
 export const OFFLINE_CAP_H  = 8;
 export const OFFLINE_MIN_MS = 5 * 60 * 1000;     // 5분 미만은 소음이라 안 띄운다
-/** 나가 있던 사이 쌓인 유물을 계산한다. 지급하지는 않는다 — 받는 것은 [받는다] 버튼이 한다.
+/** 나가 있던 사이 쌓인 자원을 계산한다. 지급하지는 않는다 — 받는 것은 [받는다] 버튼이 한다.
  *  줄 게 없으면(첫 실행·5분 미만·기록 0) null 을 돌려 창을 안 띄운다. */
 export function offlineReport() {
   const prev = META.lastSeen;                    // 타임스탬프 — `| 0` 은 32비트로 잘려 못 쓴다
@@ -156,7 +156,7 @@ export function offlineReport() {
   return { elapsed, gain };
 }
 /** "돌아온 사이" 창을 연다. 기존 모달(#settings/#squad .box) 그대로다.
- *  받아야 지급한다 — [받는다] 를 눌러야 유물이 는다. */
+ *  받아야 지급한다 — [받는다] 를 눌러야 자원이 는다. */
 export function openOffline(rep) {
   const h = Math.floor(rep.elapsed / 3600000);
   const m = Math.floor((rep.elapsed % 3600000) / 60000);
@@ -292,7 +292,7 @@ export function wireUI() {
   $("toSquad").onclick = () => openSquad();
   $("relicBtn").onclick = () => {
     if (S.over) { openShop(false); return; }
-    say(`유물 <b style="color:var(--amber)">${META.relics}</b> — 판이 끝나면 쓴다.`);
+    say(`자원 <b style="color:var(--amber)">${META.relics}</b> — 판이 끝나면 쓴다.`);
   };
   $("dex").addEventListener("click", (e) => {
     const b = e.target.closest("[data-train]");

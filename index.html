@@ -6,7 +6,7 @@
   **①숫자가 불어나는 것**에 손이 제일 오래 갔다. 그 교집합이 이것이다.
 
   루프는 유즈맵 랜타디 그대로다:
-      편성한다 → 출격해 관전한다 → 유물을 번다 → 징집·합성·훈련·증축 → 다시 편성한다
+      편성한다 → 출격해 관전한다 → 자원을 번다 → 징집·합성·훈련·증축 → 다시 편성한다
 
   네 가지가 각각 다른 재미를 맡는다. 하나라도 빠지면 나머지가 심심해진다.
     뽑기   무엇이 나올까 (도파민, 매번 다르다)
@@ -35,7 +35,7 @@
   <div class="hud">
     <span>라운드 <b id="hRound">1</b></span>
     <!-- 눌러서 언제든 상점을 연다 — 벽에 부딪힌 그 자리에서 강해질 수 있어야 한다 -->
-    <button class="rlc" id="relicBtn" title="유물 상점">유물 <b id="hRelic">0</b></button>
+    <button class="rlc" id="relicBtn" title="자원 상점">자원 <b id="hRelic">0</b></button>
     <button id="setBtn" title="설정" style="padding:4px 11px;margin-left:-6px">≡</button>
   </div>
 </header>
@@ -74,14 +74,14 @@
       <div class="rowbtn" style="margin-top:14px">
         <button id="wipeBtn" style="flex:1;padding:10px 14px;color:#d08a8a;border-color:#4a2e2e">초기화 — 저장을 지우고 처음부터</button>
       </div>
-      <div class="note" style="margin-top:8px">부대 · 유물 · 업그레이드 · 도감 · 최고 기록이 전부 지워진다.</div>
+      <div class="note" style="margin-top:8px">부대 · 자원 · 업그레이드 · 도감 · 최고 기록이 전부 지워진다.</div>
       <div class="stick"><button id="setClose" style="padding:11px 26px">닫는다</button></div>
     </div></div>
-    <!-- 돌아온 사이 — 탭을 닫아 둔 동안 쌓인 유물을 받는 창. 받아야 지급된다. -->
+    <!-- 돌아온 사이 — 탭을 닫아 둔 동안 쌓인 자원을 받는 창. 받아야 지급된다. -->
     <div id="offline"><div class="box">
       <h2>돌아온 사이</h2>
       <div class="note"><b id="offDur"></b> 동안 벙커가 홀로 버텼다.</div>
-      <div class="offgain">유물 <b id="offGain">0</b></div>
+      <div class="offgain">자원 <b id="offGain">0</b></div>
       <div class="note" style="margin-top:8px">멀리 가 본 만큼 시간당 더 쌓인다 · 최대 8시간까지</div>
       <div class="stick"><button id="offTake" style="padding:11px 26px">받는다</button></div>
     </div></div>
@@ -89,7 +89,7 @@
       <h2 id="overT"></h2>
       <div class="note" id="overD" style="font-size:13px"></div>
       <div class="shopwrap">
-        <h3>부대 <span class="dim">가진 유물 <b id="shopHave2">0</b></span></h3>
+        <h3>부대 <span class="dim">가진 자원 <b id="shopHave2">0</b></span></h3>
         <div class="rowbtn" style="gap:7px">
           <button id="recruitBtn" style="flex:1">징집 <span class="c" id="recCost"></span></button>
           <button id="toSquad" style="flex:1">편성</button>
@@ -97,7 +97,7 @@
         <div class="note" id="armyNote"></div>
       </div>
       <div class="shopwrap">
-        <h3>능력치 <span class="dim">판을 넘어 남는다 · 가진 유물 <b id="shopHave">0</b></span></h3>
+        <h3>능력치 <span class="dim">판을 넘어 남는다 · 가진 자원 <b id="shopHave">0</b></span></h3>
         <div class="shop" id="shop"></div>
       </div>
       <div class="shopwrap">
@@ -120,7 +120,7 @@
       <div class="note helpnote" style="margin-top:10px;color:#5f6874">
         가운데 <b style="color:var(--steel)">벙커</b>를 지킨다. 적은 <b>사방에서</b> 곧장 밀려온다.<br>
         대원은 벙커 안에 있어 <b>맞지 않는다</b> — 깎이는 것은 벙커뿐이다.<br>
-        판이 끝나면 유물로 <b>징집·훈련·증축</b>을 한다.
+        판이 끝나면 자원으로 <b>징집·훈련·증축</b>을 한다.
       </div>
     </section>
 
@@ -140,7 +140,7 @@
     </section>
 
     <!-- 기록 로그는 뺐다 — 합성은 벙커 연출이, 웨이브는 웨이브 줄이 이미 말한다.
-         로그에만 살던 피드백(새 병과, 자리 참, 유물 안내)은 토스트로 옮겼다. -->
+         로그에만 살던 피드백(새 병과, 자리 참, 자원 안내)은 토스트로 옮겼다. -->
   </aside>
 </main>
 
