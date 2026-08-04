@@ -388,7 +388,7 @@ export function tick(dt) {
     // 웨이브가 끝나면 성한 것은 추스른다. 안 그러면 바깥에 두는 값이 너무 비싸다 —
     // 잃는 것은 **완전히 부서졌을 때뿐**이어야 한다.
     for (const t of placed()) t.hp = t.maxHp;
-    const rel = relicTick(S.round) + Math.floor(S.bounty / 12);
+    const rel = relicTick(S.round) + Math.floor(S.bounty / 16);
     if (rel) S.bounty = 0;
     if (rel) {
       const first = META.relics === 0;      // 이 판에서 처음 손에 쥐는 유물인가

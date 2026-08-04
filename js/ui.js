@@ -150,7 +150,7 @@ export function offlineReport() {
   const elapsed = Math.max(0, Date.now() - prev);   // 시계를 되돌려도 음수는 0
   if (elapsed < OFFLINE_MIN_MS) return null;
   const capped  = Math.min(elapsed, OFFLINE_CAP_H * 3600 * 1000);
-  const perHour = relicsFor(META.best) * 0.2;    // 시간당 최고 기록 환산의 20%
+  const perHour = relicsFor(META.best) * 0.12;   // 시간당 최고 기록 환산의 12% — 자면 두둑, 판보다 달지는 않게
   const gain    = Math.floor((capped / 3600000) * perHour);
   if (gain <= 0) return null;                     // 아직 멀리 못 가 봤으면 줄 게 없다
   return { elapsed, gain };

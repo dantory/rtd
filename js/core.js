@@ -230,10 +230,13 @@ export const upCost = (k) => UPGRADES[k].base + UPGRADES[k].per * META.up[k];
 // 넘긴 라운드가 곧 보상이다. 보스 라운드(5의 배수)를 넘기면 덤이 붙는다.
 /** 죽을 때 받는 유물. **멀리 갈수록 가파르게** 준다 — 한 라운드를 더 미는 것이
  *  다음 판을 눈에 띄게 바꿔야 "막히면 강해져서 돌파한다"가 성립한다. */
-export const relicsFor = (round) => Math.floor((round - 1) * 2.4 + Math.pow(Math.max(0, round - 1), 1.4) / 2);
+/* "유물이 너무 흔해"(병수님, 2026-08-05) — 수입을 절반쯤 조인다. 흔하면 고르는 맛이 죽는다:
+   다 살 수 있으면 무엇을 살지가 결정이 아니게 된다. 가파른 항(^1.4)은 남긴다 —
+   한 라운드를 더 미는 값어치가 커야 돌파가 성립한다. */
+export const relicsFor = (round) => Math.floor((round - 1) * 1.6 + Math.pow(Math.max(0, round - 1), 1.4) / 2.5);
 /** **막는 중에도 유물이 들어온다.** 죽어야만 강해질 수 있으면 벽에 부딪힌 순간
  *  할 수 있는 게 죽기를 기다리는 것뿐이다. 세 라운드마다 한 줌씩, 멀리 갈수록 굵게. */
-export const relicTick = (round) => (round % 2 === 0 ? 1 + Math.floor(round / 6) : 0);
+export const relicTick = (round) => (round % 3 === 0 ? 1 + Math.floor(round / 9) : 0);
 // **돌파가 체감되어야 한다.** 스무 판을 해도 8%씩 오르면 벽은 그대로 벽이다.
 /* **맞기 시작한 뒤에도 버틸 시간이 있어야 한다.** 260 이면 적 몇이 붙는 순간 몇 초 만에
    끝나서, 처음 맞은 라운드와 죽는 라운드가 붙어 버렸다(재 보니 1~5 라운드 차). 두껍게 두고
