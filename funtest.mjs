@@ -35,7 +35,12 @@ await new Promise(r => setTimeout(r, 1000));
 const play = (place, useMeta) => [
   '(() => {',
   '  localStorage.removeItem("rtd.meta.v1");',
-  '  Object.assign(META,{relics:0,best:0,up:{gold:0,dmg:0,life:0,cheap:0,start:0}});',
+  // **업그레이드 키를 손으로 적지 말 것.** 새 업그레이드를 하나 더하면 여기만 빠져서
+  // 그 값이 undefined 가 되고, 그걸 쓰는 계산이 통째로 NaN 이 된다 — slots 를 더했을 때
+  // 자리가 0 개가 되어 봇이 1R 에 전멸했다. 게임이 아니라 이 자가 틀린 것이었다.
+  '  Object.assign(META,{relics:0,best:0,',
+  '    up:Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0]))});',
+  '  refreshSlots();',
   '  const arrange = () => {',
   '    const lanes = waveLanes(S.round), c = coreCenter();',
   // 판 크기는 **게임에서 가져온다.** 13×9 로 박아 뒀더니 판을 21×21 로 넓힌 순간
