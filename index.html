@@ -81,15 +81,8 @@
   /* **열린 자리는 세어져야 한다.** 셋뿐인데 어디가 열렸는지 안 보이면 자리가 제약이라는 걸
      알 수가 없다. 열린 칸은 테두리를 확실히 긋고 안쪽을 살짝 띄우고, 잠긴 칸은 덮되
      **바닥이 비칠 만큼만** 덮는다 — 새까맣게 덮으면 앞마당이 통째로 구멍으로 보인다. */
-  .slot{position:absolute;cursor:pointer;
-    background:linear-gradient(rgba(150,192,238,.11),rgba(150,192,238,.03));
-    box-shadow:inset 0 0 0 1px rgba(190,214,240,.55)}
-  .slot.locked{cursor:default;background:rgba(6,9,13,.40);
-    box-shadow:inset 0 0 0 1px rgba(120,140,166,.13)}
-  .slot:not(.locked):hover{box-shadow:inset 0 0 0 1px var(--amber)}
-  .slot.sel{box-shadow:inset 0 0 0 2px var(--amber);background:rgba(214,168,74,.14)}
-  /* 대원이 선 칸은 구획선을 끈다 — 유닛 상자가 이미 칸을 긋고 있어서 선이 두 줄로 겹친다 */
-  .slot.occ{box-shadow:none;background:none}
+  /* 자리 칸은 이제 판에 안 그린다 — 대원은 벙커 **안**에 있고, 넣고 빼는 것은 편성 화면이
+     맡는다. 판에 빈 네모를 늘어놓으면 "여기 뭘 놓아야 하나"를 계속 묻게 된다. */
   /* **가장자리가 맞물리는 타일이라 딱 맞게 깔아야 한다.** 낱장 흙 타일은 서로 겹쳐 깔아
      이음새를 뭉갰지만(그래도 칸 경계가 읽혔다), Wang 타일은 이웃과 맞물리도록 구워져
      있어서 겹치거나 돌리면 그 맞물림이 깨진다. 한 장 시트에서 잘라 1:1 로 깐다. */
@@ -107,41 +100,30 @@
       rgba(14,17,22,.75) 78%, rgba(14,17,22,1) 97%)}
   .mark{position:absolute;font-size:11px;color:var(--dim);pointer-events:none;letter-spacing:1px}
   /* 본진 — 칸을 쪼개지 않고 한 덩이로. 조각으로 두면 지킬 것이 아니라 타일로 읽힌다. */
-  .core{position:absolute;background:#151c25;border:1px solid #3d5468;border-radius:3px;
-    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
-    pointer-events:none;box-shadow:0 0 0 1px rgba(107,168,214,.18) inset}
+  /* 상자 배경·테두리는 뺐다 — 그림이 곧 벙커다. 네모가 비치면 건물이 판때기 위에 얹힌 것처럼 보인다. */
+  .core{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:5px;pointer-events:none}
   /* 한 칸짜리다. 그림이 칸을 꽉 채우고, 체력은 **칸 밖 위쪽**에 얹는다 —
      안에 넣으면 64px 안에서 그림과 겹쳐 둘 다 안 읽힌다. 이름은 뺐다(가운데 것이 본진이다). */
-  .core .cspr{position:absolute;left:-6%;top:-12%;width:112%;height:112%;object-fit:contain;
-    image-rendering:pixelated;filter:drop-shadow(0 3px 5px rgba(0,0,0,.75))}
-  .core .cbar{position:absolute;left:-10%;width:120%;top:-15px;height:5px;
+  /* 발자국은 한 칸이되 **그림은 칸을 훌쩍 넘게** — 한 칸에 꽉 맞춰 그리면 뭘 지키는지도
+     모를 작은 상자가 된다. 지킬 것은 커 보여야 지킬 맛이 난다. */
+  .core .cspr{position:absolute;left:-38%;bottom:-6%;width:176%;height:176%;object-fit:contain;
+    /* drop-shadow 금지 — 그림이 96px 를 거의 꽉 채워서 그림자가 네모 판으로 진다. 바닥 그림자는 스프라이트의 받침이 이미 한다. */
+    object-position:bottom;image-rendering:pixelated}
+  .core .cbar{position:absolute;left:-18%;width:136%;top:calc(-80% - 13px);height:5px;
     background:#141a22;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
   .core .cbar i{display:block;height:100%;background:linear-gradient(90deg,#4a6b3f,#7fb069);transition:width .15s}
     /* 수치는 헤더에 이미 있다("본진 520/520"). 한 칸 위에 또 적으면 그림만 가린다. */
   .core .cnum{display:none}
-  /* 타워도 맞는다 — 얼마나 성한지가 보여야 "저건 빼자"가 결정이 된다 */
-  .tw .thp{position:absolute;left:4px;right:4px;bottom:2px;height:2px;background:#2a3038;border-radius:1px}
-  .tw .thp i{display:block;height:100%;background:#7fb069;border-radius:1px}
-
-  /* ── 유닛 ──
-     **그림이 있으면 그림, 없으면 글자.** 에셋이 아직 안 구워졌다고 게임이 안 돌면 안 되고,
-     반대로 그림이 붙으면 글자는 사라져야 한다(둘 다 보이면 지저분하다). */
-  .tw{position:absolute;display:flex;flex-direction:column;align-items:center;
-    justify-content:flex-end;border-radius:3px;pointer-events:none;line-height:1;overflow:visible}
-  .tw .spr{position:absolute;inset:6% 6% 14%;width:88%;height:80%;object-fit:contain;
-    image-rendering:pixelated;filter:drop-shadow(0 2px 2px rgba(0,0,0,.55))}
-  .tw .ico{display:none;font-size:17px;margin-bottom:auto;margin-top:22%}
-  .tw.noimg .ico{display:block}
-  .tw .lvl{position:relative;font-size:8px;letter-spacing:-1px;margin-bottom:3px;
-    text-shadow:0 1px 2px #000}
-  /* 방금 뽑히거나 합쳐진 것 — 목록의 숫자만 바뀌면 무슨 일이 있었는지 안 남는다 */
+  /* ── 유닛은 판에 안 그린다 ──
+     대원은 벙커 **안**에 있다. 판에서 보이는 것은 벙커가 쏘는 탄과, 고른 대원의 사거리 링뿐.
+     누가 들어가 있는지는 진열대 칩과 편성 화면이 말한다. */
   @keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.18)}100%{transform:scale(1)}}
   @keyframes flare{0%{box-shadow:0 0 0 0 rgba(224,164,88,.9)}100%{box-shadow:0 0 0 16px rgba(224,164,88,0)}}
-  .tw.rolled{animation:pop .28s ease-out}
-  .tw.merged{animation:pop .32s ease-out, flare .55s ease-out}
-  /* 별이 하나 느는 것만으로는 **불어난 것이 안 보인다.** 합쳐진 자리에서 링이 한 번 퍼진다. */
-  .tw.merged::after{content:"";position:absolute;inset:-4px;border-radius:6px;
-    border:2px solid currentColor;opacity:0;animation:mergeRing .6s ease-out}
+  .core.merged{animation:flare .55s ease-out}
+  /* 별이 하나 느는 것만으로는 **불어난 것이 안 보인다.** 합쳐지면 벙커에서 링이 한 번 퍼진다. */
+  .core.merged::after{content:"";position:absolute;inset:-8px;border-radius:8px;
+    border:2px solid var(--amber);opacity:0;animation:mergeRing .6s ease-out}
   @keyframes mergeRing{0%{transform:scale(.7);opacity:.95}100%{transform:scale(1.9);opacity:0}}
 
   .mob{position:absolute;pointer-events:none;transition:none;border-radius:50%}
@@ -513,13 +495,16 @@ const armorMul = () => {
   }
   return Math.max(0.28, m);
 };
-/** **반대편 대원도 닿아야 한다.**
- *  자리는 사방으로 흩어 열리는데 적은 한 갈래로 온다. 본진이 3×3(192px)이라 반대편
- *  대원까지는 300px 이 넘는데 사거리는 88~230 이었다 — 셋 중 하나만 싸우고 둘은 구경만
- *  하다 본진이 무너졌다(여섯 판 중 두 판이 1R). 벙커 하나에 다 들어가 있는 것이니
- *  사거리는 그 벙커를 덮을 만해야 한다. 병과별 차이는 배수라 그대로 남는다. */
-const BUNKER_RNG = 1.9;
-const rngOf  = (t) => Math.round((KINDS[t.kind].rng + (t.g - 1) * 9) * BUNKER_RNG * kindRngMul(t.kind));
+/** 사거리의 원점이 **벙커 가운데**가 된 뒤의 배수다.
+ *  1.9 는 대원이 벙커 둘레에 흩어 서 있던 시절의 값 — 반대편 대원까지 닿게 하려는
+ *  보정이었다. 원점이 가운데로 오자 그 보정이 통째로 남아돌아, 최장 사거리(437)가
+ *  적 출현 반경(326)을 넘어 **나오자마자 죽었다.** 최장이 출현 반경 안쪽(~290)에,
+ *  최단이 벙커 앞마당에 오도록 당긴다(1.25 는 벽이 15R 로 일렀고 1.45 가 22R 언저리). 병과별 차이는 배수라 그대로. */
+const BUNKER_RNG = 1.45;
+/* 상한: 적 출현 반경 안쪽. 사거리가 출현 반경을 넘으면 **나오자마자 죽어서** 싸움이 화면
+   밖 일이 된다 — 저격수가 등급·훈련으로 크면 실제로 넘는다(334 > 326). */
+const rngOf  = (t) => Math.min(spawnRadius() - 30,
+  Math.round((KINDS[t.kind].rng + (t.g - 1) * 9) * BUNKER_RNG * kindRngMul(t.kind)));
 // 타워도 맞는다. 등급이 오르면 단단해지되 피해만큼 뛰지는 않는다 —
 // 세다고 안 부서지면 바깥에 세우는 데 값이 없어진다.
 // 대원은 이제 안 죽는다(벙커가 대신 맞는다). 이 값은 표시용으로만 남는다.
@@ -857,7 +842,8 @@ const pick = (arr, r) => arr[Math.min(arr.length - 1, Math.floor(r * arr.length)
 function drawGrid() {
   let h = "";
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-    if (inCore(x, y)) continue;                    // 본진은 아래에서 한 덩이로 그린다
+    /* 벙커 칸에도 철판을 깐다 — 벙커 상자가 칸을 덮던 시절엔 빼도 안 보였지만,
+       지금은 그림 둘레가 비쳐서 빼면 벙커가 검은 구멍 위에 선다. */
     /* 네 모서리가 각각 터인지 벌판인지로 깔 타일이 정해진다 — 그게 Wang 타일의 전부다. */
     const k = (cornerUp(x, y)     ? "1" : "0") + (cornerUp(x + 1, y)     ? "1" : "0") +
               (cornerUp(x, y + 1) ? "1" : "0") + (cornerUp(x + 1, y + 1) ? "1" : "0");
@@ -866,15 +852,8 @@ function drawGrid() {
       style="left:${px(x)}px;top:${py(y)}px;width:${CELL}px;height:${CELL}px;` +
       `background-position:${-tc * CELL}px ${-tr * CELL}px"></div>`;
   }
-  /* 자리 — 땅 **위에 얹는 구획선**이다. 땅과 층을 나눠야 땅이 안 끊긴다.
-     아직 안 열린 칸은 어둡게 덮어 둔다. **비워 두면 안 된다** — 증축으로 뭐가 늘어나는지가
-     안 보이면 그 업그레이드는 숫자일 뿐이고, 늘어나는 걸 보는 게 이 게임의 재미다. */
-  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-    if (!onDeck(x, y)) continue;
-    const open = buildable(x, y);
-    h += `<div class="slot${open ? "" : " locked"}" ${open ? `data-x="${x}" data-y="${y}"` : ""}
-      style="left:${px(x)}px;top:${py(y)}px;width:${CELL}px;height:${CELL}px"></div>`;
-  }
+  /* 자리 칸은 판에 안 그린다 — 대원은 벙커 안에 있다. 증축이 보이는 곳은 앞마당(철판이
+     실제로 넓어진다)과 편성 화면(자리 수)이다. */
   /* 잔해 — 벌판의 1/9 쯤에만 얹는다. 촘촘하면 적이 어디 있는지 안 읽히고,
      없으면 그냥 빈 땅이다. 놓는 자리(터)와 그 한 칸 밖은 비워 둔다 —
      대원과 겹쳐 보이면 뭐가 내 것인지 헷갈린다. */
@@ -1076,7 +1055,8 @@ function mergeKey(k) {
   const arr = mergeGroups().get(k).slice(0, 3);
   // **가장 좋은 자리를 남긴다** — 합쳤더니 구석에 서 있으면 억울하다.
   // 자리에 나가 있는 것이 창고에 있는 것보다 늘 먼저다(창고 것은 덮는 게 없다).
-  arr.sort((a, b) => (isOut(b) - isOut(a)) || (coverOf(b) - coverOf(a)));
+  // 나가 있는 것을 남긴다 — 자리 배정이 흔들리지 않게. 위치 유불리는 이제 없다(벙커에서 쏜다).
+  arr.sort((a, b) => (isOut(b) - isOut(a)));
   const keep = arr[0];
   const gone = new Set(arr.slice(1).map(t => t.id));
   META.army = META.army.filter(t => !gone.has(t.id));
@@ -1087,27 +1067,14 @@ function mergeKey(k) {
   noteSeen(kind, keep.g);                            // 합쳐 오른 등급도 도감에 남는다
   say(`셋을 합쳐 <b style="color:${GCOL[keep.g]}">${GNAME[keep.g]} ${KINDS[kind].n}</b> 이(가) 되었다.`);
   refresh();                       // 자리 배치가 먼저다 — 그래야 연출이 제자리에서 터진다
-  if (isOut(keep)) {
-    flyText(cx(keep.x), cy(keep.y), "★ " + GNAME[keep.g], GCOL[keep.g]);
-    popTower(keep, "merged");
-  } else {
-    // 창고에서 합쳐졌으면 띄울 자리가 없다. 본진 위에 올려 적어도 무슨 일이 났는지는 보인다.
-    const c = coreCenter();
-    flyText(c.x, c.y - coreRadius() - 14, "★ " + GNAME[keep.g] + " " + KINDS[kind].n, GCOL[keep.g]);
-  }
+  // 대원은 벙커 안에 있으니 연출도 벙커에서 — 위로 병과와 등급이 떠오르고 링이 퍼진다.
+  const c = coreCenter();
+  flyText(c.x, c.y - coreRadius() - 40, "★ " + GNAME[keep.g] + " " + KINDS[kind].n, GCOL[keep.g]);
+  popTower(keep, "merged");
 }
-// **본진을 얼마나 감싸는가.** 본진 둘레를 한 바퀴 돌며 사거리에 드는 각도를 센다 —
-// 합성 때 어느 자리를 남길지, 그리고 지금 자리가 쓸 만한지의 기준.
-function coverOf(t) {
-  const r = rngOf(t), tx = cx(t.x), ty = cy(t.y);
-  const c = coreCenter(), rad = coreRadius() + CELL * 0.5;
-  let n = 0;
-  for (let a = 0; a < 24; a++) {
-    const th = a / 24 * Math.PI * 2;
-    if (Math.hypot(c.x + Math.cos(th) * rad - tx, c.y + Math.sin(th) * rad - ty) <= r) n++;
-  }
-  return n;
-}
+// 벙커 가운데서 쏘게 된 뒤로 자리에 따른 유불리가 없다 — 늘 사방을 고르게 덮는다.
+// 이름은 합성 정렬과 하네스가 아직 부르므로 남긴다.
+const coverOf = (t) => rngOf(t);
 const coreCenter = () => ({ x: px(CORE.x) + CELL * CORE.w / 2, y: py(CORE.y) + CELL * CORE.h / 2 });
 const coreRadius = () => CELL * CORE.w / 2;
 /** **적이 나오는 반지름 — 놓을 수 있는 자리 바로 바깥.**
@@ -1132,17 +1099,8 @@ function sell(id) {
   drawShop(); refresh();
 }
 
-/* ══ 배치 옮기기 — 빈 슬롯을 누르면 고른 타워가 그리로 간다 ══ */
-$("grid").addEventListener("click", (e) => {
-  const el = e.target.closest("[data-x]");
-  if (!el) return;
-  const x = +el.dataset.x, y = +el.dataset.y;
-  const here = placed().find(t => t.x === x && t.y === y);
-  if (here) { S.sel = (S.sel === here.id) ? null : here.id; refresh(); return; }
-  const t = META.army.find(t => t.id === S.sel);
-  if (t && isOut(t)) { const s2 = SLOT_SPOTS.findIndex(p => p[0] === x && p[1] === y);
-    if (s2 >= 0 && s2 < slotMax() && !occupied().has(s2)) { t.slot = s2; syncArmy(); saveMeta(); refresh(); } }
-});
+/* 판 클릭 배치는 없다 — 대원은 벙커 안이라 판에 옮겨 세울 자리 자체가 없다.
+   넣고 빼는 것은 진열대 칩과 편성 화면이 맡는다. */
 
 /* ══════════════════════════════════════════════════════════════
    웨이브 — **자동으로 싸운다.** 내가 짜 놓은 것이 나 없이 막는 걸 지켜보는 것이
@@ -1236,12 +1194,11 @@ function boom(x, y, kind) {
   setTimeout(() => { img.remove(); S.fxBusy--; }, 300);
 }
 
-/** 방금 생긴 것을 한 번 튀겨 준다. 목록의 숫자만 바뀌면 무슨 일이 있었는지 안 남는다. */
+/** 합쳐지면 벙커가 한 번 빛난다 — 대원이 안에 있으니 연출도 벙커에서 터져야 맞다. */
 function popTower(t, cls) {
-  const el = [...document.querySelectorAll("#world .tw")]
-    .find(e => e.dataset.id === String(t.id));
+  const el = $("coreEl");
   if (!el) return;
-  el.classList.remove("rolled", "merged"); void el.offsetWidth; el.classList.add(cls);
+  el.classList.remove("merged"); void el.offsetWidth; el.classList.add("merged");
 }
 
 function flyText(x, y, text, col) {
@@ -1330,16 +1287,18 @@ function tick(dt) {
     flyText(c2.x, c2.y - coreRadius(), "+" + amt, "#7fb069");
   }
 
-  // 대원 — **내보낸 것만 쏜다.** 창고에 있는 건 구경만 한다
+  // 대원 — **내보낸 것만 쏜다.** 창고에 있는 건 구경만 한다.
+  // 대원은 벙커 안에 있으므로 사거리도 탄도 전부 **벙커**가 기준이다.
+  const cc = coreCenter();
   for (const t of placed()) {
     t.cd = (t.cd || 0) - dt;
     if (t.cd > 0) continue;
-    const K = KINDS[t.kind], r = rngOf(t), tx = cx(t.x), ty = cy(t.y);
-    // **본진에 제일 가까이 온 놈부터** 노린다 — 먼 놈을 먼저 잡으면 코앞의 것을 놓친다.
+    const K = KINDS[t.kind], r = rngOf(t);
+    // **벙커에 제일 가까이 온 놈부터** 노린다 — 먼 놈을 먼저 잡으면 코앞의 것을 놓친다.
     // 지뢰밭만은 **멈춰 붙은 놈**을 노린다 — 그래야 "달라붙은 것들을 한꺼번에"가 된다.
     let best = null, bestD = 1e9;
     for (const m of S.mobs) {
-      if (Math.hypot(m.x - tx, m.y - ty) > r) continue;
+      if (Math.hypot(m.x - cc.x, m.y - cc.y) > r) continue;
       if (K.arm && !m.stuck) continue;
       const d = distToCore(m);
       if (d < bestD) { bestD = d; best = m; }
@@ -1348,6 +1307,13 @@ function tick(dt) {
     t.cd = K.cd;
     const d = dmgOf(t);
     const bp = mobPos(best);
+    /* 총안구 — 탄은 벙커의 **목표를 향한 면**에서 나간다. 자리 번호만큼 옆으로 어긋나게
+       해서, 여럿이 같은 놈을 쏠 때도 줄기가 한 가닥으로 뭉개지지 않는다. */
+    const L = Math.hypot(bp.x - cc.x, bp.y - cc.y) || 1;
+    const dirx = (bp.x - cc.x) / L, diry = (bp.y - cc.y) / L;
+    const lat = ((t.slot ?? 0) - (slotMax() - 1) / 2) * 9;
+    const tx = cc.x + dirx * coreRadius() * 0.9 - diry * lat;
+    const ty = cc.y + diry * coreRadius() * 0.9 + dirx * lat;
     S.shots.push({ x: tx, y: ty, tx: bp.x, ty: bp.y, life: 0.14, col: K.col });
     boom(bp.x, bp.y, K.fx || "hit");
 
@@ -1485,37 +1451,17 @@ function drawShop() {
 }
 
 /* ══ 그리기 ══ */
+/** 대원은 벙커 안이라 판에 그릴 것이 없다 — 고른 대원의 **사거리 링**만 벙커에서 그린다.
+ *  사거리의 중심이 벙커라는 것 자체가 "안에서 쏜다"는 설명이다. */
 function drawTowers() {
-  const old = [...document.querySelectorAll("#world .tw, #world .rng")];
-  old.forEach(e => e.remove());
-  document.querySelectorAll("#world .slot.occ").forEach(e => e.classList.remove("occ"));
-  for (const t of placed()) {
-    const K = KINDS[t.kind], sel = S.sel === t.id;
-    const sd = document.querySelector(`#world .slot[data-x="${t.x}"][data-y="${t.y}"]`);
-    if (sd) sd.classList.add("occ");
-    const el = document.createElement("div");
-    el.className = "tw";
-    el.dataset.id = t.id;
-    el.style.cssText = `left:${px(t.x)+1}px;top:${py(t.y)+1}px;width:${CELL-2}px;height:${CELL-2}px;
-      color:${K.col};background:${sel ? "#22201a" : "#181d25"};
-      box-shadow:inset 0 0 0 1px ${GCOL[t.g]}${sel ? ",0 0 0 1px var(--amber)" : ""}`;
-    const hurt = t.hp < t.maxHp;
-    // **그림이 있으면 그림, 없으면 글자.** 에셋이 아직 안 구워졌다고 게임이 안 돌면 안 된다.
-    el.innerHTML =
-      `<img class="spr" src="assets/unit/${t.kind}.png" alt=""
-         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">` +
-      `<span class="ico">${K.ico}</span>` +
-      `<span class="lvl" style="color:${GCOL[t.g]}">${"★".repeat(Math.min(t.g,5))}</span>` +
-      (hurt ? `<span class="thp"><i style="width:${Math.max(0,t.hp/t.maxHp*100)}%;
-        background:${t.hp/t.maxHp > .4 ? "#7fb069" : "#d05353"}"></i></span>` : "");
-    $("world").appendChild(el);
-    if (sel) {
-      const r = rngOf(t), rg = document.createElement("div");
-      rg.className = "rng";
-      rg.style.cssText = `left:${cx(t.x)-r}px;top:${cy(t.y)-r}px;width:${r*2}px;height:${r*2}px`;
-      $("world").appendChild(rg);
-    }
-  }
+  [...document.querySelectorAll("#world .rng")].forEach(e => e.remove());
+  const t = META.army.find(x => x.id === S.sel);
+  if (!t || !isOut(t)) return;
+  const c = coreCenter(), r = rngOf(t), rg = document.createElement("div");
+  rg.className = "rng";
+  rg.style.cssText = `left:${c.x-r}px;top:${c.y-r}px;width:${r*2}px;height:${r*2}px;
+    border-color:${KINDS[t.kind].col}`;
+  $("world").appendChild(rg);
 }
 
 let mobEls = new Map();
@@ -1603,7 +1549,7 @@ function refresh() {
   $("runBtn").title = S.autoRun ? "뽑기·합성까지 알아서 한다" : "뽑기·합성을 손으로 한다";
   const lanes = waveLanes(S.round).length;
   $("waveNote").textContent = S.running
-    ? `${S.toSpawn}마리 중 <b>${S.spawned}</b>마리 나옴 · 남은 적 <b>${S.mobs.length}</b>`
+    ? `${S.toSpawn}마리 중 ${S.spawned}마리 나옴 · 남은 적 ${S.mobs.length}`
     : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다` +
       (isBossR(S.round) ? " · 큰 놈이 섞인다" : "");
 
@@ -1635,12 +1581,8 @@ function refresh() {
       <div class="nm" style="color:${GCOL[t.g]}">${GNAME[t.g]} ${KINDS[t.kind].n}</div>
       <div class="st">피해 ${dmgOf(t)} · 사거리 ${rngOf(t)} · ${KINDS[t.kind].d}<br>
         ${isOut(t)
-          /* 창고에 있는 것에 "둘레를 0% 덮는다"고 적으면 약해서 0 인 줄 안다. 자리에
-             나가 있을 때만 덮는 각을 말하고, 창고에 있으면 그 사실을 말한다. */
-          ? `벙커 둘레를 ${Math.round(coverOf(t)/24*100)}% 덮는다 · 체력 ${t.hp}/${t.maxHp}<br>
-             <span style="color:var(--steel)">빈 자리를 누르면 그리로 옮긴다.</span>`
+          ? `<span style="color:var(--steel)">벙커에서 싸우는 중 — 판의 링이 사거리다.</span>`
           : `<span style="color:var(--amber)">창고에 있다 — 아직 안 싸운다.</span>
-             체력 ${t.hp}/${t.maxHp}<br>
              <span style="color:var(--steel)">「편성」에서 내보낸다.</span>`}</div></div>`
     : `<div class="note helpnote">대원을 누르면 사거리가 보인다. 넣고 빼는 것은 「편성」에서.</div>`;
 }
