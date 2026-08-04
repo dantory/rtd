@@ -1,0 +1,303 @@
+  :root{--bg:#0b0d10;--panel:#12151a;--line:#232830;--fg:#c6ccd4;--dim:#6b7480;
+    --amber:#e0a458;--good:#7fb069;--bad:#d05353;--steel:#6ba8d6;--magic:#a978c9}
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;height:100dvh;overflow:hidden;background:var(--bg);color:var(--fg);
+    font-family:"D2Coding","Menlo","Noto Sans Mono CJK KR",monospace;font-size:14px;
+    display:flex;flex-direction:column;user-select:none;
+    /* 폰에서 길게 눌러 메뉴가 뜨거나 당겨서 새로고침되면 판이 그대로 끊긴다 */
+    -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+  /* baseline 이 아니라 center — 글줄과 버튼(유물·설정)이 섞여 있어 baseline 로 두면 들쭉날쭉하다 */
+  header{display:flex;align-items:center;gap:14px;padding:9px 16px;
+    border-bottom:1px solid var(--line);background:var(--panel)}
+  .title{color:var(--amber);letter-spacing:3px;font-weight:bold}
+  .sub{color:var(--dim);font-size:12px}
+  .hud{margin-left:auto;display:flex;align-items:center;gap:18px;font-size:13px}
+  .hud b{color:var(--amber);font-weight:normal}
+  .hud .life b{color:var(--bad)}
+  main{flex:1;display:flex;min-height:0}
+
+  /* ── 전장 ── */
+  /* **touch-action: none 이 없으면 브라우저가 한 손가락 끌기를 스크롤로 가로챈다.**
+     preventDefault 를 불러도 이미 늦다 — 첫 움직임을 두드림인지 보려고 흘려보내는 사이
+     브라우저가 제스처를 가져가 버리고, 그 뒤로는 touchmove 가 아예 안 온다.
+     (핀치만 되고 이동이 안 되던 이유가 이것이었다 — 두 손가락은 첫 move 에서 바로 막았다.) */
+  #field{position:relative;flex:1;min-width:0;background:#0e1116;overflow:hidden;
+    touch-action:none}
+  .viewbtns button{touch-action:manipulation}
+  #world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+  /* 벌판 타일은 서로 물리도록 칸보다 크게 그리고 가장자리가 흐리다 — 그 아래로 비칠
+     바탕을 깔아 둔다. 안 깔면 흐린 자락에서 검은 판이 비쳐 이음새가 도로 살아난다. */
+  #grid{position:absolute;inset:0;background:#171614}
+  /* 손가락이 없어도, 있어도 쓸 수 있게 버튼도 둔다 — 핀치를 모르는 사람이 판을 못 보면 안 된다 */
+  .viewbtns{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:6px;z-index:30}
+  .viewbtns button.on{border-color:var(--amber);color:var(--amber);background:rgba(40,32,18,.9)}
+  .viewbtns button{width:38px;height:38px;padding:0;font-size:15px;line-height:1;
+    background:rgba(20,26,34,.86);border:1px solid #38465a;border-radius:6px;
+    backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+  .tile{position:absolute;border-radius:2px}
+  /* **길은 한 줄기로 이어져 보여야 한다.** 칸마다 틈이 있으면 몹이 어디로 가는지 안 읽히고,
+     그러면 어디에 놓을지가 감이 아니라 운이 된다(첫 판에서 실제로 그랬다).
+     그래서 길 타일만 틈 없이 붙이고 한 단계 밝게 깐다. */
+  .tile.road{background:#2b3543;border-radius:0}
+  /* **놓을 수 있는 자리는 한눈에 갈려야 한다.** 바깥 땅과 색이 비슷하면 어디까지가 내
+     터인지 몰라 배치가 감이 된다. 터는 밝게 깔고, 적이 달려오는 바깥은 거의 배경으로 둔다. */
+  .tile{background-size:cover;background-position:center;image-rendering:pixelated}
+  /* **터는 따로 깐 판이 아니라 같은 땅에 그은 구획이다.**
+     전에는 pad.png 를 어두운 막과 함께 칸보다 작게 깔았다. 찍어 놓고 보니 검은 바탕 위에
+     회색 판때기가 줄지어 떠 있는 꼴이었고 — 벌판과 완전히 끊겨 그게 제일 허접했다.
+     이제 땅은 벌판과 **같은 것**을 이어 깔고, 그 위에 옅은 빛과 가는 선만 얹어
+     "여기 놓을 수 있다"는 것만 말한다. 땅은 하나로 이어지고 정보는 그대로 남는다. */
+  /* 타일셋이 터를 철판 데크로 그려 주므로 여기서 밝힐 것은 없다. 남길 것은 **칸 금**뿐이다 —
+     밝은 바닥 위에서는 밝은 선이 안 보인다(찍어 보니 통짜 철판 한 장으로 읽혔다). 어두운 선으로
+     긋는다. 놓는 게임에서 칸이 안 세어지면 배치가 눈대중이 된다. */
+  /* **열린 자리는 세어져야 한다.** 셋뿐인데 어디가 열렸는지 안 보이면 자리가 제약이라는 걸
+     알 수가 없다. 열린 칸은 테두리를 확실히 긋고 안쪽을 살짝 띄우고, 잠긴 칸은 덮되
+     **바닥이 비칠 만큼만** 덮는다 — 새까맣게 덮으면 앞마당이 통째로 구멍으로 보인다. */
+  /* 자리 칸은 이제 판에 안 그린다 — 대원은 벙커 **안**에 있고, 넣고 빼는 것은 편성 화면이
+     맡는다. 판에 빈 네모를 늘어놓으면 "여기 뭘 놓아야 하나"를 계속 묻게 된다. */
+  /* **가장자리가 맞물리는 타일이라 딱 맞게 깔아야 한다.** 낱장 흙 타일은 서로 겹쳐 깔아
+     이음새를 뭉갰지만(그래도 칸 경계가 읽혔다), Wang 타일은 이웃과 맞물리도록 구워져
+     있어서 겹치거나 돌리면 그 맞물림이 깨진다. 한 장 시트에서 잘라 1:1 로 깐다. */
+  .tile.wang{border:0;border-radius:0;background-repeat:no-repeat;
+    background-image:url("assets/ui/tileset.png");background-size:256px 256px}
+  /* 잔해 — 벌판에 얹는 배경 소품. 눈에 띄면 적으로 오인되므로 확실히 가라앉힌다. */
+  .deco{position:absolute;transform:translate(-50%,-50%);pointer-events:none;
+    object-fit:contain;image-rendering:pixelated;opacity:.9;
+    filter:brightness(.78) saturate(.8) drop-shadow(0 2px 3px rgba(0,0,0,.55))}
+  /* 판의 끝을 어둠에 담근다 — 딱 잘린 네모로 끝나면 "작은 판"이라는 게 그대로 드러난다.
+     가운데(싸우는 곳)는 건드리지 않는다. */
+  .vignette{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(ellipse at center,
+      rgba(14,17,22,0) 30%, rgba(14,17,22,.3) 55%,
+      rgba(14,17,22,.75) 78%, rgba(14,17,22,1) 97%)}
+  .mark{position:absolute;font-size:11px;color:var(--dim);pointer-events:none;letter-spacing:1px}
+  /* 본진 — 칸을 쪼개지 않고 한 덩이로. 조각으로 두면 지킬 것이 아니라 타일로 읽힌다. */
+  /* 상자 배경·테두리는 뺐다 — 그림이 곧 벙커다. 네모가 비치면 건물이 판때기 위에 얹힌 것처럼 보인다. */
+  .core{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:5px;pointer-events:none}
+  /* 한 칸짜리다. 그림이 칸을 꽉 채우고, 체력은 **칸 밖 위쪽**에 얹는다 —
+     안에 넣으면 64px 안에서 그림과 겹쳐 둘 다 안 읽힌다. 이름은 뺐다(가운데 것이 본진이다). */
+  /* 발자국은 한 칸이되 **그림은 칸을 훌쩍 넘게** — 한 칸에 꽉 맞춰 그리면 뭘 지키는지도
+     모를 작은 상자가 된다. 지킬 것은 커 보여야 지킬 맛이 난다. */
+  .core .cspr{position:absolute;left:-38%;bottom:-6%;width:176%;height:176%;object-fit:contain;
+    /* drop-shadow 금지 — 그림이 96px 를 거의 꽉 채워서 그림자가 네모 판으로 진다. 바닥 그림자는 스프라이트의 받침이 이미 한다. */
+    object-position:bottom;image-rendering:pixelated}
+  .core .cbar{position:absolute;left:-18%;width:136%;top:calc(-80% - 13px);height:5px;
+    background:#141a22;border-radius:2px;overflow:hidden;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+  .core .cbar i{display:block;height:100%;background:linear-gradient(90deg,#4a6b3f,#7fb069);transition:width .15s}
+    /* 수치는 헤더에 이미 있다("본진 520/520"). 한 칸 위에 또 적으면 그림만 가린다. */
+  .core .cnum{display:none}
+  /* ── 유닛은 판에 안 그린다 ──
+     대원은 벙커 **안**에 있다. 판에서 보이는 것은 벙커가 쏘는 탄과, 고른 대원의 사거리 링뿐.
+     누가 들어가 있는지는 진열대 칩과 편성 화면이 말한다. */
+  @keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.18)}100%{transform:scale(1)}}
+  @keyframes flare{0%{box-shadow:0 0 0 0 rgba(224,164,88,.9)}100%{box-shadow:0 0 0 16px rgba(224,164,88,0)}}
+  .core.merged{animation:flare .55s ease-out}
+  /* 별이 하나 느는 것만으로는 **불어난 것이 안 보인다.** 합쳐지면 벙커에서 링이 한 번 퍼진다. */
+  .core.merged::after{content:"";position:absolute;inset:-8px;border-radius:8px;
+    border:2px solid var(--amber);opacity:0;animation:mergeRing .6s ease-out}
+  @keyframes mergeRing{0%{transform:scale(.7);opacity:.95}100%{transform:scale(1.9);opacity:0}}
+
+  .mob{position:absolute;pointer-events:none;transition:none;border-radius:50%}
+  .mob .spr{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+    image-rendering:pixelated;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+  .mob.noimg{background:#7a4a4a;border-radius:50%}
+  .mob .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
+    grayscale(1) sepia(1) saturate(5.5) hue-rotate(-32deg) brightness(.95)}
+  /* 서리를 맞으면 파랗게 식는다 — 로그를 안 봐도 느려진 게 보인다 */
+  .mob.slowed .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
+    grayscale(1) sepia(1) saturate(4) hue-rotate(160deg) brightness(1.15)}
+  .mob i{position:absolute;left:50%;transform:translateX(-50%);top:-7px;height:3px;
+    border-radius:2px;z-index:2;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+  .mob.boss{filter:drop-shadow(0 0 4px rgba(208,83,83,.8))}
+  .boom{position:absolute;width:40px;height:40px;transform:translate(-50%,-50%);
+    image-rendering:pixelated;pointer-events:none;animation:pop .3s ease-out}
+
+  /* 다음 웨이브가 오는 갈래 — 안 보여 주면 첫 라운드가 무조건 헛방이 된다 */
+  .lane{position:absolute;color:#8c3a3a;font-size:19px;pointer-events:none;
+    text-shadow:0 0 6px rgba(140,58,58,.7);animation:lanep 1.6s ease-in-out infinite}
+  @keyframes lanep{0%,100%{opacity:.45}50%{opacity:1}}
+  .shot{position:absolute;width:4px;height:4px;border-radius:50%;pointer-events:none}
+  .rng{position:absolute;border-radius:50%;border:1px dashed #3f4a58;pointer-events:none}
+  .fly{position:absolute;font-size:11px;color:var(--amber);pointer-events:none;
+    animation:fly .7s ease-out forwards}
+  @keyframes fly{to{transform:translateY(-22px);opacity:0}}
+
+  /* ── 옆 패널 ── */
+  aside{width:290px;flex-shrink:0;border-left:1px solid var(--line);background:var(--panel);
+    padding:12px 14px;overflow-y:auto}
+  aside h3{margin:0 0 7px;font-size:11px;letter-spacing:2px;color:var(--dim);font-weight:normal}
+  aside section{margin-bottom:15px}
+  button{font-family:inherit;font-size:13px;cursor:pointer;color:var(--fg);
+    background:#1a2029;border:1px solid #333c48;border-radius:4px;padding:8px 12px}
+  button:hover:not(:disabled){border-color:var(--amber);color:var(--amber)}
+  button:disabled{opacity:.32;cursor:default}
+  .wide{width:100%}
+  .roll{padding:13px;font-size:15px}
+  .roll .c{color:var(--good)}
+  .rowbtn{display:flex;gap:8px;margin-top:8px}
+  #waveBtn2{display:none}
+  .note{color:var(--dim);font-size:11px;line-height:1.6;margin-top:7px}
+  .sel-info{border:1px solid var(--line);border-radius:4px;padding:10px 12px;margin-top:9px}
+  .sel-info .nm{color:var(--amber)}
+  .sel-info .st{color:var(--dim);font-size:12px;line-height:1.6;margin-top:4px}
+  .poolrow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:9px;font-size:11px}
+  .pchip{position:relative;width:26px;height:26px;border-radius:3px;background:#161c24;
+    border:1px solid #262f3a;overflow:hidden;flex-shrink:0}
+  .pchip img{position:absolute;inset:2px;width:calc(100% - 4px);height:calc(100% - 4px);
+    object-fit:contain;image-rendering:pixelated}
+  .pchip i{display:none;font-style:normal;font-size:13px;line-height:26px}
+  .pchip.noimg i{display:block}
+
+  .tally{display:flex;flex-wrap:wrap;gap:6px}
+  .sqopen{float:right;padding:2px 10px;font-size:11px;letter-spacing:1px;
+    background:#1a2029;border:1px solid #3a4658;border-radius:4px;color:var(--steel)}
+  .sqopen:hover{border-color:var(--amber);color:var(--amber)}
+  .hold{position:relative;width:44px;height:44px;padding:0;border-radius:4px;
+    background:#161c24;border:1px solid #262f3a;overflow:hidden}
+  .hold .spr{position:absolute;inset:3px;width:calc(100% - 6px);height:calc(100% - 6px);
+    object-fit:contain;image-rendering:pixelated}
+  .hold .ico{display:none;font-size:17px;line-height:44px}
+  .hold.noimg .ico{display:block}
+  .hold .cnt{position:absolute;right:2px;bottom:1px;font-size:10px;color:var(--fg);
+    text-shadow:0 1px 2px #000}
+  .hold .gr{position:absolute;left:0;right:0;top:0;height:2px}
+  /* 셋이 모인 것 — 여기가 눌러야 할 자리다 */
+  .hold.ready{border-color:var(--good);cursor:pointer}
+  .hold.ready::after{content:"";position:absolute;inset:0;
+    box-shadow:inset 0 0 10px rgba(127,176,105,.45);animation:lanep 1.4s ease-in-out infinite}
+  /* 도감 — 진열대 칩보다 크게. 모은 것을 들여다보는 자리라 얼굴이 보여야 한다. */
+  .dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px}
+  .dxc{position:relative;padding:5px 3px 4px;border-radius:5px;background:#161c24;
+    border:1px solid #262f3a;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .dxc .spr{width:40px;height:40px;object-fit:contain;image-rendering:pixelated}
+  .dxc .ico{font-size:15px;line-height:1}
+  .dxc:not(.noimg) .ico{display:none}
+  .dxc .dxn{font-size:10px;color:var(--dim);letter-spacing:0}
+  .dxc .dxg{font-size:9px;letter-spacing:-1px}
+  .dxc .dxt{font-size:9px;color:#5f6874;letter-spacing:0}
+  .dxc.train{cursor:default;font-family:inherit}
+  .dxc.train.can{cursor:pointer;border-color:#4a3d22}
+  .dxc.train.can .dxt b{color:var(--amber)}
+  .dxc.train.can:hover{border-color:var(--amber)}
+  .dxc.off{opacity:.34}
+  .dxc.off .ico{font-size:22px;color:#4a5361;display:block}
+  .hold:not(.ready){opacity:.94}
+  .hold.away{opacity:.46}                /* 한 기도 안 나가 있는 것 — 창고에서 대기 중이다 */
+  #log{font-size:11px;color:var(--dim);line-height:1.65;max-height:150px;overflow-y:auto}
+  #log b{color:var(--amber);font-weight:normal}
+  /* ══════════════════════════════════════════════════════════
+     폰 — **세로 화면에서는 옆 패널이 아니라 아래 패널이다.**
+     290px 짜리 옆 패널을 그대로 두면 폰 폭의 3/4 를 먹어 전장이 사라진다.
+     전장을 위에 크게 두고, 조작은 엄지가 닿는 아래로 내린다.
+     ══════════════════════════════════════════════════════════ */
+  @media (max-width: 820px), (orientation: portrait) and (max-width: 1000px) {
+    body{font-size:13px}
+    header{padding:7px 11px;gap:8px}
+    .title{font-size:13px;letter-spacing:2px}
+    .sub{display:none}                     /* 좁은 폭에서 부제는 자리만 먹는다 */
+    .hud{gap:10px;font-size:12px;flex-wrap:wrap;justify-content:flex-end}
+
+    /* **전장이 화면의 절반뿐이면 판이 작아 보인다.** 아래 패널이 54vh 를 먹고 있었고
+       그 절반은 상시 설명문이었다 — 설명은 접고(helpnote) 기록은 줄여 전장에 넘긴다. */
+    main{flex-direction:column}
+    #field{flex:1 1 auto;min-height:52vh}
+    aside{width:100%;max-height:41vh;border-left:none;border-top:1px solid var(--line);
+      padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+
+    /* 조작은 한 줄에 나란히 — 세로로 쌓으면 스크롤해야 뽑기 버튼이 나온다 */
+    .toprow{display:flex;gap:8px;align-items:stretch}
+    .toprow>*{flex:1}
+    #waveBtn2{display:block}
+    .roll{padding:14px 10px;font-size:15px}
+    aside section{margin-bottom:11px}
+    /* 손가락이 닿는 크기로 — 44px 아래로 내려가면 옆 칸이 눌린다 */
+    .hold{width:48px;height:48px}
+    .pchip{width:30px;height:30px}
+    button{padding:11px 12px}
+    .helpnote{display:none}                /* 규칙 설명은 폰에서 접는다 */
+    /* 웨이브 버튼이 위(엄지 자리)에 있으니 아래 것은 중복이다 — 같은 일을 하는 버튼이
+       둘이면 둘 다 안 읽힌다. 안내 문구만 남긴다. */
+    .wavesec h3, .wavesec #waveBtn{display:none}
+    .wavesec{margin-top:-4px}
+    #log{max-height:54px}
+    #over .box{padding:18px 16px;max-width:94vw;max-height:88vh;overflow-y:auto}
+  }
+  /* 유물은 **누를 수 있는 것**이라는 게 보여야 한다 — 상점으로 가는 유일한 문이다. */
+  .rlc{padding:2px 8px;font-size:inherit;font-family:inherit;color:var(--fg);
+    background:rgba(40,32,18,.5);border:1px solid #4a3d22;border-radius:4px;cursor:pointer}
+  .rlc:hover{border-color:var(--amber)}
+  /* 살 것이 있을 때만 뛴다. 늘 뛰면 그건 배경이 되고 아무도 안 본다. */
+  .rlc.hot{border-color:var(--amber);color:var(--amber);animation:relicPulse 1.6s ease-in-out infinite}
+  @keyframes relicPulse{0%,100%{box-shadow:0 0 0 0 rgba(214,168,74,0)}
+    50%{box-shadow:0 0 0 3px rgba(214,168,74,.28)}}
+  @media (max-width: 420px){ aside{max-height:38vh} }
+  /* 좁은 폰에서 헤더가 두 줄로 감기지 않게 — 부제를 숨기고 간격을 조인다 */
+  @media (max-width: 480px){ .sub{display:none} header{gap:8px}
+    .hud{gap:8px} .rlc{padding:2px 6px} #setBtn{padding:4px 8px !important} }
+  @media (max-width: 360px){ .hud{font-size:11px} .title{letter-spacing:1px} }
+
+  /* 편성 화면 — 상점과 같은 틀을 쓴다. 뒤에서 게임은 계속 돈다(방치형이니 멈출 이유가 없다). */
+  #squad,#settings{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
+    align-items:center;justify-content:center;text-align:center;
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  #squad.on,#settings.on{display:flex}
+  #squad .box,#settings .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:22px 20px;box-shadow:0 18px 60px rgba(0,0,0,.6);max-width:94vw;max-height:88vh;overflow-y:auto}
+  #squad h2,#settings h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
+  #settings .box{min-width:min(320px,88vw)}
+  #squad .sqh{margin:16px 0 7px;font-size:11px;letter-spacing:2px;color:var(--dim);font-weight:normal}
+  /* 자리는 **가로로 늘어놓는다.** 벙커에 끼운 것을 한눈에 세는 게 이 화면의 전부다. */
+  .sqslots{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:7px}
+  .sqs{position:relative;aspect-ratio:1;border-radius:6px;background:#161c24;
+    border:1px solid #3a4658;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    cursor:pointer;padding:0;font-family:inherit}
+  .sqs.empty{border-style:dashed;border-color:#2b3441;cursor:default}
+  .sqs:not(.empty):hover{border-color:var(--amber)}
+  .sqs .spr{width:74%;height:74%;object-fit:contain;image-rendering:pixelated}
+  .sqs .ico{font-size:19px}
+  .sqs:not(.noimg) .ico{display:none}
+  .sqs .gr{position:absolute;bottom:3px;font-size:8px;letter-spacing:-1px}
+  .sqs .no{font-size:20px;color:#39424f}
+  .sqbox{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:7px}
+  .sqb{position:relative;aspect-ratio:1;border-radius:6px;background:#161c24;border:1px solid #262f3a;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
+    padding:0;font-family:inherit}
+  .sqb:hover{border-color:var(--amber)}
+  .sqb .spr{width:70%;height:70%;object-fit:contain;image-rendering:pixelated}
+  .sqb .ico{font-size:17px}
+  .sqb:not(.noimg) .ico{display:none}
+  .sqb .cnt{position:absolute;right:3px;bottom:2px;font-size:10px;color:var(--fg)}
+  .sqb .gr{position:absolute;left:0;right:0;top:0;height:2px;border-radius:2px 2px 0 0}
+  #over{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:400;
+    align-items:center;justify-content:center;text-align:center;
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+  #over.on{display:flex}
+  /* 폭·높이 제한을 **기본 규칙에** 둔다. 미디어쿼리에만 적어 두었더니 그 규칙이 위에 있어
+     기본이 이겼고, 폰에서 상점 카드 오른쪽이 화면 밖으로 잘려 나갔다(.shop 과 같은 사고). */
+  #over .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:22px 18px;box-shadow:0 18px 60px rgba(0,0,0,.6);
+    max-width:min(520px,94vw);max-height:88vh;overflow-y:auto}
+  #over h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 8px}
+  /* 나가는 버튼은 늘 보여야 한다. 긴 목록 아래에 두면 스크롤 밖으로 밀려난다. */
+  .stick{position:sticky;bottom:-18px;margin:14px -18px -18px;padding:16px 0 18px;z-index:3;
+    background:linear-gradient(rgba(18,21,26,0) 0%, #12151a 60%, #12151a 100%)}
+  #over>div{max-width:520px}
+  .shopwrap h3{font-size:12px;letter-spacing:1px;color:var(--dim);font-weight:normal;margin:18px 0 8px}
+  .shopwrap h3 b{color:var(--amber);font-weight:normal}
+  /* 폭에 맞춰 저절로 접히게 한다. 열 수를 미디어쿼리로 박아 두었더니 그 규칙이 아래에 있어
+     폰에서도 2열이 이겨 카드 절반이 화면 밖으로 잘려 나갔다. */
+  /* minmax 의 최소값이 화면보다 크면 칸이 화면 밖으로 밀린다(360px 에서 13px 넘쳤다).
+     min(140px,100%) 로 두면 좁을 때는 100% 가 이겨 저절로 한 열로 접힌다. */
+  .shop{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:7px;text-align:left}
+  /* **격자 칸은 안의 글보다 작아질 수 있어야 한다.** grid 아이템의 min-width 는 auto 라서
+     카드 안 문구가 칸을 바깥으로 밀어냈고, 그래서 폭을 아무리 제한해도 오른쪽이 잘렸다. */
+  .shop>*, .dex>*, .sqslots>*, .sqbox>*{min-width:0;overflow:hidden}
+  .up{display:flex;align-items:center;gap:11px;padding:9px 12px}
+  /* min-width:190px 이 격자 칸(146px)보다 커서 카드가 칸 밖으로 밀려 나갔다 —
+     "폭을 제한했는데 왜 잘리지"의 마지막 조각. 격자가 폭을 정하게 두고 여기서는 안 잡는다. */
+  .up{flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+  .up .n{color:var(--amber);width:auto}
+  .up .d{color:var(--dim);font-size:11px;line-height:1.4}
+  .up .p{color:var(--good);font-size:11px}
+  .up:disabled .p{color:var(--dim)}
