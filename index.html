@@ -423,6 +423,10 @@
     <section>
       <h3>기록</h3>
       <div id="log"></div>
+      <!-- 테스트용 — 저장(부대·유물·업그레이드·도감·최고 기록)을 지우고 처음부터.
+           눈에 안 띄게 맨 아래 작게 둔다. 실수로 못 누르게 확인을 한 번 묻는다. -->
+      <button id="wipeBtn" style="margin-top:14px;font-size:11px;padding:5px 10px;
+        color:var(--dim);border-color:#2a323d">저장 초기화 — 처음부터</button>
     </section>
   </aside>
 </main>
@@ -1608,6 +1612,18 @@ $("autoBtn").onclick = () => {
   if (S.auto && !S.running && !S.over && S.gap <= 0) S.gap = WAVE_GAP;
   try { localStorage.setItem("rtd.auto", S.auto ? "1" : "0"); } catch {}
   refresh();
+};
+/* 테스트용 초기화 — 저장을 지우고 새로 뜬다. 지운 직후 루프가 saveMeta 로
+   되살리지 못하게 판부터 멈춘다. */
+$("wipeBtn").onclick = () => {
+  if (!confirm("저장을 전부 지우고 처음부터 시작한다. 되돌릴 수 없다 — 계속?")) return;
+  S.over = true; S.running = false;
+  try {
+    localStorage.removeItem(META_KEY);
+    localStorage.removeItem("rtd.auto");
+    localStorage.removeItem("rtd.autorun");
+  } catch {}
+  location.reload();
 };
 /** 상점을 연다. **판 도중에도 연다** — 벽에 부딪혔을 때 할 수 있는 게 죽기를 기다리는
  *  것뿐이면 그건 돌파가 아니다. 도중에 열면 게임은 뒤에서 계속 돈다(방치형이니까). */
