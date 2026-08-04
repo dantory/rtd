@@ -262,13 +262,14 @@
   @media (max-width: 420px){ aside{max-height:38vh} }
 
   /* 편성 화면 — 상점과 같은 틀을 쓴다. 뒤에서 게임은 계속 돈다(방치형이니 멈출 이유가 없다). */
-  #squad{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
+  #squad,#settings{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
     align-items:center;justify-content:center;text-align:center;
     backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-  #squad.on{display:flex}
-  #squad .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  #squad.on,#settings.on{display:flex}
+  #squad .box,#settings .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
     padding:22px 20px;box-shadow:0 18px 60px rgba(0,0,0,.6);max-width:94vw;max-height:88vh;overflow-y:auto}
-  #squad h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
+  #squad h2,#settings h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
+  #settings .box{min-width:min(320px,88vw)}
   #squad .sqh{margin:16px 0 7px;font-size:11px;letter-spacing:2px;color:var(--dim);font-weight:normal}
   /* 자리는 **가로로 늘어놓는다.** 벙커에 끼운 것을 한눈에 세는 게 이 화면의 전부다. */
   .sqslots{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:7px}
@@ -348,6 +349,7 @@
       <button id="fitBtn" title="전체 보기">⤢</button>
       <button id="zinBtn" title="확대">＋</button>
       <button id="zoutBtn" title="축소">－</button>
+      <button id="setBtn" title="설정">≡</button>
     </div>
     <!-- **편성은 따로 본다.** 전장에서 대원이 쏘는 걸 보는 건 그대로 두되(그게 이 장르의
          재미다), 누구를 넣고 뺄지는 칩 대신 제대로 된 화면에서 고른다 — 창고가 열 기를
@@ -364,10 +366,16 @@
         <button id="sqSell">고른 것 해산</button>
       </div>
       <div class="note" id="sqTip"></div>
-      <!-- 테스트용 초기화는 편성 화면 구석에 — 전장 HUD 를 어지럽히지 않으면서 아무 때나 열어 누를 수 있다 -->
-      <div class="stick"><button id="sqClose" style="padding:11px 26px">닫는다</button>
-        <button id="wipeBtn" style="font-size:11px;padding:5px 12px;margin-left:10px;
-          color:var(--dim);border-color:#2a323d">초기화</button></div>
+      <div class="stick"><button id="sqClose" style="padding:11px 26px">닫는다</button></div>
+    </div></div>
+    <!-- 설정 — 게임 진행과 상관없는 손잡이들이 모이는 곳. 지금은 초기화 하나다. -->
+    <div id="settings"><div class="box">
+      <h2>설정</h2>
+      <div class="rowbtn" style="margin-top:14px">
+        <button id="wipeBtn" style="flex:1;padding:10px 14px;color:#d08a8a;border-color:#4a2e2e">초기화 — 저장을 지우고 처음부터</button>
+      </div>
+      <div class="note" style="margin-top:8px">부대 · 유물 · 업그레이드 · 도감 · 최고 기록이 전부 지워진다.</div>
+      <div class="stick"><button id="setClose" style="padding:11px 26px">닫는다</button></div>
     </div></div>
     <div id="over"><div class="box">
       <h2 id="overT"></h2>
@@ -1615,6 +1623,10 @@ $("autoBtn").onclick = () => {
   try { localStorage.setItem("rtd.auto", S.auto ? "1" : "0"); } catch {}
   refresh();
 };
+/* 설정 — 게임 진행과 상관없는 손잡이들이 모이는 곳 */
+$("setBtn").onclick = () => $("settings").classList.add("on");
+$("setClose").onclick = () => $("settings").classList.remove("on");
+$("settings").addEventListener("click", (e) => { if (e.target === $("settings")) $("settings").classList.remove("on"); });
 /* 테스트용 초기화 — 저장을 지우고 새로 뜬다. 지운 직후 루프가 saveMeta 로
    되살리지 못하게 판부터 멈춘다. */
 $("wipeBtn").onclick = () => {
