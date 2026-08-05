@@ -25,8 +25,8 @@ export const recruitCost = () => Math.max(2, 4 - META.up.cheap) + Math.floor(MET
  *  열두 종류를 처음부터 다 풀면 같은 종류 같은 등급 셋이 좀처럼 안 모여 합성이 죽는다
  *  (실제로 등급 1.8 까지 떨어졌다). 넷으로 시작해 최고 기록이 오를 때마다 하나씩 연다 —
  *  초반에는 셋을 모으기 쉽고, 멀리 갈수록 새 얼굴이 나와 도감이 채워진다. */
-export const poolSize = () => Math.min(KIND_IDS.length, 4 + Math.floor(META.best / 5));
-export const nextUnlockAt = () => (poolSize() >= KIND_IDS.length ? 0 : (poolSize() - 3) * 5);
+export const poolSize = () => Math.min(KIND_IDS.length, 4 + Math.floor(META.best / 4));
+export const nextUnlockAt = () => (poolSize() >= KIND_IDS.length ? 0 : (poolSize() - 3) * 4);
 export function recruit() {
   const c = recruitCost();
   if (META.relics < c) return;

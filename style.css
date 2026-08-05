@@ -306,13 +306,14 @@
   @media (max-width: 520px){ #wavebar .wavekind{font-size:0;gap:0;margin-right:4px} #wavebar{gap:6px} }
 
   /* 편성 화면 — 상점과 같은 틀을 쓴다. 뒤에서 게임은 계속 돈다(방치형이니 멈출 이유가 없다). */
-  #squad,#settings,#offline{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
+  #squad,#settings,#offline,#intro{position:fixed;inset:0;background:rgba(6,8,10,.93);display:none;z-index:390;
     align-items:center;justify-content:center;text-align:center;
     backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
-  #squad.on,#settings.on,#offline.on{display:flex}
-  #squad .box,#settings .box,#offline .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  #squad.on,#settings.on,#offline.on,#intro.on{display:flex}
+  #intro{z-index:420}   /* 첫 안내는 무엇보다 위 — 다른 창이 겹치면 첫인상이 산으로 간다 */
+  #squad .box,#settings .box,#offline .box,#intro .box{background:var(--panel);border:1px solid var(--line);border-radius:8px;
     padding:22px 20px;box-shadow:0 18px 60px rgba(0,0,0,.6);max-width:94vw;max-height:88vh;overflow-y:auto}
-  #squad h2,#settings h2,#offline h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
+  #squad h2,#settings h2,#offline h2,#intro h2{color:var(--amber);font-weight:normal;letter-spacing:2px;margin:0 0 6px}
   #settings .box,#offline .box{min-width:min(320px,88vw)}
   /* 쌓인 자원은 크게 — 이 창에서 눈이 먼저 가야 할 곳이다 */
   #offline .offgain{color:var(--amber);font-size:30px;letter-spacing:1px;margin:16px 0 2px}
@@ -337,6 +338,10 @@
   .sqb:hover{border-color:var(--amber)}
   /* 고른 카드는 불이 들어온다 — 탭 한 번(고르기)이 화면에 남아야 다음 탭(내보내기·해산)이 읽힌다 */
   .sqs.sel,.sqb.sel{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
+  /* 카드마다 병과 이름 — 어두운 스프라이트끼리는 그림만으로 안 갈린다(점검 지적) */
+  .sqs .nm,.sqb .nm{position:absolute;left:0;right:0;top:3px;font-size:9px;color:var(--dim);
+    text-align:center;letter-spacing:0;pointer-events:none}
+  .sqs .gr{bottom:2px}
   .sqb .spr{width:70%;height:70%;object-fit:contain;image-rendering:pixelated}
   .sqb .ico{font-size:17px}
   .sqb:not(.noimg) .ico{display:none}
@@ -359,7 +364,7 @@
     background:linear-gradient(rgba(18,21,26,0) 0%, #12151a 60%, #12151a 100%)}
   #over>div,#forge>div{max-width:520px}
   /* 모달 안은 손가락 스크롤이 먹어야 한다 — #field 의 touch-action:none 이 물려받히지 않게 */
-  #over .box,#forge .box,#squad .box,#settings .box,#offline .box{touch-action:pan-y}
+  #over .box,#forge .box,#squad .box,#settings .box,#offline .box,#intro .box{touch-action:pan-y}
   .shopwrap h3{font-size:12px;letter-spacing:1px;color:var(--dim);font-weight:normal;margin:18px 0 8px}
   .shopwrap h3 b{color:var(--amber);font-weight:normal}
   /* 폭에 맞춰 저절로 접히게 한다. 열 수를 미디어쿼리로 박아 두었더니 그 규칙이 아래에 있어

@@ -114,7 +114,11 @@ export function spawnMob() {
     /* **체력을 흩뿌린다.** 모두 같은 체력이면 한 웨이브가 통째로 죽거나 통째로 산다 —
        편차를 주면 두꺼운 놈부터 새어 들어와 본진을 조금씩 깎는다. 종류 배수(prof.hp)를
        그 편차 위에 곱한다 — brute 는 두껍고 runner·swarm 은 얇다. */
-    const varr = boss ? 1 : 0.55 + Math.random() * 1.15;
+    /* 편차의 **폭은 라운드를 따라 넓어지되 평균은 1.125 로 고정**한다 — 폭만 넓히면
+       평균이 같이 올라 벽 위치가 통째로 밀린다(그건 편차가 아니라 그냥 상향이다).
+       후반일수록 아주 두꺼운 놈과 아주 얇은 놈이 같이 섞여, 새는 놈이 일찍부터 나온다. */
+    const spread = 1.15 + Math.min(0.9, S.round * 0.03);
+    const varr = boss ? 1 : Math.max(0.25, 1.125 + (Math.random() - 0.5) * spread);
     const hp = waveHp(S.round) * prof.hp * varr;
     const m = {
       id: nextId++, hp, maxHp: hp, boss, th, kind,
@@ -123,7 +127,7 @@ export function spawnMob() {
       // 한 대는 가볍게, 대신 **여럿이 오래** — 그래야 고치고 막는 병과가 값을 한다.
       // 계수를 0.28→0.22 로 낮춘다: 새어 든 놈이 본진을 천천히 깎아, 처음 맞은 뒤로 몇 라운드를
       // 더 버틴다(낭떠러지→비탈). 벽(=새기 시작하는 라운드)은 화력 임계라 이 값과 무관하다.
-      dmg: Math.round((2 + S.round * 0.22) * (boss ? 4 : 1)),
+      dmg: Math.round((2 + S.round * 0.17) * (boss ? 4 : 1)),
       slow: 0, slowT: 0, atkT: 0,
       guard: prof.guard || 0,               // 방패병 — 처음 몇 대를 크게 감쇄
     };
@@ -245,7 +249,14 @@ export function tick(dt) {
   // 소환
   if (S.running && S.spawned < S.toSpawn) {
     S.spawnT -= dt;
-    if (S.spawnT <= 0) { spawnMob(); S.spawnT = 0.55; }
+    if (S.spawnT <= 0) {
+      spawnMob();
+      /* **웨이브 후반은 러시다.** 고르게 흘려 넣으면 화력이 감당하는 동안 긴장이 0이다 —
+         남은 40%를 몰아치면 순간 밀도가 화력을 잠깐 넘어서고, 중반에도 체력바가 움직인다.
+         위생병·방패병이 값을 하는 순간이 여기서 생긴다. */
+      const prog = S.spawned / Math.max(1, S.toSpawn);
+      S.spawnT = prog > 0.65 ? 0.3 : 0.55;
+    }
   }
   // 이동과 교전.
   // 적이 노리는 건 벙커 하나다. 대원은 그 안에 있어 맞지 않는다.

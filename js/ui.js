@@ -109,6 +109,7 @@ export function drawSquad() {
       <img class="spr" src="assets/unit/${t.kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
+      <span class="nm">${K.n}</span>
       <span class="gr" style="color:${GCOL[t.g]}">${"★".repeat(Math.min(t.g,5))}</span></button>`;
   }).join("");
 
@@ -128,6 +129,7 @@ export function drawSquad() {
       <img class="spr" src="assets/unit/${kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
+      <span class="nm">${K.n}</span>
       <span class="cnt">${n}</span></button>`;
   }).join("") || `<div class="note">창고가 비었다. 징집하면 여기 쌓인다.</div>`;
 
@@ -269,6 +271,14 @@ export function wireUI() {
   const soundLabel = () => { $("soundBtn").textContent = soundOn() ? "소리 켜짐 — 누르면 끈다" : "소리 꺼짐 — 누르면 켠다"; };
   $("soundBtn").onclick = () => { setSound(!soundOn()); soundLabel(); if (soundOn()) sfx("coin"); };
   $("setBtn").onclick = () => { soundLabel(); $("settings").classList.add("on"); };
+  /* 첫 실행 한 번만 — 규칙 세 줄. 본 적 있으면 다시 안 묻는다. */
+  try {
+    if (!localStorage.getItem("rtd.intro")) $("intro").classList.add("on");
+  } catch {}
+  $("introGo").onclick = () => {
+    try { localStorage.setItem("rtd.intro", "1"); } catch {}
+    $("intro").classList.remove("on");
+  };
   $("setClose").onclick = () => $("settings").classList.remove("on");
   $("settings").addEventListener("click", (e) => { if (e.target === $("settings")) $("settings").classList.remove("on"); });
   $("wipeBtn").onclick = () => {
