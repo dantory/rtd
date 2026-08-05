@@ -13,7 +13,7 @@ export function refresh() {
   const waiting = inBox().length;
   $("rollNote").innerHTML =
     `자리 <b>${placed().length}/${slotMax()}</b>` +
-    (waiting ? ` · 창고에 <b>${waiting}</b>기 — 「편성」에서 바꿔 넣는다` : ` · 부대 ${META.army.length}기`);
+    (waiting ? ` · 창고에 <b>${waiting}</b>기 — 「배치」에서 바꿔 넣어요` : ` · 유닛 ${META.army.length}기`);
   /* 기다리는 동안에도 버튼은 살아 있다 — 다 됐으면 굳이 셋을 셀 이유가 없다. */
   const resting = !S.running && !S.over && S.auto && S.gap > 0;
   const long  = S.running ? "막는 중…" : resting ? `${S.round}라운드 — 지금 시작` : `${S.round}라운드 시작`;
@@ -23,11 +23,11 @@ export function refresh() {
   $("waveBtn2").textContent = short;
   $("waveBtn2").disabled = S.running || S.over;
   $("autoBtn").classList.toggle("on", S.auto);
-  $("autoBtn").title = S.auto ? "웨이브가 알아서 이어진다" : "웨이브를 손으로 시작한다";
+  $("autoBtn").title = S.auto ? "웨이브가 알아서 이어져요" : "웨이브를 직접 시작해요";
   $("runBtn").classList.toggle("on", S.autoRun);
-  $("runBtn").title = S.autoRun ? "뽑기·합성까지 알아서 한다" : "뽑기·합성을 손으로 한다";
+  $("runBtn").title = S.autoRun ? "뽑기·합치기까지 알아서 해요" : "뽑기·합치기를 직접 해요";
   const lanes = waveLanes(S.round).length;
-  /* **다음 웨이브는 상단 바에 상시로.** 편성 결정의 재료라 늘 보여야 한다(병수님 방향).
+  /* **다음 웨이브는 상단 바에 상시로.** 배치 결정의 재료라 늘 보여야 한다(병수님 방향).
      웨이브가 도는 중에는 "다음" = 다음 라운드다. 보스·새 적 같은 사건은 배너가 맡는다. */
   const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패" };
   const nextR = S.running ? S.round + 1 : S.round;
@@ -41,7 +41,7 @@ export function refresh() {
         onerror="this.remove()">` : "");
   $("waveNote").textContent = S.running
     ? `${S.toSpawn}마리 중 ${S.spawned}마리 나옴 · 남은 적 ${S.mobs.length}`
-    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다`;
+    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 와요`;
 
   // **가진 것은 목록이 아니라 진열대로 보여 준다.** 여덟 종이 되고 나니 글 목록은
   // 훑어야 읽히고, 그러면 "뭘 합칠 수 있나"가 한눈에 안 들어온다.
@@ -55,26 +55,26 @@ export function refresh() {
        순간부터 "둘 있는데 하나만 싸우는 중"이 늘 벌어진다 — 그게 안 보이면 왜 약한지 모른다. */
     const out = arr.filter(isOut).length;
     cells.push(`<button class="hold${ready ? " ready" : ""}${out ? "" : " away"}" data-hold="${kind}:${g}"
-        title="${GNAME[g]} ${KINDS[kind].n} — ${KINDS[kind].d} · 눌러서 내보내거나 거둔다">
+        title="${GNAME[g]} ${KINDS[kind].n} — ${KINDS[kind].d} · 눌러서 넣거나 빼요">
       <img class="spr" src="assets/unit/${kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${KINDS[kind].ico}</span>
       <span class="cnt">${out}/${arr.length}</span>
       <span class="gr" style="background:${GCOL[g]}"></span></button>`);
   }
-  $("tally").innerHTML = cells.join("") || `<div class="note">아직 없다. 판이 끝나면 징집한다.</div>`;
+  $("tally").innerHTML = cells.join("") || `<div class="note">아직 없어요. 판이 끝나면 뽑을 수 있어요.</div>`;
   const readyN = [...m.entries()].filter(([k, a]) => +k.split(":")[1] < 5 && a.length >= 3).length;
-  $("holdHint").textContent = readyN ? `· ${readyN}가지를 합칠 수 있다` : "";
+  $("holdHint").textContent = readyN ? `· ${readyN}가지 합칠 수 있어요` : "";
 
   const t = META.army.find(x => x.id === S.sel);
   $("selInfo").innerHTML = t ? `<div class="sel-info">
       <div class="nm" style="color:${GCOL[t.g]}">${GNAME[t.g]} ${KINDS[t.kind].n}</div>
       <div class="st">피해 ${dmgOf(t)} · 사거리 ${rngOf(t)} · ${KINDS[t.kind].d}<br>
         ${isOut(t)
-          ? `<span style="color:var(--steel)">벙커에서 싸우는 중 — 판의 링이 사거리다.</span>`
-          : `<span style="color:var(--amber)">창고에 있다 — 아직 안 싸운다.</span>
-             <span style="color:var(--steel)">「편성」에서 내보낸다.</span>`}</div></div>`
-    : `<div class="note helpnote">대원을 누르면 사거리가 보인다. 넣고 빼는 것은 「편성」에서.</div>`;
+          ? `<span style="color:var(--steel)">벙커에서 싸우는 중 — 원이 사거리예요.</span>`
+          : `<span style="color:var(--amber)">창고에 있어요 — 아직 안 싸워요.</span>
+             <span style="color:var(--steel)">「배치」에서 넣어요.</span>`}</div></div>`
+    : `<div class="note helpnote">유닛을 누르면 사거리가 보여요. 넣고 빼는 건 「배치」에서.</div>`;
 }
 
 /* 진열대의 칩은 **내보내고 거두는 손잡이**다. 합성은 아래 버튼이 맡는다 —
@@ -91,13 +91,13 @@ export function openShop() {
   drawShop();
   $("forge").classList.add("on");
 }
-/** **편성 화면** — 자리에 누가 들어가 있고 창고에 무엇이 남았는지를 한 화면에서 본다.
+/** **배치 화면** — 자리에 누가 들어가 있고 창고에 무엇이 남았는지를 한 화면에서 본다.
  *
  *  전장의 진열대 칩으로도 넣고 뺄 수는 있지만, 창고가 열 기를 넘어가면 44px 칩이 빽빽해져
  *  무엇이 있는지조차 안 읽힌다. 자리를 **가로로 늘어놓아** 벙커에 끼운 것을 그대로 세게 하고,
  *  창고는 종류·등급으로 묶어 아래에 크게 편다. 뒤에서 게임은 계속 돈다 — 멈출 이유가 없다.
  *
- *  자리를 누르면 그 대원을 거두고, 창고 칸을 누르면 빈 자리에 내보낸다. */
+ *  자리를 누르면 그 유닛을 거두고, 창고 칸을 누르면 빈 자리에 내보낸다. */
 export function drawSquad() {
   const spots = SLOT_SPOTS.slice(0, slotMax());
   const at = new Map(placed().map(t => [t.x + "," + t.y, t]));
@@ -105,7 +105,7 @@ export function drawSquad() {
     const t = at.get(x + "," + y);
     if (!t) return `<div class="sqs empty"><span class="no">+</span></div>`;
     const K = KINDS[t.kind];
-    return `<button class="sqs${t.id === S.sel ? " sel" : ""}" data-pull="${t.id}" title="${GNAME[t.g]} ${K.n} — 눌러서 거둔다">
+    return `<button class="sqs${t.id === S.sel ? " sel" : ""}" data-pull="${t.id}" title="${GNAME[t.g]} ${K.n} — 눌러서 빼요">
       <img class="spr" src="assets/unit/${t.kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
@@ -122,31 +122,31 @@ export function drawSquad() {
   $("sqBox").innerHTML = [...box.entries()].map(([k, n]) => {
     const [kind, gs] = k.split(":"), g = +gs, K = KINDS[kind];
     /* 고른 것이 이 묶음에 있으면 카드에 불이 들어온다 — 첫 탭(고르기)이 아무 일도 없는
-       것처럼 보이면 편성 자체가 고장으로 읽힌다(실제로 그렇게 읽혔다). */
+       것처럼 보이면 배치 자체가 고장으로 읽힌다(실제로 그렇게 읽혔다). */
     const on = selT && !isOut(selT) && selT.kind === kind && selT.g === g;
-    return `<button class="sqb${on ? " sel" : ""}" data-push="${k}" title="${GNAME[g]} ${K.n} — 눌러서 내보낸다">
+    return `<button class="sqb${on ? " sel" : ""}" data-push="${k}" title="${GNAME[g]} ${K.n} — 눌러서 넣어요">
       <span class="gr" style="background:${GCOL[g]}"></span>
       <img class="spr" src="assets/unit/${kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
       <span class="nm">${K.n}</span>
       <span class="cnt">${n}</span></button>`;
-  }).join("") || `<div class="note">창고가 비었다. 징집하면 여기 쌓인다.</div>`;
+  }).join("") || `<div class="note">창고가 비었어요. 뽑으면 여기 쌓여요.</div>`;
 
   const free = spots.length - at.size;
   $("sqNote").innerHTML = `자리 <b>${at.size}/${spots.length}</b>` +
-    (free ? ` · <b style="color:var(--amber)">${free}자리 비었다</b>` : "") +
-    ` — 자리를 누르면 거두고, 창고를 누르면 내보낸다`;
+    (free ? ` · <b style="color:var(--amber)">${free}자리 비었어요</b>` : "") +
+    ` — 자리를 누르면 빼고, 창고를 누르면 넣어요`;
   $("sqBoxN").textContent = `${inBox().length}기 대기`;
   const k = canMerge();
   $("sqMerge").disabled = !k;
   $("sqMerge").textContent = k
-    ? `${GNAME[+k.split(":")[1]]} ${KINDS[k.split(":")[0]].n} 셋을 합친다` : "셋을 합친다";
+    ? `${GNAME[+k.split(":")[1]]} ${KINDS[k.split(":")[0]].n} 셋 합치기` : "셋 합치기";
   const sel = META.army.find(t => t.id === S.sel);
   $("sqSell").disabled = !sel;
   $("sqTip").innerHTML = sel
-    ? `고른 것: <b style="color:${GCOL[sel.g]}">${GNAME[sel.g]} ${KINDS[sel.kind].n}</b> — 해산하면 자원 +${sellOf(sel)}`
-    : `같은 병과 같은 등급 <b>셋</b>이 모이면 한 등급 위가 된다 — 총 화력은 그대로인데 <b>자리가 둘 빈다</b>`;
+    ? `고른 것: <b style="color:${GCOL[sel.g]}">${GNAME[sel.g]} ${KINDS[sel.kind].n}</b> — 정리하면 자원 +${sellOf(sel)}`
+    : `같은 종류 같은 등급 <b>셋</b>을 모으면 한 등급 위가 돼요 — 화력은 그대로인데 <b>자리가 둘 비어요</b>`;
 }
 export const openSquad = () => { drawSquad(); $("squad").classList.add("on"); };
 
@@ -223,7 +223,7 @@ export let mdrag = null;
 
 
 export function newGame() {
-  refreshSlots();            // 증축한 만큼 자리를 연다 — 판을 시작할 때 한 번
+  refreshSlots();            // 자리 늘리기한 만큼 자리를 연다 — 판을 시작할 때 한 번
   Object.assign(S, {
     coreHp: metaLife(), coreMax: metaLife(), round: 1,
     towers: [], mobs: [], shots: [],
@@ -234,8 +234,8 @@ export function newGame() {
     autoRun: S.autoRun, autoT: 0, bounty: 0,
   });
   mobEls.forEach(el => el.remove()); mobEls.clear();
-  fillFree(); syncArmy();          // 편성해 둔 대로 세우고 체력을 채운다
-  /* **첫 부대는 그냥 준다.** 빈손으로는 편성이라는 말이 성립하지 않는다.
+  fillFree(); syncArmy();          // 배치해 둔 대로 세우고 체력을 채운다
+  /* **첫 부대는 그냥 준다.** 빈손으로는 배치이라는 말이 성립하지 않는다.
      매 판 주면 부대가 무한 증식하므로, 부대가 비어 있을 때 한 번만 채운다. */
   for (let i = META.army.length; i < 4; i++) {
     const t0 = { id: ++META.armyId, slot: null,
@@ -268,7 +268,7 @@ export function wireUI() {
     try { localStorage.setItem("rtd.auto", S.auto ? "1" : "0"); } catch {}
     refresh();
   };
-  const soundLabel = () => { $("soundBtn").textContent = soundOn() ? "소리 켜짐 — 누르면 끈다" : "소리 꺼짐 — 누르면 켠다"; };
+  const soundLabel = () => { $("soundBtn").textContent = soundOn() ? "소리 켜짐 — 누르면 꺼요" : "소리 꺼짐 — 누르면 켜요"; };
   $("soundBtn").onclick = () => { setSound(!soundOn()); soundLabel(); if (soundOn()) sfx("coin"); };
   $("setBtn").onclick = () => { soundLabel(); $("settings").classList.add("on"); };
   /* 첫 실행 한 번만 — 규칙 세 줄. 본 적 있으면 다시 안 묻는다. */
@@ -282,7 +282,7 @@ export function wireUI() {
   $("setClose").onclick = () => $("settings").classList.remove("on");
   $("settings").addEventListener("click", (e) => { if (e.target === $("settings")) $("settings").classList.remove("on"); });
   $("wipeBtn").onclick = () => {
-    if (!confirm("저장을 전부 지우고 처음부터 시작한다. 되돌릴 수 없다 — 계속?")) return;
+    if (!confirm("저장을 전부 지우고 처음부터 시작해요. 되돌릴 수 없어요. 계속할까요?")) return;
     S.over = true; S.running = false;
     try {
       localStorage.removeItem(META_KEY);
@@ -310,7 +310,7 @@ export function wireUI() {
     if (!b) return;
     const [kind, gs] = b.dataset.push.split(":");
     /* 한 번 누르면 고르고, 이미 고른 것을 또 누르면 내보낸다.
-       해산할 대상을 집을 길이 있어야 "쓸모없는 하급을 정리한다"가 가능해진다. */
+       정리할 대상을 집을 길이 있어야 "쓸모없는 하급을 정리한다"가 가능해진다. */
     const same = META.army.find(t => t.kind === kind && t.g === +gs && !isOut(t));
     if (same && S.sel !== same.id) { S.sel = same.id; drawSquad(); refresh(); return; }
     toggleOut(b.dataset.push);
@@ -321,22 +321,22 @@ export function wireUI() {
   $("forgeBtn").onclick = openShop;
   $("overSquad").onclick = () => openSquad();
   $("forgeClose").onclick = () => $("forge").classList.remove("on");
-  /* 재편 — 되돌릴 수 없으니 무엇이 사라지고 무엇이 남는지를 한 번 더 묻는다.
+  /* 환생 — 되돌릴 수 없으니 무엇이 사라지고 무엇이 남는지를 한 번 더 묻는다.
      누른 뒤에는 판을 처음부터 다시 시작한다 — 반납한 부대로 판을 이어 갈 수는 없다. */
   $("prestigeBtn").onclick = () => {
     const g = medalGain();
     if (g <= 0) return;
-    if (!confirm(`재편한다 — 훈장 ${g}개를 받는다.\n\n부대 · 능력치 · 병과 훈련 · 가진 자원이 처음으로 돌아간다.\n도감과 최고 기록은 남는다. 계속?`)) return;
+    if (!confirm(`환생하면 훈장 ${g}개를 받아요.\n\n유닛 · 능력치 · 키운 단계 · 가진 자원이 처음으로 돌아가요.\n도감과 최고 기록은 남아요. 계속할까요?`)) return;
     prestige();
     sfx("win");
     refreshSlots();
     newGame();            // 반납한 부대로 판을 이어 갈 수는 없다 — 새 판으로 시작한다
     drawShop();
-    say(`재편했다 — 훈장 <b style="color:var(--amber)">${medals()}</b>. 모든 피해와 자원이 영영 올랐다.`);
+    say(`환생했어요 — 훈장 <b style="color:var(--amber)">${medals()}</b>. 모든 피해와 자원이 올랐어요.`);
   };
   $("relicBtn").onclick = () => {
     if (S.over) { openShop(false); return; }
-    say(`자원 <b style="color:var(--amber)">${META.relics}</b> — 판이 끝나면 쓴다.`);
+    say(`자원 <b style="color:var(--amber)">${META.relics}</b> — 판이 끝나면 쓸 수 있어요.`);
   };
   $("dex").addEventListener("click", (e) => {
     const b = e.target.closest("[data-train]");
@@ -438,7 +438,7 @@ export function wireUI() {
     if (META.relics < c) return;
     META.relics -= c; META.up[k]++;
     saveMeta(); drawShop(); paint();
-    /* 증축은 **다음 판부터**가 아니라 지금 눈에 보여야 한다. 상점은 판이 끝난 뒤에 열리므로
+    /* 자리 늘리기은 **다음 판부터**가 아니라 지금 눈에 보여야 한다. 상점은 판이 끝난 뒤에 열리므로
        여기서 자리를 열어 두면, 새 판이 시작될 때 이미 넓어진 앞마당이 깔려 있다. */
     if (k === "slots") { refreshSlots(); fillFree(); drawGrid(); }
     /* 판 도중에 산 것도 **지금** 들어야 한다. 다음 판부터 세진다면 벽 앞에서 사는 의미가 없다.
@@ -451,7 +451,7 @@ export function wireUI() {
 }
 
 export function trainKind(k) {
-  if (!META.seen[k]) return;                    // 만나 본 적 없는 병과는 훈련시킬 수 없다
+  if (!META.seen[k]) return;                    // 만나 본 적 없는 종류는 훈련시킬 수 없다
   const c = kindCost(k);
   if (META.relics < c) return;
   META.relics -= c; META.lv[k] = kindLv(k) + 1;

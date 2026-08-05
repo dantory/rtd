@@ -16,7 +16,7 @@ export const WAVE_GAP = 3.5;                  // 웨이브 사이에 숨 돌리�
    그러면 화력이 감당하는 동안은 다 같이 죽고, 한계를 넘는 순간 다 같이 새어 든다(재 보니
    처음 맞은 라운드와 죽는 라운드가 1~2R). 결을 종마다 벌려 두면 두껍고 느린 놈(brute)이
    먼저 새어 들어와 본진을 조금씩 깎고, 얇고 빠른 놈(runner)은 그래도 잡히며, 그 간격이
-   라운드를 따라 벌어진다. 덤으로 위생병·냉동병처럼 때리지 않는 병과가 값을 하기 시작한다.
+   라운드를 따라 벌어진다. 덤으로 위생병·냉동병처럼 때리지 않는 종류가 값을 하기 시작한다.
    수치는 시작점일 뿐 — probe 로 재서 벽 20~28R 을 유지하도록 튜닝한다. */
 const MOB = {
   grunt:  { hp: 0.85, sp: 1.0 },                       // 기준
@@ -33,9 +33,9 @@ const MOB = {
 const BOSS_POWERS = ["haste", "spawn", "ward"];
 export const bossPower = (r) => BOSS_POWERS[(Math.floor(r / 5) - 1 + BOSS_POWERS.length) % BOSS_POWERS.length];
 export const bossNote = (r) => ({
-  haste: "큰 놈이 온다 — 곁의 적을 몰아친다",
-  spawn: "큰 놈이 온다 — 쓰러지며 새끼를 흩는다",
-  ward:  "큰 놈이 온다 — 멀리서는 잘 안 박힌다",
+  haste: "큰 놈이 와요 — 주변 적을 몰아쳐요",
+  spawn: "큰 놈이 와요 — 쓰러지면서 새끼를 흩뿌려요",
+  ward:  "큰 놈이 와요 — 멀리서는 잘 안 박혀요",
 }[bossPower(r)]);
 
 /** 보스가 쓰러진 자리에서 새끼가 흩어진다 — runner 결의 얇은 몹 4마리. 소환 수(S.spawned)에는
@@ -104,7 +104,7 @@ export function spawnMob() {
   /* **놓을 수 있는 자리 바로 바깥에서 나온다.** 예전엔 526px(판 대각선 절반)에서 걸어와
      화면 밖에서 한참을 왔다 — 배치 구역(반지름 224) 바로 밖 294px 로 당겼다. 그래서
      속도의 기준은 여전히 24 로 둔다: 거리를 당긴 만큼 속도를 같이 올리면 사거리 안에
-     머무는 시간이 줄어(대원 총량 = 사거리 ÷ 속도) 난이도가 튄다. 종류 배수만 그 위에 곱한다. */
+     머무는 시간이 줄어(유닛 총량 = 사거리 ÷ 속도) 난이도가 튄다. 종류 배수만 그 위에 곱한다. */
   const far = spawnRadius();
   // swarm 은 한 번에 2~3마리 — 낱개로 흩뿌린다. 그 외엔 한 마리.
   const pack = prof.pack ? prof.pack[Math.floor(Math.random() * prof.pack.length)] : 1;
@@ -124,7 +124,7 @@ export function spawnMob() {
       id: nextId++, hp, maxHp: hp, boss, th, kind,
       x: c.x + Math.cos(th) * far, y: c.y + Math.sin(th) * far,
       speed: 24 * prof.sp * (1 + (S.round - 1) * 0.02),   // px/초 — 종류마다 결이 다르다
-      // 한 대는 가볍게, 대신 **여럿이 오래** — 그래야 고치고 막는 병과가 값을 한다.
+      // 한 대는 가볍게, 대신 **여럿이 오래** — 그래야 고치고 막는 종류가 값을 한다.
       // 계수를 0.28→0.22 로 낮춘다: 새어 든 놈이 본진을 천천히 깎아, 처음 맞은 뒤로 몇 라운드를
       // 더 버틴다(낭떠러지→비탈). 벽(=새기 시작하는 라운드)은 화력 임계라 이 값과 무관하다.
       dmg: Math.round((2 + S.round * 0.17) * (boss ? 4 : 1)),
@@ -220,7 +220,7 @@ function bossRing(x, y) {
   setTimeout(() => el.remove(), 600);
 }
 
-/** 합쳐지면 벙커가 한 번 빛난다 — 대원이 안에 있으니 연출도 벙커에서 터져야 맞다. */
+/** 합쳐지면 벙커가 한 번 빛난다 — 유닛이 안에 있으니 연출도 벙커에서 터져야 맞다. */
 export function popTower(t, cls) {
   const el = $("coreEl");
   if (!el) return;
@@ -259,7 +259,7 @@ export function tick(dt) {
     }
   }
   // 이동과 교전.
-  // 적이 노리는 건 벙커 하나다. 대원은 그 안에 있어 맞지 않는다.
+  // 적이 노리는 건 벙커 하나다. 유닛은 그 안에 있어 맞지 않는다.
   const c = coreCenter(), cr = coreRadius();
   // 보스 haste — 곁의 적을 몰아친다. 오라(170px) 안의 몹은 1.5배로 온다(보스 자신은 뺀다).
   const haste = S.mobs.find(m => m.boss && m.power === "haste");
@@ -269,12 +269,12 @@ export function tick(dt) {
 
     /* **적이 노리는 건 벙커 하나다.**
      *
-     *  전에는 코앞의 대원에게 막혀 그를 때렸다. 자리가 셋뿐인 구조에서 그러면 대원이
+     *  전에는 코앞의 유닛에게 막혀 그를 때렸다. 자리가 셋뿐인 구조에서 그러면 유닛이
      *  죽어 없어지고 화력이 통째로 사라져 그 판이 거기서 끝난다(여섯 판 중 세 판이 1R).
      *  맞는 것을 본진으로 돌려도 마찬가지였다 — 막혀 있는 동안 그 피해가 전부 본진으로
-     *  들어가 오히려 더 빨리 무너졌다. 대원은 벙커 안에 있는 것이니 **아예 맞지 않는다.**
+     *  들어가 오히려 더 빨리 무너졌다. 유닛은 벙커 안에 있는 것이니 **아예 맞지 않는다.**
      *  깎이는 것은 본진뿐이고, 그래서 방어는 받는 피해를 줄이는 일(방패병)과
-     *  깎인 것을 되돌리는 일(위생병)로 갈린다. 잃는 것은 판이지 모아 온 대원이 아니다. */
+     *  깎인 것을 되돌리는 일(위생병)로 갈린다. 잃는 것은 판이지 모아 온 유닛이 아니다. */
     m.stuck = false;
     const d = Math.hypot(m.x - c.x, m.y - c.y);
     if (d <= cr + 8) {                            // 본진에 붙었다
@@ -307,7 +307,7 @@ export function tick(dt) {
      그건 방치가 아니라 그냥 버튼이 하나 줄어든 것이다. 판 안에서 손이 갈 일은 없애고,
      빈 자리만 채운다 — 사람에게 남는 결정은 **무엇을 내보낼지와 무엇에 자원을 쓸지**다.
      한 틱에 몰아 하지 않고 0.4초에 한 번만 손을 대, 불어나는 게 눈에 보이게 한다. */
-  /* 편성 화면이 열려 있는 동안은 손을 뗀다 — 사람이 거둔 자리를 0.4초 만에 도로
+  /* 배치 화면이 열려 있는 동안은 손을 뗀다 — 사람이 거둔 자리를 0.4초 만에 도로
      채우면 "거두기가 안 된다"로 보인다(실제로 그렇게 보였다). 닫으면 다시 맡는다. */
   if (S.autoRun && !S.over && !$("squad").classList.contains("on")) {
     S.autoT = (S.autoT || 0) - dt;
@@ -322,7 +322,7 @@ export function tick(dt) {
 
   /* 냉동병 — **냉기장**이다. 사거리 안 모든 적이 느려진다(이동도, 벙커를 때리는 손도).
      한 발씩 얼리는 방식은 사방에서 붙는 적을 못 덮어 심사에서 +0.3R 로 죽어 있었다 —
-     제어 병과는 낱발이 아니라 장판이어야 이 구조(한 점 벙커, 전방위 쇄도)에서 값을 한다. */
+     제어 종류는 낱발이 아니라 장판이어야 이 구조(한 점 벙커, 전방위 쇄도)에서 값을 한다. */
   for (const t of placed()) {
     const K2 = KINDS[t.kind];
     if (!K2.slow) continue;
@@ -338,7 +338,7 @@ export function tick(dt) {
     }
   }
 
-  /* 위생병 — 싸우는 동안 **본진**을 고친다. 대원이 안 죽게 된 뒤로 깎이는 것은 본진뿐이고,
+  /* 위생병 — 싸우는 동안 **본진**을 고친다. 유닛이 안 죽게 된 뒤로 깎이는 것은 본진뿐이고,
      그러니 고칠 것도 본진이다. 웨이브 도중에만 의미가 있는 힘이다. */
   for (const t of placed()) {
     const h = KINDS[t.kind].heal;
@@ -353,8 +353,8 @@ export function tick(dt) {
     flyText(c2.x, c2.y - coreRadius(), "+" + amt, "#7fb069");
   }
 
-  // 대원 — **내보낸 것만 쏜다.** 창고에 있는 건 구경만 한다.
-  // 대원은 벙커 안에 있으므로 사거리도 탄도 전부 **벙커**가 기준이다.
+  // 유닛 — **내보낸 것만 쏜다.** 창고에 있는 건 구경만 한다.
+  // 유닛은 벙커 안에 있으므로 사거리도 탄도 전부 **벙커**가 기준이다.
   const cc = coreCenter();
   for (const t of placed()) {
     t.cd = (t.cd || 0) - dt;
@@ -362,7 +362,7 @@ export function tick(dt) {
     const K = KINDS[t.kind], r = rngOf(t);
     // **벙커에 제일 가까이 온 놈부터** 노린다 — 먼 놈을 먼저 잡으면 코앞의 것을 놓친다.
     // 지뢰밭만은 **멈춰 붙은 놈**을 노린다 — 그래야 "달라붙은 것들을 한꺼번에"가 된다.
-    /* 공병(arm)은 **붙은 놈 우선, 없으면 가까운 놈** — "붙은 놈만"으로 두면 벙커가 안
+    /* 지뢰병(arm)은 **붙은 놈 우선, 없으면 가까운 놈** — "붙은 놈만"으로 두면 벙커가 안
        맞는 동안(대부분의 라운드) 완전 무직이다. 심사에서 +0.3R, 소총병만도 못했다. */
     let best = null, bestD = 1e9, bestStuck = null, bestStuckD = 1e9;
     for (const m of S.mobs) {
@@ -385,11 +385,11 @@ export function tick(dt) {
     const ty = cc.y + diry * coreRadius() * 0.9 + dirx * lat;
     S.shots.push({ x: tx, y: ty, tx: bp.x, ty: bp.y, life: 0.14, col: K.col });
     muzzle(tx, ty, K.col);                  // 총안구에서 불빛이 튄다
-    sfx(K.cd >= 2 ? "heavy" : "shoot");     // 느리고 무거운 병과(로켓·저격·공병)는 소리도 무겁게
+    sfx(K.cd >= 2 ? "heavy" : "shoot");     // 느리고 무거운 종류(로켓·저격·지뢰)는 소리도 무겁게
     boom(bp.x, bp.y, K.fx || "hit");
 
     hurt(best, d, t);
-    // 훈련 등급이 오르면 그 병과의 특기도 같이 자란다 — 그게 곧 스킬 성장이다
+    // 훈련 등급이 오르면 그 종류의 특기도 같이 자란다 — 그게 곧 스킬 성장이다
     const sk = kindSkill(t.kind);
     if (K.slow) { best.slow = Math.max(best.slow, Math.min(0.8, K.slow * sk)); best.slowT = 1.1; }
     if (K.splash) for (const m of S.mobs) {
@@ -452,7 +452,7 @@ export function tick(dt) {
       const first = META.relics === 0;      // 이 판에서 처음 손에 쥐는 자원인가
       META.relics += rel; saveMeta();
       // 처음 한 번은 어디서 쓰는지까지 말해 준다. 두 번째부터는 잔소리다.
-      if (first) say('자원이 쌓인다 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 병과를 올린다.');
+      if (first) say('자원이 쌓여요 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 유닛을 키울 수 있어요.');
     }
     S.round++;
     drawGrid();            // 다음 웨이브가 오는 갈래가 바뀌었다
@@ -474,13 +474,13 @@ export function gameOver() {
   $("overT").textContent = win ? "승리" : "패배";
   $("overT").style.color = win ? "#7fb069" : "#d05353";
   $("overD").innerHTML = win
-    ? `<b>${S.round}라운드</b> — 최고 기록을 넘었다.<br><b style="color:var(--amber)">자원 +${got}</b>`
-    : `<b>${S.round}라운드</b>에서 벙커가 무너졌다. 최고 ${META.best}라운드.<br>` +
+    ? `<b>${S.round}라운드</b> — 최고 기록을 넘었어요!<br><b style="color:var(--amber)">자원 +${got}</b>`
+    : `<b>${S.round}라운드</b>에서 벙커가 무너졌어요. 최고 ${META.best}라운드.<br>` +
       `<b style="color:var(--amber)">자원 +${got}</b>`;
-  /* 재편할 것이 생겼으면 결과에서 한 줄로 알린다 — 강화 메뉴를 열어 봐야 아는 성장 축이면
+  /* 환생할 것이 생겼으면 결과에서 한 줄로 알린다 — 강화 메뉴를 열어 봐야 아는 성장 축이면
      있으나 마나다. 다만 여기서 하지는 않는다: 되돌릴 수 없는 결정은 제 자리에서 내린다. */
   if (medalGain() > 0)
-    $("overD").innerHTML += `<br><b style="color:#d6a84a">「강화」에서 재편할 수 있다 — 훈장 +${medalGain()}</b>`;
+    $("overD").innerHTML += `<br><b style="color:#d6a84a">「강화」에서 환생할 수 있어요 — 훈장 +${medalGain()}</b>`;
   drawShop();
   $("over").classList.add("on");
 }
@@ -499,10 +499,10 @@ export function drawShop() {
   $("recruitBtn").disabled = META.relics < recruitCost();
   const nx = nextUnlockAt();
   $("armyNote").innerHTML =
-    `부대 <b>${META.army.length}</b>기 · 자리 <b>${slotMax()}</b> · 나오는 병과 <b>${poolSize()}</b>/${KIND_IDS.length}` +
-    (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 열린다` : "");
+    `유닛 <b>${META.army.length}</b>기 · 자리 <b>${slotMax()}</b> · 나오는 종류 <b>${poolSize()}</b>/${KIND_IDS.length}` +
+    (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 열려요` : "");
 
-  /* 도감 — 아직 못 본 병과도 **자리를 비워 둔 채로 보여 준다.** 몇 개가 남았는지 보이지
+  /* 도감 — 아직 못 본 종류도 **자리를 비워 둔 채로 보여 준다.** 몇 개가 남았는지 보이지
      않으면 모을 이유가 생기지 않는다. 만난 최고 등급을 별로 남기고, 수치·다음 목표까지 적어
      도감이 "수집의 지도"가 되게 한다. */
   const dxRow = (lb, cur, nxt) =>
@@ -513,15 +513,15 @@ export function drawShop() {
       /* ??? 도 **다음 목표**를 적는다. 넷째부터 최고 라운드 (i-3)*5 마다 하나씩 열리니(poolSize),
          "무엇이, 언제 열리는지"가 보이면 못 본 칸도 밀어 볼 이유가 된다. */
       const at = Math.max(0, i - 3) * 4;   // poolSize 와 같은 걸음(4라운드마다 하나) — 5 로 두어 40R 이라 적고 있었다
-      return `<div class="dxc off" title="아직 못 만났다"><span class="ico">?</span>
+      return `<div class="dxc off" title="아직 못 만났어요"><span class="ico">?</span>
            <span class="dxn">???</span>
-           <span class="dxt">${at ? `최고 <b>${at}R</b> 에 열린다` : "곧 열린다"}</span></div>`;
+           <span class="dxt">${at ? `최고 <b>${at}R</b>에 열려요` : "곧 열려요"}</span></div>`;
     }
-    /* 만난 병과는 **키울 수 있다.** 누를 수 있게 해 두면 "이번엔 저격수를 밀어 보자"가 성립하고,
+    /* 만난 종류는 **키울 수 있다.** 누를 수 있게 해 두면 "이번엔 저격수를 밀어 보자"가 성립하고,
        카드에 지금 피해·사거리·특기와 한 단계 위 값을 적어 무엇이 얼마나 오를지 미리 보인다. */
     const lv = kindLv(k), c = kindCost(k), can = META.relics >= c, s = dexStat(k);
     return `<button class="dxc train${can ? " can" : ""}" data-train="${k}"
-         title="${K.n} — ${K.d}&#10;훈련 ${lv}등급 · 다음 등급 자원 ${c}">
+         title="${K.n} — ${K.d}&#10;${lv}단계 · 다음 단계 자원 ${c}">
        ${newlySeen.has(k) ? `<span class="dxnew">NEW</span>` : ""}
        <img class="spr" src="assets/unit/${k}.png" alt=""
          onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
@@ -530,14 +530,14 @@ export function drawShop() {
        <span class="dxg" style="color:${GCOL[g]}">${"★".repeat(Math.min(g,5))}</span>
        <span class="dxst">${dxRow("피해", s.dmg, s.dmgN)}${dxRow("사거리", s.rng, s.rngN)}${
          s.sLb ? dxRow(s.sLb, s.sCur, s.sNxt) : ""}</span>
-       <span class="dxt">훈련 ${lv} <b>자원 ${c}</b></span></button>`;
+       <span class="dxt">${lv}단계 <b>자원 ${c}</b></span></button>`;
   }).join("");
   $("dexHave").textContent = seenCount();
   $("dexAll").textContent = KIND_IDS.length;
   drawMedals();
 }
 
-/** 재편 칸. **지금 무엇을 얻고 무엇을 잃는지**를 버튼 앞에서 다 말한다 —
+/** 환생 칸. **지금 무엇을 얻고 무엇을 잃는지**를 버튼 앞에서 다 말한다 —
  *  되돌릴 수 없는 버튼이라 누른 뒤에 알게 되면 그건 함정이다. */
 export function drawMedals() {
   const n = medals(), g = medalGain(), nx = nextMedalAt();
@@ -546,21 +546,21 @@ export function drawMedals() {
       ? `훈장 <b style="color:var(--amber)">${n}</b> — 모든 피해 <b>+${Math.round((medalDmg() - 1) * 100)}%</b> · ` +
         `자원 <b>+${Math.round((medalRelic() - 1) * 100)}%</b>` +
         (medalSlots() ? ` · 시작 자리 <b>+${medalSlots()}</b>` : "")
-      : `훈장은 <b>재편해도 사라지지 않는다</b> — 모든 피해와 자원, 시작 자리가 영영 오른다.`) +
+      : `훈장은 <b>환생해도 사라지지 않아요</b> — 모든 피해와 자원, 시작 자리가 계속 올라요.`) +
     `<br>` + (g
-      ? `재편하면 <b style="color:var(--amber)">부대 · 능력치 · 병과 훈련 · 가진 자원</b>이 처음으로 돌아간다. ` +
-        `<b style="color:var(--steel)">도감과 최고 기록은 남는다.</b>`
+      ? `환생하면 <b style="color:var(--amber)">유닛 · 능력치 · 키운 단계 · 가진 자원</b>이 처음으로 돌아가요. ` +
+        `<b style="color:var(--steel)">도감과 최고 기록은 남아요.</b>`
       : nx
-        ? `<b style="color:var(--steel)">${nx}라운드</b>를 넘기면 훈장 하나를 받을 수 있다.`
-        : `지금은 받을 훈장이 없다.`);
+        ? `<b style="color:var(--steel)">${nx}라운드</b>를 넘기면 훈장을 하나 받아요.`
+        : `지금은 받을 훈장이 없어요.`);
   const b = $("prestigeBtn");
   b.disabled = g <= 0;
-  b.textContent = g > 0 ? `재편한다 — 훈장 +${g}` : `재편 — ${MEDAL_GATE}라운드부터`;
+  b.textContent = g > 0 ? `환생하기 — 훈장 +${g}` : `환생 — ${MEDAL_GATE}라운드부터`;
   b.classList.toggle("can", g > 0);
 }
 
 /* ══ 그리기 ══ */
-/** 대원은 벙커 안이라 판에 그릴 것이 없다 — 고른 대원의 **사거리 링**만 벙커에서 그린다.
+/** 유닛은 벙커 안이라 판에 그릴 것이 없다 — 고른 유닛의 **사거리 링**만 벙커에서 그린다.
  *  사거리의 중심이 벙커라는 것 자체가 "안에서 쏜다"는 설명이다. */
 export function drawTowers() {
   [...document.querySelectorAll("#world .rng")].forEach(e => e.remove());
@@ -609,7 +609,7 @@ export function paint() {
   }
 
   // 탄 — 점이 아니라 **진행 방향으로 늘어난 짧은 트레이서**. 나아가는 결이 보여야 "쏘고 있다"가
-  // 읽힌다. 시작점→목표 방향으로 rotate 하고 scaleX 로 늘인다(병과색은 그대로).
+  // 읽힌다. 시작점→목표 방향으로 rotate 하고 scaleX 로 늘인다(종류색은 그대로).
   document.querySelectorAll("#world .shot").forEach(e => e.remove());
   for (const s of S.shots) {
     const f = 1 - s.life / 0.14;

@@ -7,38 +7,38 @@ export const $ = (id) => document.getElementById(id);
    합성이 "조금 나아짐"이면 셋을 모을 이유가 없다. 등급마다 피해가 3배씩 뛴다.
    대신 사거리·속도는 종류가 정한다 — 그래야 어느 종류를 키울지가 선택이 된다.
    ══════════════════════════════════════════════════════════ */
-/** **벙커에 넣는 건 포탑이 아니라 대원이다.**
+/** **벙커에 넣는 건 포탑이 아니라 유닛이다.**
  *  자리에 놓는 것이 구조물이면 아무리 "할당"이라 불러도 화면에는 타워를 세우는 게임으로
- *  보인다. 병과가 곧 벙커의 성격이다 — 무엇을 넣느냐로 공격도 방어도 갈린다.
- *  뒤의 넷은 **때리는 것 말고 다른 일**을 한다. 숫자만 다른 병과는 늘려 봐야 목록만 길어진다. */
+ *  보인다. 종류가 곧 벙커의 성격이다 — 무엇을 넣느냐로 공격도 방어도 갈린다.
+ *  뒤의 넷은 **때리는 것 말고 다른 일**을 한다. 숫자만 다른 종류는 늘려 봐야 목록만 길어진다. */
 export const KINDS = {
   gun:   { n:"소총병", ico:"⌖", col:"#c9ccd1", dmg:6,  rng:140, cd:0.55, fx:"hit",
-           d:"고르게 쏜다" },
-  cannon:{ n:"척탄병", ico:"◉", col:"#d0785a", dmg:22, rng:118, cd:1.5,  splash:44, fx:"blast",
-           d:"느리지만 터진다" },
+           d:"꾸준히 쏴요" },
+  cannon:{ n:"폭탄병", ico:"◉", col:"#d0785a", dmg:22, rng:118, cd:1.5,  splash:44, fx:"blast",
+           d:"느리지만 터져요" },
   frost: { n:"냉동병", ico:"❆", col:"#6ba8d6", dmg:4,  rng:132, cd:0.7,  slow:0.45, fx:"frost",
-           d:"느리게 만든다" },
+           d:"적을 느리게 만들어요" },
   bolt:  { n:"전격병", ico:"⚡", col:"#a978c9", dmg:11, rng:172, cd:0.9,  chain:2, fx:"spark",
-           d:"멀리, 여럿에게 튄다" },
+           d:"멀리, 여럿에게 튕겨요" },
   // ── 뽑기에 결이 생기게 넷을 더한다. **숫자만 다른 유닛은 늘려 봐야 목록만 길어진다** —
   //    저마다 "이건 이럴 때 쓴다"가 달라야 뽑을 때마다 판이 달라진다.
   flame: { n:"화염병", ico:"🔥", col:"#e08a3c", dmg:5, rng:96, cd:0.3, splash:30, fx:"blast",
-           d:"코앞을 빠르게 태운다" },
+           d:"코앞을 빠르게 태워요" },
   rail:  { n:"저격수", ico:"↟", col:"#dfe6ee", dmg:46, rng:230, cd:2.4, pierce:3, fx:"spark",
-           d:"아주 멀리, 뚫고 지나간다" },
+           d:"아주 멀리, 뚫고 지나가요" },
   drone: { n:"정찰병", ico:"✈", col:"#7fb069", dmg:7, rng:150, cd:0.8, bounty:3, fx:"hit",
-           d:"잡을 때마다 자원을 더 준다" },
-  mine:  { n:"공병",   ico:"◇", col:"#e0c458", dmg:34, rng:70, cd:2.0, splash:52, arm:true, fx:"blast",
-           d:"붙은 놈들을 한꺼번에" },
+           d:"잡을 때마다 자원을 더 줘요" },
+  mine:  { n:"지뢰병",   ico:"◇", col:"#e0c458", dmg:34, rng:70, cd:2.0, splash:52, arm:true, fx:"blast",
+           d:"달라붙은 적을 한꺼번에" },
   // ── 때리는 것 말고 다른 일을 하는 넷 ──
   medic:  { n:"위생병", ico:"✚", col:"#e2b8b8", dmg:3, rng:110, cd:1.1, heal:12, fx:"hit",
-            d:"싸우는 동안 벙커를 고친다" },
+            d:"싸우면서 벙커를 고쳐요" },
   guard:  { n:"방패병", ico:"▣", col:"#8f9aa8", dmg:8, rng:88, cd:0.9, armor:0.24, fx:"hit",
-            d:"벙커가 받는 피해를 줄인다" },
+            d:"벙커가 받는 피해를 줄여요" },
   rocket: { n:"로켓병", ico:"➶", col:"#6f8f5a", dmg:62, rng:196, cd:2.8, splash:58, fx:"blast",
-            d:"한 발이 무겁다" },
+            d:"한 발이 묵직해요" },
   officer:{ n:"지휘관", ico:"★", col:"#d6a84a", dmg:9, rng:150, cd:1.0, aura:0.22, fx:"hit",
-            d:"벙커 전원의 피해를 올린다" },
+            d:"모두의 공격력을 올려요" },
 };
 export const KIND_IDS = Object.keys(KINDS);
 export const GRADE = [1,2,3,4,5];
@@ -53,7 +53,7 @@ export const GCOL  = ["", "#8a8f98", "#7fb069", "#6ba8d6", "#a978c9", "#e0a458"]
 export const BUNKER_DMG = 4.5;
 // 타워도 맞는다. 등급이 오르면 단단해지되 피해만큼 뛰지는 않는다 —
 // 세다고 안 부서지면 바깥에 세우는 데 값이 없어진다.
-// 대원은 이제 안 죽는다(벙커가 대신 맞는다). 이 값은 표시용으로만 남는다.
+// 유닛은 이제 안 죽는다(벙커가 대신 맞는다). 이 값은 표시용으로만 남는다.
 export const hpOf   = (t) => Math.round(28 + t.g * 22);
 
 /* ══════════════════════════════════════════════════════════════
@@ -63,7 +63,7 @@ export const hpOf   = (t) => Math.round(28 + t.g * 22);
    가운데 지킬 것을 놓고 **사방에서 몰려오게** 하면 배치가 진짜 결정이 된다 —
    한쪽에 몰아 세우면 반대쪽이 그대로 뚫리고, 고르게 펴면 어디도 두껍지 않다.
 
-   **대원은 벙커 안에 있어 맞지 않는다.** 자리가 몇 개뿐인 구조에서 대원이 죽어 없어지면
+   **유닛은 벙커 안에 있어 맞지 않는다.** 자리가 몇 개뿐인 구조에서 유닛이 죽어 없어지면
    화력이 통째로 사라져 그 판이 거기서 끝나고, 무엇보다 모아 온 것을 전투 한 번에 잃으면
    수집이 성립하지 않는다. 깎이는 것은 벙커 하나이고, 그래서 방어는 받는 피해를 줄이는
    일(방패병)과 깎인 것을 되돌리는 일(위생병)로 갈린다.
@@ -73,9 +73,9 @@ export const hpOf   = (t) => Math.round(28 + t.g * 22);
  *  격자 몇 개라 "전장"이 아니라 UI 표처럼 보였다. 21×21(441칸) 로 넓혀 **바깥을 진짜
  *  벌판으로** 만든다 — 넓힌 땅은 놓는 자리가 아니라 **달려오는 것을 보는 시간**이다. */
 export const COLS = 21, ROWS = 21;
-/* **본진은 한 칸이다.** 3×3 은 벙커 하나치고 판을 너무 많이 먹었고, 그만큼 대원 자리가
+/* **본진은 한 칸이다.** 3×3 은 벙커 하나치고 판을 너무 많이 먹었고, 그만큼 유닛 자리가
    바깥으로 밀려 반대편까지 사거리가 안 닿는 문제까지 낳았다(그걸 사거리 배수로 메우고
-   있었다). 한 칸으로 줄이면 대원이 벙커에 바짝 붙고 앞마당도 아담해진다. */
+   있었다). 한 칸으로 줄이면 유닛이 벙커에 바짝 붙고 앞마당도 아담해진다. */
 export const CORE = { x: 10, y: 10, w: 1, h: 1 };        // 한가운데 한 칸이 본진
 export const inCore = (x, y) => x >= CORE.x && x < CORE.x + CORE.w && y >= CORE.y && y < CORE.y + CORE.h;
 export const coreKey = new Set();
@@ -119,13 +119,13 @@ export const SLOT_SPOTS = (() => {
 export const SLOT_BASE = 3;                                    // 첫 판에 주는 자리
 // `| 0` 은 군더더기가 아니다 — 예전 세이브나 검증 하네스가 slots 없는 up 을 넣으면
 // undefined 가 되어 자리 수가 통째로 NaN 이 된다(실제로 그래서 봇이 1R 에 전멸했다).
-// 훈장 셋마다 자리 하나가 **처음부터** 열려 있다 — 재편 뒤의 첫 판이 예전 첫 판과 달라야 한다.
+// 훈장 셋마다 자리 하나가 **처음부터** 열려 있다 — 환생 뒤의 첫 판이 예전 첫 판과 달라야 한다.
 export const slotMax = () => Math.min(SLOT_SPOTS.length, SLOT_BASE + (META.up.slots | 0) + medalSlots());
 export let SLOT_SET = new Set();
 export let DECK_R = 1;
 /** **앞마당은 자리를 따라 자란다.** 처음부터 9×9 철판을 깔아 두면 자리 셋이 허허벌판에
  *  점 셋으로 떠서, 벙커가 아니라 빈 주차장이 된다. 열린 자리가 닿는 테두리까지만 깔면
- *  첫 판은 5×5 로 아담하고, 증축할 때마다 **바닥이 실제로 넓어지는 게 보인다.** */
+ *  첫 판은 5×5 로 아담하고, 자리 늘리기할 때마다 **바닥이 실제로 넓어지는 게 보인다.** */
 export function refreshSlots() {
   const n = slotMax();
   SLOT_SET = new Set(SLOT_SPOTS.slice(0, n).map(p => p[0] + "," + p[1]));
@@ -156,13 +156,13 @@ export const onDeck = (x, y) =>
    스키마까지 갈아 기존 세이브를 깨울 이유가 없다. */
 export const META_KEY = "rtd.meta.v1";
 export const UPGRADES = {
-  dmg:   { n:"벼림",   d:"모든 피해 +13%",      base:4, per:3 },
-  life:  { n:"성벽",   d:"벙커 체력 +90",       base:3, per:2 },
-  cheap: { n:"흥정",   d:"징집 값 -1 (바닥 2)", base:5, per:4 },
-  luck:  { n:"안목",   d:"중급이 더 자주 나온다", base:5, per:4 },
+  dmg:   { n:"공격력", d:"모든 피해 +13%",       base:4, per:3 },
+  life:  { n:"체력",   d:"벙커 체력 +90",        base:3, per:2 },
+  cheap: { n:"할인",   d:"뽑기 값 -1 (최소 2)",  base:5, per:4 },
+  luck:  { n:"행운",   d:"좋은 게 더 자주 나와요", base:5, per:4 },
   // **자리 자체가 성장이다.** 첫 판은 셋뿐이라 무엇을 넣을지가 매번 결정이 되고,
   // 판을 거듭해 늘려 놓으면 예전엔 못 굴리던 조합이 굴러간다 — 불어나는 맛이 여기에 있다.
-  slots: { n:"증축",   d:"배치 자리 +1",        base:4, per:3 },
+  slots: { n:"자리",   d:"배치 자리 +1",         base:4, per:3 },
 };
 export const META = loadMeta();
 export function loadMeta() {
@@ -170,17 +170,17 @@ export function loadMeta() {
     const raw = JSON.parse(localStorage.getItem(META_KEY));
     if (raw && typeof raw === "object") {
       return { relics: raw.relics | 0, best: raw.best | 0,
-               // 재편으로 받은 훈장, 그리고 **이미 훈장으로 바꾼 기록**. 둘을 따로 두어야
+               // 환생으로 받은 훈장, 그리고 **이미 훈장으로 바꾼 기록**. 둘을 따로 두어야
                // 같은 기록으로 두 번 받는 일이 없다(gain = 지금 기록치 - 바꿔 간 기록치).
                medals: raw.medals | 0, cashed: raw.cashed | 0,
                up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, (raw.up?.[k]) | 0])),
                // 도감 — **모으는 재미는 남는 데서 온다.** 판이 끝나면 사라지는 수집은 수집이 아니다.
                seen: Object.fromEntries(KIND_IDS.map(k => [k, (raw.seen?.[k]) | 0])),
-               // 병과별 훈련 등급. 모은 것을 **키우는** 축 — 수집이 장식으로 끝나지 않게 한다.
+               // 종류별 훈련 등급. 모은 것을 **키우는** 축 — 수집이 장식으로 끝나지 않게 한다.
                lv: Object.fromEntries(KIND_IDS.map(k => [k, (raw.lv?.[k]) | 0])),
-               /* **부대는 판을 넘어 남는다.** 판마다 뽑아 쓰고 버리면 그건 내 대원이 아니라
-                  그 판의 소모품이다 — 모으는 재미도, 편성이라는 말도 성립하지 않는다.
-                  각 대원은 slot 을 가진다: 번호면 그 자리에 서고, null 이면 창고에 있다. */
+               /* **부대는 판을 넘어 남는다.** 판마다 뽑아 쓰고 버리면 그건 내 유닛이 아니라
+                  그 판의 소모품이다 — 모으는 재미도, 배치이라는 말도 성립하지 않는다.
+                  각 유닛은 slot 을 가진다: 번호면 그 자리에 서고, null 이면 창고에 있다. */
                army: Array.isArray(raw.army) ? raw.army.filter(t => KINDS[t?.kind]).map(t => ({
                  id: t.id | 0, kind: t.kind, g: Math.max(1, Math.min(5, t.g | 0)),
                  slot: (t.slot === null || t.slot === undefined) ? null : (t.slot | 0),
@@ -204,11 +204,11 @@ export const saveMeta = () => {
   META.lastSeen = Date.now();
   try { localStorage.setItem(META_KEY, JSON.stringify(META)); } catch {}
 };
-/** 이번 세션에 **처음** 만난 병과. 정산 도감에 NEW 를 붙였다가 다음에 켜면 사라진다.
+/** 이번 세션에 **처음** 만난 종류. 정산 도감에 NEW 를 붙였다가 다음에 켜면 사라진다.
  *  META 에 저장하지 않는다 — "방금 새로 얻었다"는 이 판을 도는 동안만 뜻이 있는 신호라,
  *  세이브에 남기면 영영 NEW 로 남아 뱃지의 의미가 죽는다. */
 export const newlySeen = new Set();
-/** 도감에 적는다. 처음 본 병과면 true — 그때만 요란하게 알린다.
+/** 도감에 적는다. 처음 본 종류면 true — 그때만 요란하게 알린다.
  *  **최고 등급까지 남긴다.** 한 번 상급을 만들어 봤다는 기록이 다음 판을 시작하게 만든다. */
 export function noteSeen(kind, g) {
   const cur = META.seen[kind] | 0;
@@ -220,13 +220,13 @@ export function noteSeen(kind, g) {
 }
 export const seenCount = () => KIND_IDS.filter(k => META.seen[k]).length;
 
-/* ══ 병과 훈련 — **모은 것을 키우는 축** ══
-   전역 업그레이드(모든 피해 +13%)만 있으면 열두 병과가 다 같은 속도로 세진다. 그러면
-   무엇을 모았는지가 결과에 안 남고, 도감은 그저 장식이 된다. 병과마다 따로 키우면
+/* ══ 종류 훈련 — **모은 것을 키우는 축** ══
+   전역 업그레이드(모든 피해 +13%)만 있으면 열두 종류가 다 같은 속도로 세진다. 그러면
+   무엇을 모았는지가 결과에 안 남고, 도감은 그저 장식이 된다. 종류마다 따로 키우면
    "이번 판은 저격수를 밀어 보자"가 성립하고, **뽑기 운이 아니라 내가 정한 방향**이 된다.
-     · 등급 — 그 병과의 피해와 사거리
-     · 특기 — 그 병과만의 수치(터지는 범위·회복량·방어·지휘 등). 곧 스킬이다
-   만난 적 없는 병과는 못 키운다. 모으는 것이 먼저다. */
+     · 등급 — 그 종류의 피해와 사거리
+     · 특기 — 그 종류만의 수치(터지는 범위·회복량·방어·지휘 등). 곧 스킬이다
+   만난 적 없는 종류는 못 키운다. 모으는 것이 먼저다. */
 export const kindLv    = (k) => META.lv[k] | 0;
 /* lv 를 덤으로 받는다 — 기본은 지금 훈련 등급이지만, 도감이 "한 단계 위" 값을 미리
    보여 줄 때(dexStat) 같은 식을 lv+1 로 다시 쓰려고 열어 둔다. 인자를 안 주면 예전 그대로다. */
@@ -255,7 +255,7 @@ export const metaLife = () => 520 + META.up.life * 90;   // 본진 체력
 export const metaDmg  = () => (1 + META.up.dmg * 0.13) * medalDmg();
 
 /* ══════════════════════════════════════════════════════════════
-   재편 — **벽을 넘은 다음에도 갈 곳이 있어야 한다.**
+   환생 — **벽을 넘은 다음에도 갈 곳이 있어야 한다.**
    ──────────────────────────────────────────────────────────────
    능력치는 사면 살수록 값이 오르고(base + per×lv) 자리는 스물 몇 개에서 멎는다. 그래서
    서른 라운드쯤 가고 나면 더 살 것도, 더 도전할 것도 없다 — 최고 기록 숫자만 한 칸씩
@@ -265,13 +265,13 @@ export const metaDmg  = () => (1 + META.up.dmg * 0.13) * medalDmg();
    훈장은 영영 남아 모든 판에 곱해진다. 잃는 것이 진짜여야 결정이 되고, 되찾는 길이
    빨라야("두 번째 판은 훨씬 빠르다") 결정을 내릴 만해진다.
 
-   **도감과 최고 기록은 안 지운다.** 병과 해금이 최고 기록에 달려 있어(poolSize) 그것까지
-   되돌리면 재편이 곧 병과를 다시 잠그는 일이 된다 — 모으는 축을 스스로 깎는 셈이다.
+   **도감과 최고 기록은 안 지운다.** 종류 해금이 최고 기록에 달려 있어(poolSize) 그것까지
+   되돌리면 환생이 곧 종류를 다시 잠그는 일이 된다 — 모으는 축을 스스로 깎는 셈이다.
    기록은 기록대로 남기고, 훈장으로 바꾼 지점(cashed)만 따로 적어 중복 지급을 막는다.
    ══════════════════════════════════════════════════════════ */
 export const MEDAL_GATE = 20;                       // 여기까지 가 본 사람에게만 열린다
 /** 기록 r 을 통째로 훈장으로 환산하면 몇 개인가. 가파른 항이라 **한 라운드를 더 미는 값이
- *  뒤로 갈수록 커진다** — 재편이 "지금 할까 더 밀까"의 저울이 된다. */
+ *  뒤로 갈수록 커진다** — 환생이 "지금 할까 더 밀까"의 저울이 된다. */
 export const medalsAt = (r) => (r < MEDAL_GATE ? 0 : Math.floor(Math.pow((r - 14) / 3, 1.25)));
 export const medals     = () => META.medals | 0;
 export const medalGain  = () => Math.max(0, medalsAt(META.best | 0) - medalsAt(META.cashed | 0));
@@ -279,7 +279,7 @@ export const medalGain  = () => Math.max(0, medalsAt(META.best | 0) - medalsAt(M
 export const medalDmg   = () => 1 + medals() * 0.12;   // 모든 피해
 export const medalRelic = () => 1 + medals() * 0.10;   // 들어오는 자원
 export const medalSlots = () => Math.floor(medals() / 3);   // 시작 자리
-/** 훈장이 하나 더 붙는 라운드. 0 이면 지금 재편할 게 있다. */
+/** 훈장이 하나 더 붙는 라운드. 0 이면 지금 환생할 게 있다. */
 export function nextMedalAt() {
   if (medalGain() > 0) return 0;
   const cur = medalsAt(META.cashed | 0);
@@ -287,7 +287,7 @@ export function nextMedalAt() {
     if (medalsAt(r) > cur) return r;
   return 0;
 }
-/** 재편한다. 받은 훈장 수를 돌려준다(0 이면 아무 일도 안 일어났다). */
+/** 환생한다. 받은 훈장 수를 돌려준다(0 이면 아무 일도 안 일어났다). */
 export function prestige() {
   const g = medalGain();
   if (g <= 0) return 0;
@@ -303,7 +303,7 @@ export function prestige() {
 
 /* 판마다 다섯 종만 나오게 하던 장치(rollPool)는 걷어냈다. 부대가 판을 넘어 남게 된
    뒤로는 "이번 판에 뭐가 나오나"가 아니라 **지금까지 무엇을 모았나**가 그 판의 성격이다.
-   대신 나오는 병과 자체를 최고 기록에 따라 열어 준다(poolSize). */
+   대신 나오는 종류 자체를 최고 기록에 따라 열어 준다(poolSize). */
 
 /* ══ 상태 ══ */
 /* 한 판 동안만 사는 값들. **부대는 여기 없다** — META.army 에 있고 판을 넘어 남는다. */
@@ -331,7 +331,7 @@ export const S = {
  *  원인은 체력만 가파르게(×1.30) 올린 것이다. 우리 화력은 합성으로 ×3 씩 계단을 뛰므로
  *  한동안 압도하다가 계단 사이에서 한 번에 무너진다. 그래서 **체력은 완만하게, 수는
  *  가파르게** 바꿨다. 수가 늘면 몇 마리가 새어 들어와 본진을 조금씩 깎고, 그 지점부터
- *  고치고 막는 병과가 값을 하기 시작한다. 터지는 병과(척탄병·로켓병·화염병)도 같이 산다. */
+ *  고치고 막는 종류가 값을 하기 시작한다. 터지는 종류(폭탄병·로켓병·화염병)도 같이 산다. */
 export const waveHp   = (r) => Math.round(24 * Math.pow(1.235, r - 1));
 export const waveN    = (r) => 3 + Math.floor(r * 2.0);
 export const isBossR  = (r) => r % 5 === 0;

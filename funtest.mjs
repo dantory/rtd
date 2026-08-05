@@ -117,7 +117,7 @@ console.log(`── 아무거나 내보낸다   평균 ${blind.avg}R · 최고�
 console.log(`   ${blind.seq.join(" · ")}`);
 console.log(`── 센 것을 골라 내보낸다 평균 ${smart.avg}R · 최고등급 ${smart.grade}`);
 console.log(`   ${smart.seq.join(" · ")}`);
-console.log(`── 골라 내보내고 + 유물을 쓴다 평균 ${growth.avg}R`);
+console.log(`── 골라 내보내고 + 자원을 쓴다 평균 ${growth.avg}R`);
 console.log(`   ${growth.seq.join(" → ")}\n`);
 
 const chk = (n, ok, d) => console.log(`${ok ? "✓" : "✗"} ${n}${d ? "  — " + d : ""}`);
@@ -128,7 +128,7 @@ chk("무엇을 내보내느냐가 결과를 바꾼다 (이 구조의 존재 이�
 // 출렁이던 옛 기준 대신 "상급에 닿았는가"를 본다: 3 이상이면 같은 것 셋을 합친 적이 있다는 증거다.
 chk("합성으로 등급이 오른다", smart.peak >= 3, `최고 ${smart.peak}등급 도달 (평균 ${smart.grade})`);
 const f = growth.seq.slice(0,2).reduce((a,b)=>a+b,0)/2, l = growth.seq.slice(-2).reduce((a,b)=>a+b,0)/2;
-chk("판을 거듭하면 더 간다 (유물)", l >= f, `처음 2판 ${f.toFixed(1)}R → 마지막 2판 ${l.toFixed(1)}R`);
+chk("판을 거듭하면 더 간다 (자원)", l >= f, `처음 2판 ${f.toFixed(1)}R → 마지막 2판 ${l.toFixed(1)}R`);
 chk("첫 벽이 너무 이르지 않다", smart.avg >= 7, `${smart.avg}R`);
 chk("예외 없이 돈다", errors.length === 0, errors.slice(0,2).join(" | ").slice(0,150));
 ws.close(); process.exit(0);

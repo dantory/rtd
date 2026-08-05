@@ -6,7 +6,7 @@
   **①숫자가 불어나는 것**에 손이 제일 오래 갔다. 그 교집합이 이것이다.
 
   루프는 유즈맵 랜타디 그대로다:
-      편성한다 → 출격해 관전한다 → 자원을 번다 → 징집·합성·훈련·증축 → 다시 편성한다
+      배치한다 → 출격해 관전한다 → 자원을 번다 → 뽑기·합성·훈련·자리 늘리기 → 다시 배치한다
 
   네 가지가 각각 다른 재미를 맡는다. 하나라도 빠지면 나머지가 심심해진다.
     뽑기   무엇이 나올까 (도파민, 매번 다르다)
@@ -31,11 +31,11 @@
 <body>
 <header>
   <span class="title">벙커 디펜스</span>
-  <span class="sub">모으고 · 합치고 · 내보낸다</span>
+  <span class="sub">모으고 · 합치고 · 내보내기</span>
   <div class="hud">
     <span>라운드 <b id="hRound">1</b></span>
     <!-- 눌러서 언제든 상점을 연다 — 벽에 부딪힌 그 자리에서 강해질 수 있어야 한다 -->
-    <button class="rlc" id="relicBtn" title="자원 상점">자원 <b id="hRelic">0</b></button>
+    <button class="rlc" id="relicBtn" title="자원으로 강화하기">자원 <b id="hRelic">0</b></button>
     <button id="setBtn" title="설정" style="padding:4px 11px;margin-left:-6px">≡</button>
   </div>
 </header>
@@ -43,7 +43,7 @@
 <main>
   <div id="field">
     <div id="world"><div id="grid"></div></div>
-    <!-- 다음 웨이브는 **상시** 상단에 — 편성 결정의 재료라 늘 보여야 한다.
+    <!-- 다음 웨이브는 **상시** 상단에 — 배치 결정의 재료라 늘 보여야 한다.
          보스·새 적 같은 이벤트성 안내는 배너로 잠깐 떴다 사라진다(병수님 방향). -->
     <div id="wavebar"></div>
     <div id="banner"></div>
@@ -55,22 +55,22 @@
       <button id="zinBtn" title="확대">＋</button>
       <button id="zoutBtn" title="축소">－</button>
     </div>
-    <!-- **편성은 따로 본다.** 전장에서 대원이 쏘는 걸 보는 건 그대로 두되(그게 이 장르의
+    <!-- **배치는 따로 본다.** 전장에서 유닛이 쏘는 걸 보는 건 그대로 두되(그게 이 장르의
          재미다), 누구를 넣고 뺄지는 칩 대신 제대로 된 화면에서 고른다 — 창고가 열 기를
          넘어가면 44px 칩으로는 무엇이 있는지조차 안 읽힌다. -->
     <div id="squad"><div class="box">
-      <h2>벙커 편성</h2>
+      <h2>유닛 배치</h2>
       <div class="note" id="sqNote"></div>
       <div class="sqslots" id="sqSlots"></div>
       <h3 class="sqh">창고 <span class="dim" id="sqBoxN"></span></h3>
       <div class="sqbox" id="sqBox"></div>
-      <!-- 합치고 해산하는 것도 부대를 다루는 일이다. 전장이 아니라 여기에 둔다. -->
+      <!-- 합치고 정리하는 것도 부대를 다루는 일이다. 전장이 아니라 여기에 둔다. -->
       <div class="rowbtn" style="gap:7px;margin-top:12px">
-        <button id="sqMerge" style="flex:1">셋을 합친다</button>
-        <button id="sqSell">고른 것 해산</button>
+        <button id="sqMerge" style="flex:1">셋 합치기</button>
+        <button id="sqSell">고른 것 정리</button>
       </div>
       <div class="note" id="sqTip"></div>
-      <div class="stick"><button id="sqClose" style="padding:11px 26px">닫는다</button></div>
+      <div class="stick"><button id="sqClose" style="padding:11px 26px">닫기</button></div>
     </div></div>
     <!-- 설정 — 게임 진행과 상관없는 손잡이들이 모이는 곳. 지금은 초기화 하나다. -->
     <div id="settings"><div class="box">
@@ -81,66 +81,66 @@
       <div class="rowbtn" style="margin-top:10px">
         <button id="wipeBtn" style="flex:1;padding:10px 14px;color:#d08a8a;border-color:#4a2e2e">초기화 — 저장을 지우고 처음부터</button>
       </div>
-      <div class="note" style="margin-top:8px">부대 · 자원 · 업그레이드 · 도감 · 최고 기록이 전부 지워진다.</div>
-      <div class="stick"><button id="setClose" style="padding:11px 26px">닫는다</button></div>
+      <div class="note" style="margin-top:8px">유닛 · 자원 · 업그레이드 · 도감 · 최고 기록이 모두 지워져요.</div>
+      <div class="stick"><button id="setClose" style="padding:11px 26px">닫기</button></div>
     </div></div>
     <!-- 처음 한 번만 — 규칙 세 줄. 폰에서는 상시 도움말이 숨어 있어 처음 여는 사람이
          뭘 하는 게임인지 알 길이 없었다(점검 지적). 두 번째부터는 안 뜬다. -->
     <div id="intro"><div class="box">
       <h2>벙커 디펜스</h2>
       <div class="note" style="text-align:left;line-height:1.9;margin-top:10px">
-        가운데 <b style="color:var(--steel)">벙커</b>를 지킨다 — 적은 사방에서 밀려온다.<br>
-        대원은 벙커 <b>안</b>에서 쏜다. 누굴 넣을지는 「편성」에서 고른다.<br>
-        판이 끝나면 <b style="color:var(--amber)">자원</b>으로 징집 · 훈련 · 증축 — 더 멀리 간다.<br>
-        <span class="dim">전투는 알아서 돈다. 켜 두고 구경해도 된다.</span>
+        가운데 <b style="color:var(--steel)">벙커</b>를 지켜요. 적은 사방에서 몰려와요.<br>
+        유닛은 벙커 <b>안</b>에서 쏴요. 누굴 넣을지는 「배치」에서 골라요.<br>
+        판이 끝나면 <b style="color:var(--amber)">자원</b>으로 뽑고 · 키우고 · 자리를 늘려요.<br>
+        <span class="dim">전투는 알아서 돌아가요. 켜 두고 구경만 해도 돼요.</span>
       </div>
-      <div class="stick"><button id="introGo" style="padding:11px 30px">시작한다</button></div>
+      <div class="stick"><button id="introGo" style="padding:11px 30px">시작하기</button></div>
     </div></div>
     <!-- 돌아온 사이 — 탭을 닫아 둔 동안 쌓인 자원을 받는 창. 받아야 지급된다. -->
     <div id="offline"><div class="box">
       <h2>돌아온 사이</h2>
-      <div class="note"><b id="offDur"></b> 동안 벙커가 홀로 버텼다.</div>
+      <div class="note"><b id="offDur"></b> 동안 벙커가 혼자 버텼어요.</div>
       <div class="offgain">자원 <b id="offGain">0</b></div>
-      <div class="note" style="margin-top:8px">멀리 가 본 만큼 시간당 더 쌓인다 · 최대 8시간까지</div>
-      <div class="stick"><button id="offTake" style="padding:11px 26px">받는다</button></div>
+      <div class="note" style="margin-top:8px">멀리 가 본 만큼 시간당 더 쌓여요 · 최대 8시간</div>
+      <div class="stick"><button id="offTake" style="padding:11px 26px">받기</button></div>
     </div></div>
-    <!-- 결과 — 승패와 정산만 말하고 끝낸다. 강화(징집·능력치·훈련)는 제 메뉴로 분리했다:
+    <!-- 결과 — 승패와 정산만 말하고 끝낸다. 강화(뽑기·능력치·훈련)는 제 메뉴로 분리했다:
          결과에 상점을 얹으니 화면이 길어져 스크롤 속에 파묻혔다(병수님 지적). -->
     <div id="over"><div class="box">
       <h2 id="overT"></h2>
       <div class="note" id="overD" style="font-size:13px"></div>
       <div class="rowbtn" style="gap:7px;margin-top:16px">
         <button id="forgeBtn" style="flex:1;padding:11px 14px">강화</button>
-        <button id="overSquad" style="flex:1;padding:11px 14px">편성</button>
+        <button id="overSquad" style="flex:1;padding:11px 14px">배치</button>
       </div>
       <div class="stick"><button id="again" style="padding:11px 26px">한 판 더</button></div>
     </div></div>
-    <!-- 강화 — 자원을 쓰는 곳이 한 메뉴에 모인다: 징집 · 벙커 능력치 · 병과 훈련 -->
+    <!-- 강화 — 자원을 쓰는 곳이 한 메뉴에 모인다: 뽑기 · 벙커 능력치 · 종류 훈련 -->
     <div id="forge"><div class="box">
       <h2>강화 <span class="dim" style="font-size:13px;letter-spacing:0">가진 자원 <b id="shopHave2">0</b></span></h2>
       <div class="shopwrap">
-        <h3>부대</h3>
+        <h3>유닛</h3>
         <div class="rowbtn" style="gap:7px">
-          <button id="recruitBtn" style="flex:1">징집 <span class="c" id="recCost"></span></button>
-          <button id="toSquad" style="flex:1">편성</button>
+          <button id="recruitBtn" style="flex:1">뽑기 <span class="c" id="recCost"></span></button>
+          <button id="toSquad" style="flex:1">배치</button>
         </div>
         <div class="note" id="armyNote"></div>
       </div>
       <div class="shopwrap">
-        <h3>능력치 <span class="dim">판을 넘어 남는다 · 가진 자원 <b id="shopHave">0</b></span></h3>
+        <h3>능력치 <span class="dim">· 판이 끝나도 남아요 · 가진 자원 <b id="shopHave">0</b></span></h3>
         <div class="shop" id="shop"></div>
       </div>
       <div class="shopwrap">
-        <h3>병과 훈련 <span class="dim">도감 <b id="dexHave">0</b>/<b id="dexAll">0</b> · 눌러서 그 병과를 키운다</span></h3>
+        <h3>유닛 키우기 <span class="dim">· 도감 <b id="dexHave">0</b>/<b id="dexAll">0</b> · 눌러서 키워요</span></h3>
         <div class="dex" id="dex"></div>
       </div>
-      <!-- 재편 — 모은 것을 반납하고 훈장으로 바꾼다. 벽을 넘은 뒤의 목표. -->
+      <!-- 환생 — 모은 것을 반납하고 훈장으로 바꾼다. 벽을 넘은 뒤의 목표. -->
       <div class="shopwrap medalwrap">
-        <h3>재편 <span class="dim">훈장 <b id="medalHave">0</b> · 재편해도 남는다</span></h3>
+        <h3>환생 <span class="dim">· 훈장 <b id="medalHave">0</b> · 환생해도 남아요</span></h3>
         <div class="note" id="medalNote"></div>
         <button class="wide" id="prestigeBtn" style="margin-top:9px"></button>
       </div>
-      <div class="stick"><button id="forgeClose" style="padding:11px 26px">닫는다</button></div>
+      <div class="stick"><button id="forgeClose" style="padding:11px 26px">닫기</button></div>
     </div></div>
   </div>
 
@@ -152,9 +152,9 @@
       </div>
       <div class="note" id="rollNote"></div>
       <div class="note helpnote" style="margin-top:10px;color:#5f6874">
-        가운데 <b style="color:var(--steel)">벙커</b>를 지킨다. 적은 <b>사방에서</b> 곧장 밀려온다.<br>
-        대원은 벙커 안에 있어 <b>맞지 않는다</b> — 깎이는 것은 벙커뿐이다.<br>
-        판이 끝나면 자원으로 <b>징집·훈련·증축</b>을 한다.
+        가운데 <b style="color:var(--steel)">벙커</b>를 지켜요. 적은 <b>사방에서</b> 곧장 몰려와요.<br>
+        유닛은 벙커 안에 있어서 <b>안 맞아요</b>. 깎이는 건 벙커뿐이에요.<br>
+        판이 끝나면 자원으로 <b>뽑고 · 키우고 · 늘려요</b>.
       </div>
     </section>
 
@@ -165,8 +165,8 @@
     </section>
 
     <section>
-      <h3>부대 <span class="dim" id="holdHint"></span>
-        <button id="squadBtn" class="sqopen">편성</button></h3>
+      <h3>보유 유닛 <span class="dim" id="holdHint"></span>
+        <button id="squadBtn" class="sqopen">배치</button></h3>
       <div class="tally" id="tally"></div>
 
       
@@ -174,7 +174,7 @@
     </section>
 
     <!-- 기록 로그는 뺐다 — 합성은 벙커 연출이, 웨이브는 웨이브 줄이 이미 말한다.
-         로그에만 살던 피드백(새 병과, 자리 참, 자원 안내)은 토스트로 옮겼다. -->
+         로그에만 살던 피드백(새 종류, 자리 참, 자원 안내)은 토스트로 옮겼다. -->
   </aside>
 </main>
 

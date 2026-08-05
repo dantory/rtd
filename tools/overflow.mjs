@@ -20,7 +20,7 @@ const SCREENS = [
      제일 긴 화면을 한 번도 안 재는 셈이 된다 — 재편 칸을 넣으며 실제로 그럴 뻔했다. */
   ["강화(재편)", `META.relics=40; META.best=25; META.seen.gun=3; META.seen.cannon=2; META.seen.rail=1;
       drawShop(); document.getElementById('forge').classList.add('on');`],
-  ["편성", `META.relics=200; for(let i=0;i<10;i++) recruit(); refresh(); openSquad();`],
+  ["배치", `META.relics=200; for(let i=0;i<10;i++) recruit(); refresh(); openSquad();`],
 ];
 
 const PROBE = `(() => {
