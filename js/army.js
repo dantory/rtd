@@ -115,8 +115,15 @@ export function toggleOut(key) {
   const mine = META.army.filter(t => t.kind === kind && t.g === g);
   const waiting = mine.filter(t => !isOut(t));
   if (waiting.length) {
-    const free = freeSlots();
-    if (!free.length) { say("자리가 다 찼다. 하나를 거두거나 증축해야 한다."); return; }
+    let free = freeSlots();
+    /* 자리가 꽉 찼으면 **제일 약한 것과 바꿔 넣는다** — "거둔 다음 내보내라"는 두 손질을
+       요구하는 데다, 예전엔 실패 안내(토스트)마저 편성 창 밑에 깔려 그냥 고장으로 보였다. */
+    if (!free.length) {
+      const weakest = placed().sort((x, y) => dmgOf(x) - dmgOf(y))[0];
+      if (!weakest) return;
+      weakest.slot = null;
+      free = freeSlots();
+    }
     waiting[0].slot = free[0];
     S.sel = waiting[0].id;
     syncArmy(); saveMeta(); refresh(); popTower(waiting[0], "rolled");

@@ -105,7 +105,7 @@ export function drawSquad() {
     const t = at.get(x + "," + y);
     if (!t) return `<div class="sqs empty"><span class="no">+</span></div>`;
     const K = KINDS[t.kind];
-    return `<button class="sqs" data-pull="${t.id}" title="${GNAME[t.g]} ${K.n} — 눌러서 거둔다">
+    return `<button class="sqs${t.id === S.sel ? " sel" : ""}" data-pull="${t.id}" title="${GNAME[t.g]} ${K.n} — 눌러서 거둔다">
       <img class="spr" src="assets/unit/${t.kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
@@ -117,9 +117,13 @@ export function drawSquad() {
     const k = t.kind + ":" + t.g;
     box.set(k, (box.get(k) || 0) + 1);
   }
+  const selT = META.army.find(t => t.id === S.sel);
   $("sqBox").innerHTML = [...box.entries()].map(([k, n]) => {
     const [kind, gs] = k.split(":"), g = +gs, K = KINDS[kind];
-    return `<button class="sqb" data-push="${k}" title="${GNAME[g]} ${K.n} — 눌러서 내보낸다">
+    /* 고른 것이 이 묶음에 있으면 카드에 불이 들어온다 — 첫 탭(고르기)이 아무 일도 없는
+       것처럼 보이면 편성 자체가 고장으로 읽힌다(실제로 그렇게 읽혔다). */
+    const on = selT && !isOut(selT) && selT.kind === kind && selT.g === g;
+    return `<button class="sqb${on ? " sel" : ""}" data-push="${k}" title="${GNAME[g]} ${K.n} — 눌러서 내보낸다">
       <span class="gr" style="background:${GCOL[g]}"></span>
       <img class="spr" src="assets/unit/${kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
