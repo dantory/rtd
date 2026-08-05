@@ -13,32 +13,32 @@ export const $ = (id) => document.getElementById(id);
  *  뒤의 넷은 **때리는 것 말고 다른 일**을 한다. 숫자만 다른 종류는 늘려 봐야 목록만 길어진다. */
 export const KINDS = {
   gun:   { n:"소총병", ico:"⌖", col:"#c9ccd1", dmg:6,  rng:140, cd:0.55, fx:"hit",
-           d:"꾸준히 쏴요" },
+           d:"꾸준히 사격" },
   cannon:{ n:"폭탄병", ico:"◉", col:"#d0785a", dmg:22, rng:118, cd:1.5,  splash:44, fx:"blast",
-           d:"느리지만 터져요" },
+           d:"느리지만 터짐" },
   frost: { n:"냉동병", ico:"❆", col:"#6ba8d6", dmg:4,  rng:132, cd:0.7,  slow:0.45, fx:"frost",
-           d:"적을 느리게 만들어요" },
+           d:"적을 느리게" },
   bolt:  { n:"전격병", ico:"⚡", col:"#a978c9", dmg:11, rng:172, cd:0.9,  chain:2, fx:"spark",
-           d:"멀리, 여럿에게 튕겨요" },
+           d:"멀리, 여럿에게 튕김" },
   // ── 뽑기에 결이 생기게 넷을 더한다. **숫자만 다른 유닛은 늘려 봐야 목록만 길어진다** —
   //    저마다 "이건 이럴 때 쓴다"가 달라야 뽑을 때마다 판이 달라진다.
   flame: { n:"화염병", ico:"🔥", col:"#e08a3c", dmg:5, rng:96, cd:0.3, splash:30, fx:"blast",
-           d:"코앞을 빠르게 태워요" },
+           d:"코앞을 빠르게 태움" },
   rail:  { n:"저격수", ico:"↟", col:"#dfe6ee", dmg:46, rng:230, cd:2.4, pierce:3, fx:"spark",
-           d:"아주 멀리, 뚫고 지나가요" },
+           d:"아주 멀리, 뚫고 지나감" },
   drone: { n:"정찰병", ico:"✈", col:"#7fb069", dmg:7, rng:150, cd:0.8, bounty:3, fx:"hit",
-           d:"잡을 때마다 자원을 더 줘요" },
+           d:"잡을 때마다 자원 추가" },
   mine:  { n:"지뢰병",   ico:"◇", col:"#e0c458", dmg:34, rng:70, cd:2.0, splash:52, arm:true, fx:"blast",
            d:"달라붙은 적을 한꺼번에" },
   // ── 때리는 것 말고 다른 일을 하는 넷 ──
   medic:  { n:"위생병", ico:"✚", col:"#e2b8b8", dmg:3, rng:110, cd:1.1, heal:12, fx:"hit",
-            d:"싸우면서 벙커를 고쳐요" },
+            d:"싸우면서 벙커 수리" },
   guard:  { n:"방패병", ico:"▣", col:"#8f9aa8", dmg:8, rng:88, cd:0.9, armor:0.24, fx:"hit",
-            d:"벙커가 받는 피해를 줄여요" },
+            d:"벙커가 받는 피해 감소" },
   rocket: { n:"로켓병", ico:"➶", col:"#6f8f5a", dmg:62, rng:196, cd:2.8, splash:58, fx:"blast",
-            d:"한 발이 묵직해요" },
+            d:"한 발이 묵직" },
   officer:{ n:"지휘관", ico:"★", col:"#d6a84a", dmg:9, rng:150, cd:1.0, aura:0.22, fx:"hit",
-            d:"모두의 공격력을 올려요" },
+            d:"모두의 공격력 상승" },
 };
 export const KIND_IDS = Object.keys(KINDS);
 export const GRADE = [1,2,3,4,5];
@@ -159,7 +159,7 @@ export const UPGRADES = {
   dmg:   { n:"공격력", d:"모든 피해 +13%",       base:4, per:3 },
   life:  { n:"체력",   d:"벙커 체력 +90",        base:3, per:2 },
   cheap: { n:"할인",   d:"뽑기 값 -1 (최소 2)",  base:5, per:4 },
-  luck:  { n:"행운",   d:"좋은 게 더 자주 나와요", base:5, per:4 },
+  luck:  { n:"행운",   d:"좋은 게 더 자주 나옴", base:5, per:4 },
   // **자리 자체가 성장이다.** 첫 판은 셋뿐이라 무엇을 넣을지가 매번 결정이 되고,
   // 판을 거듭해 늘려 놓으면 예전엔 못 굴리던 조합이 굴러간다 — 불어나는 맛이 여기에 있다.
   slots: { n:"자리",   d:"배치 자리 +1",         base:4, per:3 },

@@ -331,7 +331,11 @@
   .sqs:not(.noimg) .ico{display:none}
   .sqs .gr{position:absolute;bottom:3px;font-size:8px;letter-spacing:-1px}
   .sqs .no{font-size:20px;color:#39424f}
-  .sqbox{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:7px}
+  /* **auto-fill 이어야 한다.** auto-fit 은 빈 트랙을 접어 버려서, 창고에 종류가 하나뿐이면
+     그 카드가 줄 전체를 먹고 aspect-ratio:1 때문에 키까지 그만큼 자란다 — 실제로 창고에
+     소총병 한 종류만 남았을 때 카드 하나가 화면을 통째로 덮었다. 자리(.sqslots)는 반대로
+     줄을 채우는 게 맞으니 auto-fit 그대로 둔다. */
+  .sqbox{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:7px}
   .sqb{position:relative;aspect-ratio:1;border-radius:6px;background:#161c24;border:1px solid #262f3a;
     display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;
     padding:0;font-family:inherit}

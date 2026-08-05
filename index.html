@@ -48,8 +48,8 @@
     <div id="wavebar"></div>
     <div id="banner"></div>
     <div class="viewbtns">
-      <button id="runBtn" title="뽑기·합성까지 알아서 한다">⚙</button>
-      <button id="autoBtn" title="웨이브가 알아서 이어진다">∞</button>
+      <button id="runBtn" title="뽑기·합치기 자동">⚙</button>
+      <button id="autoBtn" title="웨이브 자동 진행">∞</button>
       <button id="spdBtn" title="배속">1×</button>
       <button id="fitBtn" title="전체 보기">⤢</button>
       <button id="zinBtn" title="확대">＋</button>
@@ -81,7 +81,7 @@
       <div class="rowbtn" style="margin-top:10px">
         <button id="wipeBtn" style="flex:1;padding:10px 14px;color:#d08a8a;border-color:#4a2e2e">초기화 — 저장을 지우고 처음부터</button>
       </div>
-      <div class="note" style="margin-top:8px">유닛 · 자원 · 업그레이드 · 도감 · 최고 기록이 모두 지워져요.</div>
+      <div class="note" style="margin-top:8px">유닛 · 자원 · 업그레이드 · 도감 · 최고 기록이 모두 지워짐</div>
       <div class="stick"><button id="setClose" style="padding:11px 26px">닫기</button></div>
     </div></div>
     <!-- 처음 한 번만 — 규칙 세 줄. 폰에서는 상시 도움말이 숨어 있어 처음 여는 사람이
@@ -89,19 +89,19 @@
     <div id="intro"><div class="box">
       <h2>벙커 디펜스</h2>
       <div class="note" style="text-align:left;line-height:1.9;margin-top:10px">
-        가운데 <b style="color:var(--steel)">벙커</b>를 지켜요. 적은 사방에서 몰려와요.<br>
-        유닛은 벙커 <b>안</b>에서 쏴요. 누굴 넣을지는 「배치」에서 골라요.<br>
-        판이 끝나면 <b style="color:var(--amber)">자원</b>으로 뽑고 · 키우고 · 자리를 늘려요.<br>
-        <span class="dim">전투는 알아서 돌아가요. 켜 두고 구경만 해도 돼요.</span>
+        가운데 <b style="color:var(--steel)">벙커</b> 지키기 · 적은 사방에서 몰려옴<br>
+        유닛은 벙커 <b>안</b>에서 사격 · 누굴 넣을지는 「배치」에서<br>
+        판 끝나면 <b style="color:var(--amber)">자원</b>으로 뽑기 · 키우기 · 자리 늘리기<br>
+        <span class="dim">전투는 자동 · 켜 두고 구경만 해도 됨</span>
       </div>
       <div class="stick"><button id="introGo" style="padding:11px 30px">시작하기</button></div>
     </div></div>
     <!-- 돌아온 사이 — 탭을 닫아 둔 동안 쌓인 자원을 받는 창. 받아야 지급된다. -->
     <div id="offline"><div class="box">
       <h2>돌아온 사이</h2>
-      <div class="note"><b id="offDur"></b> 동안 벙커가 혼자 버텼어요.</div>
+      <div class="note"><b id="offDur"></b> 동안 벙커가 혼자 버팀</div>
       <div class="offgain">자원 <b id="offGain">0</b></div>
-      <div class="note" style="margin-top:8px">멀리 가 본 만큼 시간당 더 쌓여요 · 최대 8시간</div>
+      <div class="note" style="margin-top:8px">멀리 가 본 만큼 시간당 더 쌓임 · 최대 8시간</div>
       <div class="stick"><button id="offTake" style="padding:11px 26px">받기</button></div>
     </div></div>
     <!-- 결과 — 승패와 정산만 말하고 끝낸다. 강화(뽑기·능력치·훈련)는 제 메뉴로 분리했다:
@@ -127,16 +127,16 @@
         <div class="note" id="armyNote"></div>
       </div>
       <div class="shopwrap">
-        <h3>능력치 <span class="dim">· 판이 끝나도 남아요 · 가진 자원 <b id="shopHave">0</b></span></h3>
+        <h3>능력치 <span class="dim">· 판이 끝나도 유지 · 가진 자원 <b id="shopHave">0</b></span></h3>
         <div class="shop" id="shop"></div>
       </div>
       <div class="shopwrap">
-        <h3>유닛 키우기 <span class="dim">· 도감 <b id="dexHave">0</b>/<b id="dexAll">0</b> · 눌러서 키워요</span></h3>
+        <h3>유닛 키우기 <span class="dim">· 도감 <b id="dexHave">0</b>/<b id="dexAll">0</b> · 눌러서 키우기</span></h3>
         <div class="dex" id="dex"></div>
       </div>
       <!-- 환생 — 모은 것을 반납하고 훈장으로 바꾼다. 벽을 넘은 뒤의 목표. -->
       <div class="shopwrap medalwrap">
-        <h3>환생 <span class="dim">· 훈장 <b id="medalHave">0</b> · 환생해도 남아요</span></h3>
+        <h3>환생 <span class="dim">· 훈장 <b id="medalHave">0</b> · 환생해도 유지</span></h3>
         <div class="note" id="medalNote"></div>
         <button class="wide" id="prestigeBtn" style="margin-top:9px"></button>
       </div>
@@ -152,9 +152,9 @@
       </div>
       <div class="note" id="rollNote"></div>
       <div class="note helpnote" style="margin-top:10px;color:#5f6874">
-        가운데 <b style="color:var(--steel)">벙커</b>를 지켜요. 적은 <b>사방에서</b> 곧장 몰려와요.<br>
-        유닛은 벙커 안에 있어서 <b>안 맞아요</b>. 깎이는 건 벙커뿐이에요.<br>
-        판이 끝나면 자원으로 <b>뽑고 · 키우고 · 늘려요</b>.
+        가운데 <b style="color:var(--steel)">벙커</b> 지키기 · 적은 <b>사방에서</b> 곧장 몰려옴<br>
+        유닛은 벙커 안이라 <b>안 맞음</b> · 깎이는 건 벙커뿐<br>
+        판 끝나면 자원으로 <b>뽑기 · 키우기 · 자리 늘리기</b>
       </div>
     </section>
 

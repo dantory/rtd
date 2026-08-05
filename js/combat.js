@@ -33,9 +33,9 @@ const MOB = {
 const BOSS_POWERS = ["haste", "spawn", "ward"];
 export const bossPower = (r) => BOSS_POWERS[(Math.floor(r / 5) - 1 + BOSS_POWERS.length) % BOSS_POWERS.length];
 export const bossNote = (r) => ({
-  haste: "큰 놈이 와요 — 주변 적을 몰아쳐요",
-  spawn: "큰 놈이 와요 — 쓰러지면서 새끼를 흩뿌려요",
-  ward:  "큰 놈이 와요 — 멀리서는 잘 안 박혀요",
+  haste: "큰 놈 등장 — 주변 적을 몰아침",
+  spawn: "큰 놈 등장 — 쓰러지면 새끼가 흩어짐",
+  ward:  "큰 놈 등장 — 멀리서는 잘 안 박힘",
 }[bossPower(r)]);
 
 /** 보스가 쓰러진 자리에서 새끼가 흩어진다 — runner 결의 얇은 몹 4마리. 소환 수(S.spawned)에는
@@ -452,7 +452,7 @@ export function tick(dt) {
       const first = META.relics === 0;      // 이 판에서 처음 손에 쥐는 자원인가
       META.relics += rel; saveMeta();
       // 처음 한 번은 어디서 쓰는지까지 말해 준다. 두 번째부터는 잔소리다.
-      if (first) say('자원이 쌓여요 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 유닛을 키울 수 있어요.');
+      if (first) say('자원 획득 — <b style="color:var(--amber)">판이 끝나면</b> 능력치와 유닛 강화');
     }
     S.round++;
     drawGrid();            // 다음 웨이브가 오는 갈래가 바뀌었다
@@ -474,13 +474,13 @@ export function gameOver() {
   $("overT").textContent = win ? "승리" : "패배";
   $("overT").style.color = win ? "#7fb069" : "#d05353";
   $("overD").innerHTML = win
-    ? `<b>${S.round}라운드</b> — 최고 기록을 넘었어요!<br><b style="color:var(--amber)">자원 +${got}</b>`
-    : `<b>${S.round}라운드</b>에서 벙커가 무너졌어요. 최고 ${META.best}라운드.<br>` +
+    ? `<b>${S.round}라운드</b> — 최고 기록 갱신!<br><b style="color:var(--amber)">자원 +${got}</b>`
+    : `<b>${S.round}라운드</b>에서 벙커 파괴 · 최고 ${META.best}라운드<br>` +
       `<b style="color:var(--amber)">자원 +${got}</b>`;
   /* 환생할 것이 생겼으면 결과에서 한 줄로 알린다 — 강화 메뉴를 열어 봐야 아는 성장 축이면
      있으나 마나다. 다만 여기서 하지는 않는다: 되돌릴 수 없는 결정은 제 자리에서 내린다. */
   if (medalGain() > 0)
-    $("overD").innerHTML += `<br><b style="color:#d6a84a">「강화」에서 환생할 수 있어요 — 훈장 +${medalGain()}</b>`;
+    $("overD").innerHTML += `<br><b style="color:#d6a84a">「강화」에서 환생 가능 — 훈장 +${medalGain()}</b>`;
   drawShop();
   $("over").classList.add("on");
 }
@@ -500,7 +500,7 @@ export function drawShop() {
   const nx = nextUnlockAt();
   $("armyNote").innerHTML =
     `유닛 <b>${META.army.length}</b>기 · 자리 <b>${slotMax()}</b> · 나오는 종류 <b>${poolSize()}</b>/${KIND_IDS.length}` +
-    (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 열려요` : "");
+    (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 해금` : "");
 
   /* 도감 — 아직 못 본 종류도 **자리를 비워 둔 채로 보여 준다.** 몇 개가 남았는지 보이지
      않으면 모을 이유가 생기지 않는다. 만난 최고 등급을 별로 남기고, 수치·다음 목표까지 적어
@@ -513,9 +513,9 @@ export function drawShop() {
       /* ??? 도 **다음 목표**를 적는다. 넷째부터 최고 라운드 (i-3)*5 마다 하나씩 열리니(poolSize),
          "무엇이, 언제 열리는지"가 보이면 못 본 칸도 밀어 볼 이유가 된다. */
       const at = Math.max(0, i - 3) * 4;   // poolSize 와 같은 걸음(4라운드마다 하나) — 5 로 두어 40R 이라 적고 있었다
-      return `<div class="dxc off" title="아직 못 만났어요"><span class="ico">?</span>
+      return `<div class="dxc off" title="아직 못 만남"><span class="ico">?</span>
            <span class="dxn">???</span>
-           <span class="dxt">${at ? `최고 <b>${at}R</b>에 열려요` : "곧 열려요"}</span></div>`;
+           <span class="dxt">${at ? `최고 <b>${at}R</b>에 해금` : "곧 해금"}</span></div>`;
     }
     /* 만난 종류는 **키울 수 있다.** 누를 수 있게 해 두면 "이번엔 저격수를 밀어 보자"가 성립하고,
        카드에 지금 피해·사거리·특기와 한 단계 위 값을 적어 무엇이 얼마나 오를지 미리 보인다. */
@@ -546,13 +546,13 @@ export function drawMedals() {
       ? `훈장 <b style="color:var(--amber)">${n}</b> — 모든 피해 <b>+${Math.round((medalDmg() - 1) * 100)}%</b> · ` +
         `자원 <b>+${Math.round((medalRelic() - 1) * 100)}%</b>` +
         (medalSlots() ? ` · 시작 자리 <b>+${medalSlots()}</b>` : "")
-      : `훈장은 <b>환생해도 사라지지 않아요</b> — 모든 피해와 자원, 시작 자리가 계속 올라요.`) +
+      : `훈장은 <b>환생해도 유지</b> — 모든 피해 · 자원 · 시작 자리가 영구 상승`) +
     `<br>` + (g
-      ? `환생하면 <b style="color:var(--amber)">유닛 · 능력치 · 키운 단계 · 가진 자원</b>이 처음으로 돌아가요. ` +
-        `<b style="color:var(--steel)">도감과 최고 기록은 남아요.</b>`
+      ? `환생하면 <b style="color:var(--amber)">유닛 · 능력치 · 키운 단계 · 가진 자원</b> 초기화. ` +
+        `<b style="color:var(--steel)">도감과 최고 기록은 유지.</b>`
       : nx
-        ? `<b style="color:var(--steel)">${nx}라운드</b>를 넘기면 훈장을 하나 받아요.`
-        : `지금은 받을 훈장이 없어요.`);
+        ? `<b style="color:var(--steel)">${nx}라운드</b>를 넘기면 훈장 +1`
+        : `지금은 받을 훈장 없음`);
   const b = $("prestigeBtn");
   b.disabled = g <= 0;
   b.textContent = g > 0 ? `환생하기 — 훈장 +${g}` : `환생 — ${MEDAL_GATE}라운드부터`;
