@@ -3,6 +3,7 @@ import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkil
 import { drawGrid, px, say } from "./view.js";
 import { armorMul, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
+import { sfx } from "./sound.js";
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -130,6 +131,7 @@ export function hurt(m, d, from) {
   m.hp -= d;
   if (m.hp <= 0) {
     m.dead = true;
+    sfx(m.boss ? "boss" : "kill");
     /* 골드가 사라졌으니 정찰병의 몫도 자원 쪽으로 옮겨 간다(relicTick 에서 셈한다).
        띄우는 숫자도 골드가 아니라 **그 몫**이다 — 없는 재화를 띄우면 거짓말이 된다. */
     const extra = (from && KINDS[from.kind].bounty ? KINDS[from.kind].bounty : 1) - 1;
@@ -255,6 +257,7 @@ export function tick(dt) {
         m.atkT = 1;
         const hit = Math.max(1, Math.round(m.dmg * armorMul()));
         S.coreHp -= hit;
+        sfx("hitCore");
         flyText(c.x, c.y - cr, "-" + hit, "#d05353");
         bunkerHit();                       // 맞는 손맛 — 흔들림·붉은 비네트(0.5초 스로틀)
         if (S.coreHp <= 0) { S.coreHp = 0; gameOver(); return; }
@@ -328,6 +331,7 @@ export function tick(dt) {
     const ty = cc.y + diry * coreRadius() * 0.9 + dirx * lat;
     S.shots.push({ x: tx, y: ty, tx: bp.x, ty: bp.y, life: 0.14, col: K.col });
     muzzle(tx, ty, K.col);                  // 총안구에서 불빛이 튄다
+    sfx(K.cd >= 2 ? "heavy" : "shoot");     // 느리고 무거운 병과(로켓·저격·공병)는 소리도 무겁게
     boom(bp.x, bp.y, K.fx || "hit");
 
     hurt(best, d, t);
@@ -412,6 +416,7 @@ export function gameOver() {
   const win = S.round > META.best;
   META.best = Math.max(META.best, S.round);
   saveMeta();
+  sfx(win ? "win" : "lose");
   $("overT").textContent = win ? "승리" : "패배";
   $("overT").style.color = win ? "#7fb069" : "#d05353";
   $("overD").innerHTML = win

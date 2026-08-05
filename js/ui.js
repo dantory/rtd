@@ -1,3 +1,4 @@
+import { sfx, setSound, soundOn } from "./sound.js";
 import { $, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, META, META_KEY, metaLife, noteSeen, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { canMerge, dmgOf, fillFree, inBox, isOut, merge, mergeGroups, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
@@ -162,6 +163,7 @@ export function openOffline(rep) {
   $("offDur").textContent  = h ? `${h}시간 ${m}분` : `${m}분`;
   $("offGain").textContent = rep.gain;
   $("offTake").onclick = () => {
+    sfx("coin");
     META.relics += rep.gain;
     saveMeta();
     $("offline").classList.remove("on");
@@ -249,7 +251,9 @@ export function wireUI() {
     try { localStorage.setItem("rtd.auto", S.auto ? "1" : "0"); } catch {}
     refresh();
   };
-  $("setBtn").onclick = () => $("settings").classList.add("on");
+  const soundLabel = () => { $("soundBtn").textContent = soundOn() ? "소리 켜짐 — 누르면 끈다" : "소리 꺼짐 — 누르면 켠다"; };
+  $("soundBtn").onclick = () => { setSound(!soundOn()); soundLabel(); if (soundOn()) sfx("coin"); };
+  $("setBtn").onclick = () => { soundLabel(); $("settings").classList.add("on"); };
   $("setClose").onclick = () => $("settings").classList.remove("on");
   $("settings").addEventListener("click", (e) => { if (e.target === $("settings")) $("settings").classList.remove("on"); });
   $("wipeBtn").onclick = () => {

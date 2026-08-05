@@ -2,6 +2,7 @@ import { BUNKER_DMG, CORE, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, ki
 import { CELL, px, py, say } from "./view.js";
 import { drawShop, flyText, popTower } from "./combat.js";
 import { refresh } from "./ui.js";
+import { sfx } from "./sound.js";
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -166,6 +167,7 @@ export function mergeKey(k) {
   fillFree();                                        // 셋이 하나가 되며 빈 두 자리를 메운다
   noteSeen(kind, keep.g);                            // 합쳐 오른 등급도 도감에 남는다
   refresh();                       // 자리 배치가 먼저다 — 그래야 연출이 제자리에서 터진다
+  sfx("merge");
   // 대원은 벙커 안에 있으니 연출도 벙커에서 — 위로 병과와 등급이 떠오르고 링이 퍼진다.
   const c = coreCenter();
   flyText(c.x, c.y - coreRadius() - 40, "★ " + GNAME[keep.g] + " " + KINDS[kind].n, GCOL[keep.g]);
