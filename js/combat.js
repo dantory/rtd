@@ -269,7 +269,9 @@ export function tick(dt) {
     if (d <= cr + 8) {                            // 본진에 붙었다
       m.stuck = true;
       if (m.atkT <= 0) {
-        m.atkT = 1;
+        /* 언 놈은 때리는 손도 느리다 — 이게 없으면 냉동은 도착만 늦출 뿐 총 피해를 못 줄인다
+           (붙은 놈은 멈춰서 때리므로 이동 감속이 무의미해진다). 심사에서 +0.3R 로 죽어 있던 이유. */
+        m.atkT = 1 * (1 + m.slow * 2.5);
         const hit = Math.max(1, Math.round(m.dmg * armorMul()));
         S.coreHp -= hit;
         sfx("hitCore");
@@ -302,6 +304,24 @@ export function tick(dt) {
     }
   }
 
+  /* 냉동병 — **냉기장**이다. 사거리 안 모든 적이 느려진다(이동도, 벙커를 때리는 손도).
+     한 발씩 얼리는 방식은 사방에서 붙는 적을 못 덮어 심사에서 +0.3R 로 죽어 있었다 —
+     제어 병과는 낱발이 아니라 장판이어야 이 구조(한 점 벙커, 전방위 쇄도)에서 값을 한다. */
+  for (const t of placed()) {
+    const K2 = KINDS[t.kind];
+    if (!K2.slow) continue;
+    t.chillT = (t.chillT || 0) - dt;
+    if (t.chillT > 0) continue;
+    t.chillT = 0.3;
+    const c2 = coreCenter();
+    const r2 = rngOf(t), sk2 = kindSkill(t.kind);
+    const s2 = Math.min(0.8, K2.slow * sk2 * (1 + (t.g - 1) * 0.25));
+    for (const m of S.mobs) {
+      if (Math.hypot(m.x - c2.x, m.y - c2.y) > r2) continue;
+      m.slow = Math.max(m.slow, s2); m.slowT = Math.max(m.slowT, 0.5);
+    }
+  }
+
   /* 위생병 — 싸우는 동안 **본진**을 고친다. 대원이 안 죽게 된 뒤로 깎이는 것은 본진뿐이고,
      그러니 고칠 것도 본진이다. 웨이브 도중에만 의미가 있는 힘이다. */
   for (const t of placed()) {
@@ -326,13 +346,16 @@ export function tick(dt) {
     const K = KINDS[t.kind], r = rngOf(t);
     // **벙커에 제일 가까이 온 놈부터** 노린다 — 먼 놈을 먼저 잡으면 코앞의 것을 놓친다.
     // 지뢰밭만은 **멈춰 붙은 놈**을 노린다 — 그래야 "달라붙은 것들을 한꺼번에"가 된다.
-    let best = null, bestD = 1e9;
+    /* 공병(arm)은 **붙은 놈 우선, 없으면 가까운 놈** — "붙은 놈만"으로 두면 벙커가 안
+       맞는 동안(대부분의 라운드) 완전 무직이다. 심사에서 +0.3R, 소총병만도 못했다. */
+    let best = null, bestD = 1e9, bestStuck = null, bestStuckD = 1e9;
     for (const m of S.mobs) {
       if (Math.hypot(m.x - cc.x, m.y - cc.y) > r) continue;
-      if (K.arm && !m.stuck) continue;
       const d = distToCore(m);
       if (d < bestD) { bestD = d; best = m; }
+      if (m.stuck && d < bestStuckD) { bestStuckD = d; bestStuck = m; }
     }
+    if (K.arm && bestStuck) best = bestStuck;
     if (!best) continue;
     t.cd = K.cd;
     const d = dmgOf(t);
