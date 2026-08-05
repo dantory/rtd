@@ -46,6 +46,15 @@ function tone(freq, dur, { type = "square", vol = 0.05, slide = 0, delay = 0 } =
   o.connect(g); g.connect(c.destination);
   o.start(t0); o.stop(t0 + dur + 0.02);
 }
+/* 잡음은 **전용 난수**로 만든다. Math.random 을 쓰면 검증 하네스가 씌운 씨앗 고정
+   PRNG 의 난수열을 소리가(그것도 시각 의존 스로틀에 따라 불규칙하게) 소모해서,
+   같은 코드가 판마다 다른 결과를 내는 — 애써 잡은 결정론이 도로 깨진다(실제로 깨졌다). */
+let nseed = 0x9e3779b9;
+const nrand = () => {
+  nseed ^= nseed << 13; nseed ^= nseed >>> 17; nseed ^= nseed << 5;
+  return ((nseed >>> 0) / 4294967296);
+};
+
 /** 잡음 한 줌 — 타격·폭발용. */
 function noise(dur, { vol = 0.05, freq = 900, delay = 0 } = {}) {
   const c = ac();
@@ -54,7 +63,7 @@ function noise(dur, { vol = 0.05, freq = 900, delay = 0 } = {}) {
   const n = Math.floor(c.sampleRate * dur);
   const buf = c.createBuffer(1, n, c.sampleRate);
   const d = buf.getChannelData(0);
-  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  for (let i = 0; i < n; i++) d[i] = (nrand() * 2 - 1) * (1 - i / n);
   const src = c.createBufferSource(); src.buffer = buf;
   const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = freq;
   const g = c.createGain(); g.gain.value = vol;
