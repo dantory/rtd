@@ -2,7 +2,7 @@ import { sfx, setSound, soundOn } from "./sound.js";
 import { $, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, META, META_KEY, metaLife, noteSeen, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { canMerge, dmgOf, fillFree, inBox, isOut, merge, mergeGroups, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
-import { bossNote, drawShop, drawTowers, mobEls, paint, startWave, WAVE_GAP, waveLanes } from "./combat.js";
+import { bossNote, drawShop, drawTowers, mobEls, paint, startWave, WAVE_GAP, waveLanes, wavePool } from "./combat.js";
 
 
 /* ══ 패널 ══ */
@@ -27,10 +27,20 @@ export function refresh() {
   $("runBtn").classList.toggle("on", S.autoRun);
   $("runBtn").title = S.autoRun ? "뽑기·합성까지 알아서 한다" : "뽑기·합성을 손으로 한다";
   const lanes = waveLanes(S.round).length;
-  $("waveNote").textContent = S.running
+  /* **웨이브 예고 — 무엇이 오는지까지 보여 준다.** 마리 수·체력만으로는 편성 결정에
+     정보가 안 된다: 방패 놈이 오면 관통·연쇄가, 빠른 놈이 오면 냉동이 값을 하니까.
+     소환과 같은 표(wavePool)를 보므로 예고가 어긋날 일이 없다. */
+  const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패" };
+  const kinds = [...new Set(wavePool(S.round))];
+  const icons = kinds.map(k =>
+    `<span class="wavekind"><img class="mobico" src="assets/mob/${k}.png" alt=""
+       onerror="this.remove()">${MOBNAME[k]}</span>`).join(" ");
+  $("waveNote").innerHTML = S.running
     ? `${S.toSpawn}마리 중 ${S.spawned}마리 나옴 · 남은 적 ${S.mobs.length}`
-    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다` +
-      (isBossR(S.round) ? " · " + bossNote(S.round) : "");
+    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다<br>` +
+      icons + (isBossR(S.round)
+        ? ` <span class="wavekind boss"><img class="mobico" src="assets/mob/boss.png" alt=""
+             onerror="this.remove()">${bossNote(S.round)}</span>` : "");
 
   // **가진 것은 목록이 아니라 진열대로 보여 준다.** 여덟 종이 되고 나니 글 목록은
   // 훑어야 읽히고, 그러면 "뭘 합칠 수 있나"가 한눈에 안 들어온다.

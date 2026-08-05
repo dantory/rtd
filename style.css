@@ -145,6 +145,11 @@
   .shot{position:absolute;width:11px;height:2px;border-radius:1px;pointer-events:none;
     transform-origin:50% 50%;box-shadow:0 0 3px currentColor}
   .rng{position:absolute;border-radius:50%;border:1px dashed #3f4a58;pointer-events:none}
+  /* 웨이브 예고의 종류 아이콘 — 글줄 높이에 맞춰 작게, 이름을 곁들인다 */
+  .wavekind{display:inline-flex;align-items:center;gap:3px;margin-right:7px;white-space:nowrap}
+  .wavekind.boss{color:#d08a8a}
+  .mobico{width:18px;height:18px;object-fit:contain;image-rendering:pixelated;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
   .fly{position:absolute;font-size:11px;color:var(--amber);pointer-events:none;
     animation:fly .7s ease-out forwards}
   @keyframes fly{to{transform:translateY(-22px);opacity:0}}

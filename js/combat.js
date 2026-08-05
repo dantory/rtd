@@ -72,6 +72,14 @@ export function waveLanes(r) {
   return Array.from({ length: n }, (_, i) => base + i * (Math.PI * 2 / n));
 }
 
+/** 이번 라운드에 나올 수 있는 종류들 — 소환과 예고가 **같은 표**를 봐야 예고가 거짓말이 안 된다. */
+export function wavePool(r) {
+  return r < 3 ? ["grunt"]
+       : r < 6 ? ["grunt","grunt","runner"]
+       : r < 10 ? ["grunt","grunt","grunt","runner"]
+       : ["grunt","grunt","grunt","grunt","runner","runner","brute","swarm","shield"];
+}
+
 export function spawnMob() {
   const boss = isBossR(S.round) && S.spawned === 0;
   const lanes = waveLanes(S.round);
@@ -79,10 +87,7 @@ export function spawnMob() {
      **두꺼운 놈(brute)은 일부러 드물게 둔다**(1/5~1/8): 얇은 다수는 화력이 계속 잡아 벽을
      늦게까지 지키고, 드물게 새어 드는 brute 만 본진을 조금씩 깎아 낭떠러지를 비탈로 편다.
      낱개 체력의 평균이 대략 1.0 이도록 섞어 벽 대역(20~28R)을 흔들지 않는다. */
-  const pool = S.round < 3 ? ["grunt"]
-             : S.round < 6 ? ["grunt","grunt","runner"]
-             : S.round < 10 ? ["grunt","grunt","grunt","runner"]
-             : ["grunt","grunt","grunt","grunt","runner","runner","brute","swarm","shield"];
+  const pool = wavePool(S.round);
   const kind = boss ? "boss" : pool[Math.floor(Math.random() * pool.length)];
   const prof = MOB[kind];
   const c = coreCenter();
