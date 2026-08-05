@@ -27,20 +27,21 @@ export function refresh() {
   $("runBtn").classList.toggle("on", S.autoRun);
   $("runBtn").title = S.autoRun ? "뽑기·합성까지 알아서 한다" : "뽑기·합성을 손으로 한다";
   const lanes = waveLanes(S.round).length;
-  /* **웨이브 예고 — 무엇이 오는지까지 보여 준다.** 마리 수·체력만으로는 편성 결정에
-     정보가 안 된다: 방패 놈이 오면 관통·연쇄가, 빠른 놈이 오면 냉동이 값을 하니까.
-     소환과 같은 표(wavePool)를 보므로 예고가 어긋날 일이 없다. */
+  /* **다음 웨이브는 상단 바에 상시로.** 편성 결정의 재료라 늘 보여야 한다(병수님 방향).
+     웨이브가 도는 중에는 "다음" = 다음 라운드다. 보스·새 적 같은 사건은 배너가 맡는다. */
   const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패" };
-  const kinds = [...new Set(wavePool(S.round))];
+  const nextR = S.running ? S.round + 1 : S.round;
+  const kinds = [...new Set(wavePool(nextR))];
   const icons = kinds.map(k =>
     `<span class="wavekind"><img class="mobico" src="assets/mob/${k}.png" alt=""
-       onerror="this.remove()">${MOBNAME[k]}</span>`).join(" ");
-  $("waveNote").innerHTML = S.running
+       onerror="this.remove()">${MOBNAME[k]}</span>`).join("");
+  $("wavebar").innerHTML =
+    `<span>다음 <b>${nextR}R</b> · 적 ${waveN(nextR)}</span>` + icons +
+    (isBossR(nextR) ? `<img class="mobico" src="assets/mob/boss.png" alt="" title="${bossNote(nextR)}"
+        onerror="this.remove()">` : "");
+  $("waveNote").textContent = S.running
     ? `${S.toSpawn}마리 중 ${S.spawned}마리 나옴 · 남은 적 ${S.mobs.length}`
-    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다<br>` +
-      icons + (isBossR(S.round)
-        ? ` <span class="wavekind boss"><img class="mobico" src="assets/mob/boss.png" alt=""
-             onerror="this.remove()">${bossNote(S.round)}</span>` : "");
+    : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 온다`;
 
   // **가진 것은 목록이 아니라 진열대로 보여 준다.** 여덟 종이 되고 나니 글 목록은
   // 훑어야 읽히고, 그러면 "뭘 합칠 수 있나"가 한눈에 안 들어온다.

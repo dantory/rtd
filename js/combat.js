@@ -1,6 +1,6 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
 import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, META, newlySeen, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
-import { drawGrid, px, say } from "./view.js";
+import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
 import { sfx } from "./sound.js";
@@ -61,6 +61,16 @@ export function startWave() {
   S.running = true;
   S.toSpawn = waveN(S.round);
   S.spawned = 0; S.spawnT = 0;
+  /* 사건은 배너로 잠깐 — 보스가 오는 라운드, 처음 보는 종류가 섞이는 라운드.
+     상시 정보(#wavebar)와 층을 가른다: 붙박이는 정보, 배너는 사건이다. */
+  if (isBossR(S.round)) {
+    banner(`<img class="mobico" src="assets/mob/boss.png" alt="" onerror="this.remove()"> ${bossNote(S.round)}`);
+  } else {
+    const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패" };
+    const fresh = [...new Set(wavePool(S.round))].filter(k => !wavePool(S.round - 1).includes(k));
+    if (fresh.length) banner("새로운 적 — " + fresh.map(k =>
+      `<img class="mobico" src="assets/mob/${k}.png" alt="" onerror="this.remove()"> ${MOBNAME[k]}`).join(" · "), "newkind");
+  }
   refresh();
 }
 

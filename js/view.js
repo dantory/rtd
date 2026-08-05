@@ -181,6 +181,18 @@ export function drawGrid() {
 /* ══ 토스트 ══
    상시 로그는 뺐다 — 대부분의 사건은 화면(벙커 연출·칩·웨이브 줄)이 이미 말한다.
    여기로 오는 건 **다른 통로가 없는 피드백**뿐이고, 잠깐 떴다 사라진다. */
+/* 이벤트 배너 — 보스·새 적 출현처럼 "지금 일어난 일"을 상단에 잠깐 알린다.
+   상시 정보(#wavebar)와 층이 다르다: 상시는 붙박이, 사건은 떴다 사라진다. */
+let bannerT = 0;
+export const banner = (html, cls = "") => {
+  const el = $("banner");
+  el.className = cls;
+  el.innerHTML = html;
+  el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
+  clearTimeout(bannerT);
+  bannerT = setTimeout(() => el.classList.remove("on"), 2600);
+};
+
 let toastT = 0;
 export const say = (html) => {
   let el = $("toast");
