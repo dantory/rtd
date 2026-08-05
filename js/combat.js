@@ -302,7 +302,10 @@ export function tick(dt) {
     S.autoT = (S.autoT || 0) - dt;
     if (S.autoT <= 0) {
       S.autoT = 0.4;
+      const before = placed().map(t => t.id).join(",");
       fillFree();   // 뽑기·합성은 판 밖 일이 됐다. 판 안에서는 빈 자리만 메운다.
+      // 채웠으면 패널도 깨운다 — 상태만 바뀌고 화면이 낡으면 "자리 0/3"이 첫인상이 된다(실제로 그랬다)
+      if (placed().map(t => t.id).join(",") !== before) refresh();
     }
   }
 
