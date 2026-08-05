@@ -367,6 +367,15 @@
   #over .box,#forge .box,#squad .box,#settings .box,#offline .box,#intro .box{touch-action:pan-y}
   .shopwrap h3{font-size:12px;letter-spacing:1px;color:var(--dim);font-weight:normal;margin:18px 0 8px}
   .shopwrap h3 b{color:var(--amber);font-weight:normal}
+  /* 재편 — 되돌릴 수 없는 칸이라 다른 상점과 **눈에 띄게 갈라** 둔다. 능력치 사듯 무심코
+     누르는 자리가 아니다. 받을 것이 있을 때만 금빛이 돈다. */
+  .medalwrap{margin-top:20px;padding:12px 12px 14px;border:1px solid #33302a;border-radius:8px;
+    background:linear-gradient(180deg,rgba(48,40,24,.45),rgba(20,20,22,.2))}
+  .medalwrap h3{margin-top:0}
+  .medalwrap .note{font-size:12px;line-height:1.65}
+  #prestigeBtn{padding:11px 14px;letter-spacing:1px}
+  #prestigeBtn.can{border-color:#6d5a2c;color:var(--amber)}
+  #prestigeBtn.can:hover{border-color:var(--amber);background:rgba(48,38,18,.7)}
   /* 폭에 맞춰 저절로 접히게 한다. 열 수를 미디어쿼리로 박아 두었더니 그 규칙이 아래에 있어
      폰에서도 2열이 이겨 카드 절반이 화면 밖으로 잘려 나갔다. */
   /* minmax 의 최소값이 화면보다 크면 칸이 화면 밖으로 밀린다(360px 에서 13px 넘쳤다).

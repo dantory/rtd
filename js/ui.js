@@ -1,5 +1,5 @@
 import { sfx, setSound, soundOn } from "./sound.js";
-import { $, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, META, META_KEY, metaLife, noteSeen, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
+import { $, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { canMerge, dmgOf, fillFree, inBox, isOut, merge, mergeGroups, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
 import { bossNote, drawShop, drawTowers, mobEls, paint, startWave, WAVE_GAP, waveLanes, wavePool } from "./combat.js";
@@ -321,6 +321,19 @@ export function wireUI() {
   $("forgeBtn").onclick = openShop;
   $("overSquad").onclick = () => openSquad();
   $("forgeClose").onclick = () => $("forge").classList.remove("on");
+  /* 재편 — 되돌릴 수 없으니 무엇이 사라지고 무엇이 남는지를 한 번 더 묻는다.
+     누른 뒤에는 판을 처음부터 다시 시작한다 — 반납한 부대로 판을 이어 갈 수는 없다. */
+  $("prestigeBtn").onclick = () => {
+    const g = medalGain();
+    if (g <= 0) return;
+    if (!confirm(`재편한다 — 훈장 ${g}개를 받는다.\n\n부대 · 능력치 · 병과 훈련 · 가진 자원이 처음으로 돌아간다.\n도감과 최고 기록은 남는다. 계속?`)) return;
+    prestige();
+    sfx("win");
+    refreshSlots();
+    newGame();            // 반납한 부대로 판을 이어 갈 수는 없다 — 새 판으로 시작한다
+    drawShop();
+    say(`재편했다 — 훈장 <b style="color:var(--amber)">${medals()}</b>. 모든 피해와 자원이 영영 올랐다.`);
+  };
   $("relicBtn").onclick = () => {
     if (S.over) { openShop(false); return; }
     say(`자원 <b style="color:var(--amber)">${META.relics}</b> — 판이 끝나면 쓴다.`);

@@ -16,6 +16,10 @@ const SCREENS = [
   ["전장", ""],
   ["결과(상점)", `META.relics=40; META.seen.gun=3; META.seen.cannon=2; META.seen.rail=1;
       drawShop(); document.getElementById('over').classList.add('on');`],
+  /* 강화는 결과와 **다른 창**이다(#forge). 결과만 재고 넘어가면 상점·도감·재편이 든
+     제일 긴 화면을 한 번도 안 재는 셈이 된다 — 재편 칸을 넣으며 실제로 그럴 뻔했다. */
+  ["강화(재편)", `META.relics=40; META.best=25; META.seen.gun=3; META.seen.cannon=2; META.seen.rail=1;
+      drawShop(); document.getElementById('forge').classList.add('on');`],
   ["편성", `META.relics=200; for(let i=0;i<10;i++) recruit(); refresh(); openSquad();`],
 ];
 
@@ -25,7 +29,7 @@ const PROBE = `(() => {
      내용이 화면보다 긴 것 자체는 문제가 아니다(스크롤하면 된다). 문제는 판을 끝내고
      나가는 버튼이 그 아래로 밀려나 안 보이는 것이다 — 스크롤이 되는 줄 모르면
      그건 그냥 잘린 화면이고, 사람은 게임이 멈췄다고 읽는다. */
-  for (const [id, btn] of [["over", "again"], ["squad", "sqClose"]]) {
+  for (const [id, btn] of [["over", "again"], ["squad", "sqClose"], ["forge", "forgeClose"]]) {
     const wrap = document.getElementById(id);
     if (!wrap || !wrap.classList.contains("on")) continue;
     const b2 = document.getElementById(btn);

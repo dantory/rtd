@@ -1,5 +1,5 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, META, newlySeen, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
@@ -477,6 +477,10 @@ export function gameOver() {
     ? `<b>${S.round}라운드</b> — 최고 기록을 넘었다.<br><b style="color:var(--amber)">자원 +${got}</b>`
     : `<b>${S.round}라운드</b>에서 벙커가 무너졌다. 최고 ${META.best}라운드.<br>` +
       `<b style="color:var(--amber)">자원 +${got}</b>`;
+  /* 재편할 것이 생겼으면 결과에서 한 줄로 알린다 — 강화 메뉴를 열어 봐야 아는 성장 축이면
+     있으나 마나다. 다만 여기서 하지는 않는다: 되돌릴 수 없는 결정은 제 자리에서 내린다. */
+  if (medalGain() > 0)
+    $("overD").innerHTML += `<br><b style="color:#d6a84a">「강화」에서 재편할 수 있다 — 훈장 +${medalGain()}</b>`;
   drawShop();
   $("over").classList.add("on");
 }
@@ -508,7 +512,7 @@ export function drawShop() {
     if (!g) {
       /* ??? 도 **다음 목표**를 적는다. 넷째부터 최고 라운드 (i-3)*5 마다 하나씩 열리니(poolSize),
          "무엇이, 언제 열리는지"가 보이면 못 본 칸도 밀어 볼 이유가 된다. */
-      const at = Math.max(0, i - 3) * 5;
+      const at = Math.max(0, i - 3) * 4;   // poolSize 와 같은 걸음(4라운드마다 하나) — 5 로 두어 40R 이라 적고 있었다
       return `<div class="dxc off" title="아직 못 만났다"><span class="ico">?</span>
            <span class="dxn">???</span>
            <span class="dxt">${at ? `최고 <b>${at}R</b> 에 열린다` : "곧 열린다"}</span></div>`;
@@ -530,6 +534,29 @@ export function drawShop() {
   }).join("");
   $("dexHave").textContent = seenCount();
   $("dexAll").textContent = KIND_IDS.length;
+  drawMedals();
+}
+
+/** 재편 칸. **지금 무엇을 얻고 무엇을 잃는지**를 버튼 앞에서 다 말한다 —
+ *  되돌릴 수 없는 버튼이라 누른 뒤에 알게 되면 그건 함정이다. */
+export function drawMedals() {
+  const n = medals(), g = medalGain(), nx = nextMedalAt();
+  $("medalHave").textContent = n;
+  $("medalNote").innerHTML = (n
+      ? `훈장 <b style="color:var(--amber)">${n}</b> — 모든 피해 <b>+${Math.round((medalDmg() - 1) * 100)}%</b> · ` +
+        `자원 <b>+${Math.round((medalRelic() - 1) * 100)}%</b>` +
+        (medalSlots() ? ` · 시작 자리 <b>+${medalSlots()}</b>` : "")
+      : `훈장은 <b>재편해도 사라지지 않는다</b> — 모든 피해와 자원, 시작 자리가 영영 오른다.`) +
+    `<br>` + (g
+      ? `재편하면 <b style="color:var(--amber)">부대 · 능력치 · 병과 훈련 · 가진 자원</b>이 처음으로 돌아간다. ` +
+        `<b style="color:var(--steel)">도감과 최고 기록은 남는다.</b>`
+      : nx
+        ? `<b style="color:var(--steel)">${nx}라운드</b>를 넘기면 훈장 하나를 받을 수 있다.`
+        : `지금은 받을 훈장이 없다.`);
+  const b = $("prestigeBtn");
+  b.disabled = g <= 0;
+  b.textContent = g > 0 ? `재편한다 — 훈장 +${g}` : `재편 — ${MEDAL_GATE}라운드부터`;
+  b.classList.toggle("can", g > 0);
 }
 
 /* ══ 그리기 ══ */

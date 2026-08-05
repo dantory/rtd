@@ -265,8 +265,9 @@ export function dexStat(k) {
     dmgN: Math.round(K.dmg * BUNKER_DMG * kindDmgMul(k, lv + 1)),
     /* 실전과 같은 상한(출현 반경 안쪽)을 적용한다 — 캡 없는 수치를 적으면
        "334→350"처럼 실제로는 안 오르는 사거리를 오른다고 말하는 거짓 표시가 된다. */
-    rng:  Math.min(spawnRadius() - 30, Math.round(K.rng * BUNKER_RNG * kindRngMul(k, lv))),
-    rngN: Math.min(spawnRadius() - 30, Math.round(K.rng * BUNKER_RNG * kindRngMul(k, lv + 1))),
+    /* 상한도 반올림한다 — spawnRadius() 가 소수라 "296.4" 같은 값이 그대로 카드에 찍혔다. */
+    rng:  Math.round(Math.min(spawnRadius() - 30, K.rng * BUNKER_RNG * kindRngMul(k, lv))),
+    rngN: Math.round(Math.min(spawnRadius() - 30, K.rng * BUNKER_RNG * kindRngMul(k, lv + 1))),
     sLb:  cur ? cur[0] : null,
     sCur: cur ? cur[1] : null,
     sNxt: nxt ? nxt[1] : null,

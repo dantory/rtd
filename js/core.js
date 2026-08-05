@@ -119,7 +119,8 @@ export const SLOT_SPOTS = (() => {
 export const SLOT_BASE = 3;                                    // 첫 판에 주는 자리
 // `| 0` 은 군더더기가 아니다 — 예전 세이브나 검증 하네스가 slots 없는 up 을 넣으면
 // undefined 가 되어 자리 수가 통째로 NaN 이 된다(실제로 그래서 봇이 1R 에 전멸했다).
-export const slotMax = () => Math.min(SLOT_SPOTS.length, SLOT_BASE + (META.up.slots | 0));
+// 훈장 셋마다 자리 하나가 **처음부터** 열려 있다 — 재편 뒤의 첫 판이 예전 첫 판과 달라야 한다.
+export const slotMax = () => Math.min(SLOT_SPOTS.length, SLOT_BASE + (META.up.slots | 0) + medalSlots());
 export let SLOT_SET = new Set();
 export let DECK_R = 1;
 /** **앞마당은 자리를 따라 자란다.** 처음부터 9×9 철판을 깔아 두면 자리 셋이 허허벌판에
@@ -169,6 +170,9 @@ export function loadMeta() {
     const raw = JSON.parse(localStorage.getItem(META_KEY));
     if (raw && typeof raw === "object") {
       return { relics: raw.relics | 0, best: raw.best | 0,
+               // 재편으로 받은 훈장, 그리고 **이미 훈장으로 바꾼 기록**. 둘을 따로 두어야
+               // 같은 기록으로 두 번 받는 일이 없다(gain = 지금 기록치 - 바꿔 간 기록치).
+               medals: raw.medals | 0, cashed: raw.cashed | 0,
                up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, (raw.up?.[k]) | 0])),
                // 도감 — **모으는 재미는 남는 데서 온다.** 판이 끝나면 사라지는 수집은 수집이 아니다.
                seen: Object.fromEntries(KIND_IDS.map(k => [k, (raw.seen?.[k]) | 0])),
@@ -189,7 +193,8 @@ export function loadMeta() {
                lastSeen: Number.isFinite(raw.lastSeen) && raw.lastSeen > 0 ? raw.lastSeen : 0 };
     }
   } catch { /* 손상됐으면 조용히 새로 시작 — 저장이 깨졌다고 게임이 안 켜지면 안 된다 */ }
-  return { relics: 0, best: 0, up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
+  return { relics: 0, best: 0, medals: 0, cashed: 0,
+           up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
            seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
            lv: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
            army: [], armyId: 0, lastSeen: 0 };
@@ -236,16 +241,65 @@ export const upCost = (k) => UPGRADES[k].base + UPGRADES[k].per * META.up[k];
 /* "자원이 너무 흔해"(병수님, 2026-08-05) — 수입을 절반쯤 조인다. 흔하면 고르는 맛이 죽는다:
    다 살 수 있으면 무엇을 살지가 결정이 아니게 된다. 가파른 항(^1.4)은 남긴다 —
    한 라운드를 더 미는 값어치가 커야 돌파가 성립한다. */
-export const relicsFor = (round) => Math.floor((round - 1) * 1.6 + Math.pow(Math.max(0, round - 1), 1.4) / 2.5);
+export const relicsFor = (round) =>
+  Math.floor(((round - 1) * 1.6 + Math.pow(Math.max(0, round - 1), 1.4) / 2.5) * medalRelic());
 /** **막는 중에도 자원이 들어온다.** 죽어야만 강해질 수 있으면 벽에 부딪힌 순간
  *  할 수 있는 게 죽기를 기다리는 것뿐이다. 세 라운드마다 한 줌씩, 멀리 갈수록 굵게. */
-export const relicTick = (round) => (round % 3 === 0 ? 1 + Math.floor(round / 9) : 0);
+export const relicTick = (round) =>
+  (round % 3 === 0 ? Math.floor((1 + Math.floor(round / 9)) * medalRelic()) : 0);
 // **돌파가 체감되어야 한다.** 스무 판을 해도 8%씩 오르면 벽은 그대로 벽이다.
 /* **맞기 시작한 뒤에도 버틸 시간이 있어야 한다.** 260 이면 적 몇이 붙는 순간 몇 초 만에
    끝나서, 처음 맞은 라운드와 죽는 라운드가 붙어 버렸다(재 보니 1~5 라운드 차). 두껍게 두고
    대신 한 대를 가볍게 하면, 새어 든 놈들이 조금씩 깎다 잡히는 구간이 길어진다. */
 export const metaLife = () => 520 + META.up.life * 90;   // 본진 체력
-export const metaDmg  = () => 1 + META.up.dmg * 0.13;
+export const metaDmg  = () => (1 + META.up.dmg * 0.13) * medalDmg();
+
+/* ══════════════════════════════════════════════════════════════
+   재편 — **벽을 넘은 다음에도 갈 곳이 있어야 한다.**
+   ──────────────────────────────────────────────────────────────
+   능력치는 사면 살수록 값이 오르고(base + per×lv) 자리는 스물 몇 개에서 멎는다. 그래서
+   서른 라운드쯤 가고 나면 더 살 것도, 더 도전할 것도 없다 — 최고 기록 숫자만 한 칸씩
+   오르는 판이 된다. 축이 하나 더 필요하다.
+
+   **모은 것을 반납하고 훈장으로 바꾼다.** 부대·능력치·훈련이 처음으로 돌아가는 대신
+   훈장은 영영 남아 모든 판에 곱해진다. 잃는 것이 진짜여야 결정이 되고, 되찾는 길이
+   빨라야("두 번째 판은 훨씬 빠르다") 결정을 내릴 만해진다.
+
+   **도감과 최고 기록은 안 지운다.** 병과 해금이 최고 기록에 달려 있어(poolSize) 그것까지
+   되돌리면 재편이 곧 병과를 다시 잠그는 일이 된다 — 모으는 축을 스스로 깎는 셈이다.
+   기록은 기록대로 남기고, 훈장으로 바꾼 지점(cashed)만 따로 적어 중복 지급을 막는다.
+   ══════════════════════════════════════════════════════════ */
+export const MEDAL_GATE = 20;                       // 여기까지 가 본 사람에게만 열린다
+/** 기록 r 을 통째로 훈장으로 환산하면 몇 개인가. 가파른 항이라 **한 라운드를 더 미는 값이
+ *  뒤로 갈수록 커진다** — 재편이 "지금 할까 더 밀까"의 저울이 된다. */
+export const medalsAt = (r) => (r < MEDAL_GATE ? 0 : Math.floor(Math.pow((r - 14) / 3, 1.25)));
+export const medals     = () => META.medals | 0;
+export const medalGain  = () => Math.max(0, medalsAt(META.best | 0) - medalsAt(META.cashed | 0));
+/** 훈장 하나가 주는 것. 셋 다 **판을 시작하는 순간부터** 붙어야 다시 달리는 맛이 난다. */
+export const medalDmg   = () => 1 + medals() * 0.12;   // 모든 피해
+export const medalRelic = () => 1 + medals() * 0.10;   // 들어오는 자원
+export const medalSlots = () => Math.floor(medals() / 3);   // 시작 자리
+/** 훈장이 하나 더 붙는 라운드. 0 이면 지금 재편할 게 있다. */
+export function nextMedalAt() {
+  if (medalGain() > 0) return 0;
+  const cur = medalsAt(META.cashed | 0);
+  for (let r = Math.max(META.best | 0, MEDAL_GATE - 1) + 1; r <= 200; r++)
+    if (medalsAt(r) > cur) return r;
+  return 0;
+}
+/** 재편한다. 받은 훈장 수를 돌려준다(0 이면 아무 일도 안 일어났다). */
+export function prestige() {
+  const g = medalGain();
+  if (g <= 0) return 0;
+  META.medals = medals() + g;
+  META.cashed = META.best | 0;
+  META.relics = 0;
+  META.army = [];
+  for (const k of Object.keys(UPGRADES)) META.up[k] = 0;
+  for (const k of KIND_IDS) META.lv[k] = 0;
+  saveMeta();
+  return g;
+}
 
 /* 판마다 다섯 종만 나오게 하던 장치(rollPool)는 걷어냈다. 부대가 판을 넘어 남게 된
    뒤로는 "이번 판에 뭐가 나오나"가 아니라 **지금까지 무엇을 모았나**가 그 판의 성격이다.
