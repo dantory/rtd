@@ -1,7 +1,7 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
 import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
-import { armorMul, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruitCost, rngOf, spawnRadius } from "./army.js";
+import { armorMul, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
 import { sfx } from "./sound.js";
 
@@ -465,6 +465,12 @@ export function gameOver() {
   document.querySelectorAll("#world .fly, #world .boom").forEach(e => e.remove());
   const got = relicsFor(S.round);
   META.relics += got;
+  /* **판이 끝나면 유닛이 공짜로 합류한다.**
+     뽑기가 업그레이드와 같은 지갑(자원)을 두고 겨루는데, 업그레이드는 싸고 영구라 늘 이긴다.
+     그래서 부대가 안 자라고 — 재 보니 여덟 판을 도는 동안 **합성이 0 회**였다. 모으는 축을
+     지갑에서 떼어 내 도달 라운드에 직접 매단다: 멀리 갈수록 더 온다. */
+  const rolls = 1 + Math.floor(S.round / 7);
+  for (let i = 0; i < rolls; i++) recruit(true);
   /* **이겼는지 졌는지를 먼저 말한다.** 끝나는 방식이 하나뿐인 무한 판이라 "승리"는
      기록을 넘어선 판이다 — 그게 이 게임에서 이긴다는 것의 유일한 뜻이다. */
   const win = S.round > META.best;
@@ -477,6 +483,8 @@ export function gameOver() {
     ? `<b>${S.round}라운드</b> — 최고 기록 갱신!<br><b style="color:var(--amber)">자원 +${got}</b>`
     : `<b>${S.round}라운드</b>에서 벙커 파괴 · 최고 ${META.best}라운드<br>` +
       `<b style="color:var(--amber)">자원 +${got}</b>`;
+  // 합류한 유닛도 정산에 적는다 — 조용히 늘어나면 어디서 왔는지 모른 채 부대만 불어난다
+  $("overD").innerHTML += ` · <b style="color:#7fb069">유닛 +${rolls}</b>`;
   /* 환생할 것이 생겼으면 결과에서 한 줄로 알린다 — 강화 메뉴를 열어 봐야 아는 성장 축이면
      있으나 마나다. 다만 여기서 하지는 않는다: 되돌릴 수 없는 결정은 제 자리에서 내린다. */
   if (medalGain() > 0)

@@ -27,11 +27,18 @@ export const recruitCost = () => Math.max(2, 4 - META.up.cheap) + Math.floor(MET
  *  초반에는 셋을 모으기 쉽고, 멀리 갈수록 새 얼굴이 나와 도감이 채워진다. */
 export const poolSize = () => Math.min(KIND_IDS.length, 4 + Math.floor(META.best / 4));
 export const nextUnlockAt = () => (poolSize() >= KIND_IDS.length ? 0 : (poolSize() - 3) * 4);
-export function recruit() {
+/** 뽑기. `free` 면 값을 안 받고 토스트도 안 띄운다 — 판이 끝날 때 한꺼번에 여러 기가
+ *  들어오므로, 낱개로 알리면 토스트가 줄줄이 쌓여 결과 화면을 덮는다(결과 줄에 한 번에 적는다). */
+export function recruit(free) {
   const c = recruitCost();
-  if (META.relics < c) return;
-  META.relics -= c;
+  if (!free) {
+    if (META.relics < c) return;
+    META.relics -= c;
+  }
   const pool = KIND_IDS.slice(0, poolSize());
+  /* 균등하게 뽑는다. 이미 가진 종류에 가중치를 주면 같은 것 셋이 훨씬 빨리 모이지만
+     (합성 3판째 시작), 부대가 몇 종류로 편식해 **무엇을 내보낼까가 결정이 아니게 된다** —
+     검증에서 "아무거나 vs 골라 내보내기" 차이가 3.6R → 2.4R 로 줄어 판정이 깨졌다. */
   const kind = pool[Math.floor(Math.random() * pool.length)];
   // 중급이 섞여 나와야 상급까지 길이 열린다. 안목이 그 확률을 올린다.
   const g = Math.random() + META.up.luck * 0.06 > 0.86 ? 2 : 1;
@@ -40,9 +47,11 @@ export function recruit() {
   const fresh = noteSeen(kind, g);
   fillFree();                        // 자리가 비어 있으면 바로 세운다
   syncArmy(); saveMeta();
-  say((fresh ? `<b style="color:var(--amber)">새 유닛!</b> ` : "") +
-      `<b>${GNAME[g]} ${KINDS[kind].n}</b> 획득!`);
+  if (!free)
+    say((fresh ? `<b style="color:var(--amber)">새 유닛!</b> ` : "") +
+        `<b>${GNAME[g]} ${KINDS[kind].n}</b> 획득!`);
   drawShop(); refresh();
+  return t;
 }
 
 /** **가진 것과 내보낸 것은 다르다.**
