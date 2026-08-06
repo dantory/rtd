@@ -109,7 +109,7 @@ const play = (useCounter) => `(() => {
     newGame();
     S.auto = false; S.gap = 0; S.autoRun = false;
     let g = 0;
-    while (!S.over && S.round <= 40 && g++ < 250) {
+    while (!S.over && S.round <= 60 && g++ < 400) {
       arrange(S.round);                 // **라운드마다 다시 고른다** — 그게 예고를 읽는다는 뜻이다
       startWave();
       let t = 0; while (S.running && t < 300) { tick(1/30); t += 1/30; }

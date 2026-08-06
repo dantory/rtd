@@ -1,7 +1,7 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
-import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
+import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, powerOf, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
 import { sfx } from "./sound.js";
 
@@ -217,7 +217,74 @@ export function hurt(m, d, from, tag) {
       flyText(p.x, p.y, m.boss ? "처치" : "+" + extra, "#e0a458");
     }
     if (m.boss) { const p = mobPos(m); bossRing(p.x, p.y); }   // 보스만 크게 — 링 확산 1회
+    dropFrag(m);                       // **판 도중에도 뭔가 떨어진다** — 파밍의 리듬이 여기서 생긴다
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   전리품 — **판 도중에도 뭔가 떨어져야 파밍이다.**
+   ──────────────────────────────────────────────────────────────
+   재 보니 한 판에서 사람이 받는 것이 3라운드마다 자원 숫자 하나뿐이었다. 스무 라운드를
+   구경하는 동안 보상 사건이 예닐곱 번, 손으로 뽑는 건 열 판 중 여섯 판이 0회 —
+   모으는 축이 통째로 **판이 끝난 뒤에만** 돌고 있었다. 그러면 그건 파밍이 아니라 정산이다.
+
+   그래서 적을 잡으면 조각이 떨어진다. 받는 것은 **지금 벙커에 넣어 둔 유닛의 조각**이다 —
+   내가 고른 것이 싸우면서 자라야 배치가 한 번 더 뜻을 갖는다(창고에 있는 것은 판이 끝난
+   뒤 뽑기로 자란다). 대부분은 하나, 가끔 뭉텅이 — **가끔이 있어야 뽑는 순간에 감정이 생긴다.**
+   ══════════════════════════════════════════════════════════ */
+/* **리듬과 성장은 서로 다른 손잡이다.**
+   조각만 떨구게 했더니 둘이 한 몸이 됐다 — 자주 떨구면(리듬) 성장이 폭주하고, 조이면
+   판 도중 아무 일도 안 일어난다. 실제로 조각만으로 0.05 를 돌렸더니 다섯 판째에 40 라운드를
+   넘겨 검증이 스무 분이 되도록 안 끝났다(사람이 하면 한 판이 삼십 분이라는 뜻이다).
+   그래서 **떨어지는 것은 자주, 그중 조각은 가끔**으로 갈랐다. 대부분은 자원 한 줌이고
+   — 자원은 이미 완만하게 설계된 축이라 폭주하지 않는다 — 넷에 하나쯤만 조각이다. */
+/* **총량은 그대로, 받는 횟수만 늘린다.**
+   조각까지 떨구게 했더니 경제가 폭주했다 — 다섯 판째에 마흔 라운드를 넘겨 검증이 삼십 분
+   넘게 안 끝났고, 그건 사람이 하면 한 판이 삼십 분이라는 뜻이다. 그래서 전리품은
+   **자원만** 준다. 세 라운드마다 뭉텅이로 주던 것(relicTick)을 여기로 옮겼을 뿐이라
+   총량은 거의 그대로고, 받는 횟수가 판당 예닐곱 번에서 열몇 번으로 는다.
+   조각(등급)은 예전처럼 판이 끝난 뒤 뽑기로만 — 그쪽은 다음에 손대야 할 축이다. */
+export const DROP_RATE = 0.035;
+export const FRAG_SHARE = 0.25;         // 전리품 중 조각의 몫. 나머지 넷 중 셋은 자원
+/** 떨어지는 크기. 대부분 하나, 열에 하나쯤 둘, 서른에 하나쯤 다섯. */
+function dropSize() {
+  const r = Math.random();
+  return r > 0.97 ? 5 : r > 0.85 ? 2 : 1;
+}
+function dropFrag(m) {
+  if (!m.boss && Math.random() > DROP_RATE) return;
+  const p = mobPos(m);
+  /* 넷 중 셋은 자원 — 세 라운드마다 뭉텅이로 주던 것을 잘게 쪼갠 것이다(총량은 그대로). */
+  if (!m.boss && Math.random() > FRAG_SHARE) {
+    const n = dropSize();
+    META.relics += n;
+    flyText(p.x, p.y, "+" + n, n >= 5 ? "#e0a458" : "#c8a05a");
+    if (n >= 5) sfx("coin");   // 뭉텅이만 소리 — 낱개까지 울리면 소음이 된다
+    return;
+  }
+  /* 넷 중 하나는 **지금 벙커에 넣어 둔 유닛의 조각**이다 — 내가 고른 것이 싸우면서 자란다.
+     창고에 있는 것은 판이 끝난 뒤 뽑기로 자란다(배치가 한 번 더 뜻을 갖는 자리). */
+  const out = placed();
+  if (!out.length) return;
+  const n = m.boss ? 6 + dropSize() : dropSize();
+  const t = out[Math.floor(Math.random() * out.length)];
+  t.frag = (t.frag | 0) + n;
+  const K = KINDS[t.kind];
+  /* **한 번에 한 별까지만.** 뭉텅이가 하급 유닛에 떨어지면 별이 둘씩 올라 피해가 ×9 가 된다.
+     남는 조각은 그대로 쌓여 다음 별로 간다(잃는 것은 없다). */
+  if (t.g < 5 && t.frag >= fragNeed(t.g)) {
+    t.frag -= fragNeed(t.g); t.g++;
+    noteSeen(t.kind, t.g);
+    sfx("merge");
+    const c = coreCenter();
+    flyText(c.x, c.y - coreRadius() - 40, "★ " + GNAME[t.g] + " " + K.n, GCOL[t.g]);
+    const el = $("coreEl");
+    if (el) { el.classList.remove("merged"); void el.offsetWidth; el.classList.add("merged"); }
+    refresh();
+  } else {
+    flyText(p.x, p.y, K.ico + " +" + n, n >= 5 ? "#e0a458" : "#7fb069");
+  }
+  saveMeta();
 }
 
 /** 맞은 자리에 이펙트를 한 번 얹는다. 에셋이 없으면 조용히 사라진다. */
@@ -284,12 +351,18 @@ export function popTower(t, cls) {
   el.classList.remove("merged"); void el.offsetWidth; el.classList.add("merged");
 }
 
+/* 떠오르는 숫자에도 **상한이 있어야 한다.** 전리품이 떨어지기 시작하자 한 웨이브에 수백 개가
+   동시에 살아 있어(각자 0.7초) 브라우저가 기어갔다 — 6배속에서 프레임이 무너지고, 검증
+   하네스는 여섯 판에 삼십 분이 걸렸다. 이펙트(boom)와 같은 방식으로 동시 수를 묶는다. */
+let flyAlive = 0;
 export function flyText(x, y, text, col) {
+  if (flyAlive > 20) return;
+  flyAlive++;
   const el = document.createElement("div");
   el.className = "fly"; el.textContent = text;
   el.style.cssText = `left:${x}px;top:${y}px;color:${col}`;
   $("world").appendChild(el);
-  setTimeout(() => el.remove(), 700);
+  setTimeout(() => { el.remove(); flyAlive--; }, 700);
 }
 
 export let last = performance.now();
@@ -588,7 +661,10 @@ export function drawShop() {
   $("recCost").textContent = recruitCost();
   $("recruitBtn").disabled = META.relics < recruitCost();
   const nx = nextUnlockAt();
+  /* **전투력을 상점 맨 위에 둔다.** 여기서 사는 것마다 이 숫자가 오르는 걸 봐야
+     「공격력 +13%」가 장부가 아니라 손에 잡히는 것이 된다. */
   $("armyNote").innerHTML =
+    `전투력 <b style="color:var(--amber)">${powerOf().toLocaleString()}</b> · ` +
     `유닛 <b>${META.army.length}</b>기 · 자리 <b>${slotMax()}</b> · 나오는 종류 <b>${poolSize()}</b>/${KIND_IDS.length}` +
     (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 해금` : "");
 
