@@ -470,7 +470,12 @@ export function gameOver() {
      그래서 부대가 안 자라고 — 재 보니 여덟 판을 도는 동안 **합성이 0 회**였다. 모으는 축을
      지갑에서 떼어 내 도달 라운드에 직접 매단다: 멀리 갈수록 더 온다. */
   const rolls = 1 + Math.floor(S.round / 7);
-  for (let i = 0; i < rolls; i++) recruit(true);
+  let fresh = 0;
+  for (let i = 0; i < rolls; i++) {
+    const before = META.army.length;
+    recruit(true);
+    if (META.army.length > before) fresh++;
+  }
   /* **이겼는지 졌는지를 먼저 말한다.** 끝나는 방식이 하나뿐인 무한 판이라 "승리"는
      기록을 넘어선 판이다 — 그게 이 게임에서 이긴다는 것의 유일한 뜻이다. */
   const win = S.round > META.best;
@@ -483,8 +488,11 @@ export function gameOver() {
     ? `<b>${S.round}라운드</b> — 최고 기록 갱신!<br><b style="color:var(--amber)">자원 +${got}</b>`
     : `<b>${S.round}라운드</b>에서 벙커 파괴 · 최고 ${META.best}라운드<br>` +
       `<b style="color:var(--amber)">자원 +${got}</b>`;
-  // 합류한 유닛도 정산에 적는다 — 조용히 늘어나면 어디서 왔는지 모른 채 부대만 불어난다
-  $("overD").innerHTML += ` · <b style="color:#7fb069">유닛 +${rolls}</b>`;
+  /* 받은 것을 정산에 적는다. **새 종류와 조각을 갈라서** 적어야 한다 — 둘 다 "유닛 +N"
+     이라고 하면 부대가 안 늘었는데 늘었다고 말하는 셈이다(조각은 별로 간다). */
+  $("overD").innerHTML += ` · <b style="color:#7fb069">` +
+    [fresh ? `새 유닛 +${fresh}` : "", rolls - fresh ? `조각 +${rolls - fresh}` : ""]
+      .filter(Boolean).join(" · ") + `</b>`;
   /* 환생할 것이 생겼으면 결과에서 한 줄로 알린다 — 강화 메뉴를 열어 봐야 아는 성장 축이면
      있으나 마나다. 다만 여기서 하지는 않는다: 되돌릴 수 없는 결정은 제 자리에서 내린다. */
   if (medalGain() > 0)

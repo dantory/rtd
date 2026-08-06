@@ -349,6 +349,9 @@
   .sqs .nm,.sqb .nm{position:absolute;left:0;right:0;top:3px;font-size:9px;color:var(--dim);
     text-align:center;letter-spacing:0;pointer-events:none}
   .sqs .gr{bottom:2px}
+  /* 자리 카드의 조각 수 — 별을 덮지 않게 작게, 오른쪽 아래로. 기본 .cnt 는 창고 카드용이라
+     가운데 큰 글자로 떨어져서 별 위에 겹쳐 앉았다. */
+  .sqs .cnt{position:absolute;right:4px;bottom:2px;font-size:9px;color:var(--dim);letter-spacing:0}
   .sqb .spr{width:70%;height:70%;object-fit:contain;image-rendering:pixelated}
   .sqb .ico{font-size:17px}
   .sqb:not(.noimg) .ico{display:none}

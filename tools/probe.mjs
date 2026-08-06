@@ -29,10 +29,9 @@ const out = await ev(`(() => {
   const rows=[];
   for(let run=0; run<${RUNS}; run++){
     let r=0; while(META.relics>=recruitCost() && r++<40) recruit();
-    while(canMerge()) merge();
     newGame(); S.auto=false; S.gap=0; S.autoRun=AUTO;
     let g=0, stalled=null, firstHit=0, lowest=1;
-    while(!S.over && S.round<=30 && g++<250){
+    while(!S.over && S.round<=45 && g++<250){   // 30 이면 성장한 판이 벽이 아니라 자에 걸려 '정상종료'로 잡힌다
       if(!AUTO) fillFree();
       startWave();
       let t=0; while(S.running && t<300){ tick(1/30); t+=1/30;

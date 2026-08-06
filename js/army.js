@@ -1,4 +1,4 @@
-import { BUNKER_DMG, CORE, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, kindLv, kindRngMul, KINDS, kindSkill, META, metaDmg, noteSeen, RING, S, saveMeta, SLOT_SPOTS, slotMax } from "./core.js";
+import { BUNKER_DMG, CORE, fragNeed, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, kindLv, kindRngMul, KINDS, kindSkill, META, metaDmg, noteSeen, RING, S, saveMeta, SLOT_SPOTS, slotMax } from "./core.js";
 import { CELL, px, py, say } from "./view.js";
 import { drawShop, flyText, popTower } from "./combat.js";
 import { refresh } from "./ui.js";
@@ -6,20 +6,16 @@ import { sfx } from "./sound.js";
 
 
 /* ══════════════════════════════════════════════════════════════
-   뽑기 — 이 게임의 도파민.
-   라운드가 오를수록 좋은 게 나올 확률이 오른다. 안 그러면 후반에도 하급만 나와
-   "뽑는다"가 벌금이 된다. 다만 상급 이상은 뽑기로 못 나온다 — **합성만이 길**이어야
-   셋을 모으는 행동에 값이 생긴다.
+   뽑기 — 이 게임의 도파민이자 **유일한 성장 통로**.
+   새 종류면 부대에 들어오고, 이미 가진 종류면 그 유닛의 조각이 되어 별이 오른다.
+   상급 이상은 뽑기로 바로 안 나온다 — 쌓아 올려야 나온다.
    ══════════════════════════════════════════════════════════ */
 /** **뽑기** — 자원으로 새 유닛을 부대에 들인다. 판이 끝난 뒤 정산 화면에서만.
  *
  *  전에는 판마다 골드로 뽑아 그 판에서만 쓰고 버렸다. 그러면 유닛이 내 것이 아니라
  *  그 판의 소모품이고, "보유한 유닛을 배치한다"는 말이 성립하지 않는다.
  *  값은 부대가 커질수록 오른다 — 그래야 자원이 쌓였다고 무한히 불리지 못한다. */
-/* 계수가 0.6 이던 때는 부대가 스물만 돼도 한 기에 열여섯이 들어, 판당 두어 기밖에 못
-   늘렸다. 열두 종류에서 같은 종류 같은 등급 셋을 모으려면 부대가 그보다 훨씬 커야 한다
-   — 그래서 합성이 죽었다(등급 1.8). 값은 오르되 완만하게. 합성이 부대를 줄이면
-   뽑기 값도 같이 내려가므로, 합치는 것 자체가 다음 뽑기를 싸게 만든다. */
+/* 부대는 이제 열두 기에서 멎으므로(종류당 한 기) 값이 무한히 오르지는 않는다. */
 export const recruitCost = () => Math.max(2, 4 - META.up.cheap) + Math.floor(META.army.length * 0.22);
 /** **종류는 차차 열린다.**
  *  열두 종류를 처음부터 다 풀면 같은 종류 같은 등급 셋이 좀처럼 안 모여 합성이 죽는다
@@ -36,13 +32,28 @@ export function recruit(free) {
     META.relics -= c;
   }
   const pool = KIND_IDS.slice(0, poolSize());
-  /* 균등하게 뽑는다. 이미 가진 종류에 가중치를 주면 같은 것 셋이 훨씬 빨리 모이지만
-     (합성 3판째 시작), 부대가 몇 종류로 편식해 **무엇을 내보낼까가 결정이 아니게 된다** —
-     검증에서 "아무거나 vs 골라 내보내기" 차이가 3.6R → 2.4R 로 줄어 판정이 깨졌다. */
+  /* 균등하게 뽑는다. 이미 가진 종류에 가중치를 주면 등급이 훨씬 빨리 오르지만, 부대가 몇
+     종류로 편식해 **무엇을 내보낼까가 결정이 아니게 된다** — 검증에서 "아무거나 vs 골라
+     내보내기" 차이가 3.6R → 2.4R 로 줄어 판정이 깨졌다. */
   const kind = pool[Math.floor(Math.random() * pool.length)];
-  // 중급이 섞여 나와야 상급까지 길이 열린다. 안목이 그 확률을 올린다.
+  const own = META.army.find(t => t.kind === kind);
+  /* **이미 가진 종류면 조각이 된다.** 종류당 한 기만 보유하므로 또 나온 것을 창고에 쌓을
+     데가 없다 — 대신 그 자리에서 별이 오른다. 이것이 이 게임의 합성이다. */
+  if (own) {
+    own.frag = (own.frag | 0) + 1;
+    let up = false;
+    while (own.g < 5 && own.frag >= fragNeed(own.g)) { own.frag -= fragNeed(own.g); own.g++; up = true; }
+    if (up) { noteSeen(kind, own.g); gradeUpFx(own); }
+    fillFree(); syncArmy(); saveMeta();
+    if (!free)
+      say(up ? `<b style="color:${GCOL[own.g]}">${GNAME[own.g]} ${KINDS[kind].n}</b> 등급 상승!`
+             : `<b>${KINDS[kind].n}</b> 조각 +1 <span style="color:var(--dim)">(${own.frag}/${fragNeed(own.g)})</span>`);
+    drawShop(); refresh();
+    return own;
+  }
+  // 중급이 섞여 나와야 상급까지 길이 열린다. 행운이 그 확률을 올린다.
   const g = Math.random() + META.up.luck * 0.06 > 0.86 ? 2 : 1;
-  const t = { id: ++META.armyId, kind, g, slot: null };
+  const t = { id: ++META.armyId, kind, g, frag: 0, slot: null };
   META.army.push(t);
   const fresh = noteSeen(kind, g);
   fillFree();                        // 자리가 비어 있으면 바로 세운다
@@ -53,14 +64,19 @@ export function recruit(free) {
   drawShop(); refresh();
   return t;
 }
+/** 등급이 오른 순간을 벙커에서 알린다 — 예전 합성 연출을 그대로 쓴다.
+ *  숫자가 불어나는 순간이 화면에 안 보이면 모으는 축은 장부에만 산다. */
+function gradeUpFx(t) {
+  refresh();
+  sfx("merge");
+  const c = coreCenter();
+  flyText(c.x, c.y - coreRadius() - 40, "★ " + GNAME[t.g] + " " + KINDS[t.kind].n, GCOL[t.g]);
+  const el = document.querySelector("#world .core");
+  if (el) { el.classList.remove("merged"); void el.offsetWidth; el.classList.add("merged"); }
+}
 
-/** **가진 것과 내보낸 것은 다르다.**
- *
- *  자리를 셋으로 조였더니 가진 것도 셋이 되어 같은 종류 셋을 모을 수가 없었고, 합성이
- *  통째로 죽었다(검증 봇 최고 등급 3.0 → 1.5). 벙커에 "할당한다"는 건 가진 것 중에서
- *  **골라 넣는다**는 뜻이지, 뽑은 것이 곧바로 자리에 꽂힌다는 뜻이 아니다.
- *  그래서 뽑은 것은 제한 없이 쌓이고, 그중 자리에 넣은 것만 싸운다.
- *  자리에 없는 것은 `x` 가 null 이다 — 합성·판매는 가진 것 전부를 대상으로 한다. */
+/** **가진 것과 내보낸 것은 다르다.** 벙커에 넣을 수 있는 자리는 몇 개뿐이고, 가진 종류는
+ *  그보다 많다 — 그중 무엇을 내보낼지가 이 게임이 사람에게 묻는 것이다. */
 /** **부대는 META.army 에 있다** — S.towers 가 아니다.
  *
  *  판마다 뽑아 쓰고 버리는 구조에서는 유닛이 그 판의 소모품이었다. 이제 유닛은 판을 넘어
@@ -170,48 +186,15 @@ export function toggleOut(key) {
   }
 }
 
-/* ══ 합성 — 같은 종류·같은 등급 셋 ══ */
-export function mergeGroups() {
-  const m = new Map();
-  for (const t of META.army) {
-    const k = t.kind + ":" + t.g;
-    if (!m.has(k)) m.set(k, []);
-    m.get(k).push(t);
-  }
-  return m;
-}
-export function canMerge() {
-  for (const [k, arr] of mergeGroups()) {
-    const g = +k.split(":")[1];
-    if (g < 5 && arr.length >= 3) return k;
-  }
-  return null;
-}
-export const merge = () => mergeKey(canMerge());
-export function mergeKey(k) {
-  if (!k) return;
-  const [kind, gs] = k.split(":");
-  const g = +gs;
-  const arr = mergeGroups().get(k).slice(0, 3);
-  // **가장 좋은 자리를 남긴다** — 합쳤더니 구석에 서 있으면 억울하다.
-  // 자리에 나가 있는 것이 창고에 있는 것보다 늘 먼저다(창고 것은 덮는 게 없다).
-  // 나가 있는 것을 남긴다 — 자리 배정이 흔들리지 않게. 위치 유불리는 이제 없다(벙커에서 쏜다).
-  arr.sort((a, b) => (isOut(b) - isOut(a)));
-  const keep = arr[0];
-  const gone = new Set(arr.slice(1).map(t => t.id));
-  META.army = META.army.filter(t => !gone.has(t.id));
-  keep.g = g + 1;
-  keep.maxHp = hpOf(keep); keep.hp = keep.maxHp;     // 합치면 새것처럼 선다
-  S.sel = keep.id;
-  fillFree();                                        // 셋이 하나가 되며 빈 두 자리를 메운다
-  noteSeen(kind, keep.g);                            // 합쳐 오른 등급도 도감에 남는다
-  refresh();                       // 자리 배치가 먼저다 — 그래야 연출이 제자리에서 터진다
-  sfx("merge");
-  // 유닛은 벙커 안에 있으니 연출도 벙커에서 — 위로 종류와 등급이 떠오르고 링이 퍼진다.
-  const c = coreCenter();
-  flyText(c.x, c.y - coreRadius() - 40, "★ " + GNAME[keep.g] + " " + KINDS[kind].n, GCOL[keep.g]);
-  popTower(keep, "merged");
-}
+/* ══ 등급 — **중복 뽑기가 곧 합성이다** ══
+   종류당 한 기만 보유하므로 "같은 것 셋을 골라 합친다"는 자리가 없다. 또 나온 것은
+   recruit() 에서 그 유닛의 조각이 되고, 조각이 차면 그 자리에서 별이 오른다.
+   그래서 합성 버튼도, 합성 대상 고르기도 없다 — 뽑는 것 하나로 모으기와 키우기가 겹친다. */
+/** 다음 등급까지 남은 조각. 전설(5)이면 0. */
+export const fragLeft = (t) => (t.g >= 5 ? 0 : fragNeed(t.g) - (t.frag | 0));
+/** 등급이 오를 준비가 된 유닛이 있는가 — 화면에 "곧 오른다"를 적을 때 쓴다. */
+export const nearGradeUp = () => META.army.filter(t => t.g < 5 && fragLeft(t) === 1).length;
+
 // 벙커 가운데서 쏘게 된 뒤로 자리에 따른 유불리가 없다 — 늘 사방을 고르게 덮는다.
 // 이름은 합성 정렬과 하네스가 아직 부르므로 남긴다.
 export const coverOf = (t) => rngOf(t);

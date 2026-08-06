@@ -74,7 +74,6 @@ const play = (place, useMeta) => [
   // **부대를 먼저 꾸린다.** 판 안에서 뽑던 것이 판 밖 일이 됐으므로, 출격 전에 유물을
   // 털어 징집하고 합친다. 이것이 사람이 정산 화면에서 하는 일 그대로다.
   '    let r=0; while(META.relics>=recruitCost() && r++<40) recruit();',
-  '    while(canMerge()) merge();',
   '    newGame();',
   // 봇은 웨이브를 손으로 시작한다. 자동 진행을 켠 채 두면 tick 루프 안에서 다음 웨이브가
   // 저 혼자 이어져, 봇이 뽑고 합칠 틈 없이 라운드만 흘러간다.

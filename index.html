@@ -6,12 +6,13 @@
   **①숫자가 불어나는 것**에 손이 제일 오래 갔다. 그 교집합이 이것이다.
 
   루프는 유즈맵 랜타디 그대로다:
-      배치한다 → 출격해 관전한다 → 자원을 번다 → 뽑기·합성·훈련·자리 늘리기 → 다시 배치한다
+      배치한다 → 출격해 관전한다 → 자원을 번다 → 뽑기·키우기·자리 늘리기 → 다시 배치한다
 
   네 가지가 각각 다른 재미를 맡는다. 하나라도 빠지면 나머지가 심심해진다.
     뽑기   무엇이 나올까 (도파민, 매번 다르다)
-    합성   같은 것 셋 → 한 등급 위. **숫자가 커지는 맛**이 여기 있다
-    배치   길에서 먼 자리는 사거리가 닿지 않는다 — 공짜가 아니다
+    등급   **종류당 한 기만 보유**하므로(병수님) 또 나온 것은 조각이 되어 별이 오른다.
+           별 하나에 피해 ×3 — **숫자가 커지는 맛**이 여기 있다
+    배치   자리보다 가진 종류가 많다 — 무엇을 넣을지가 결정이다
     관전   내가 짜 놓은 것이 나 없이 막는 걸 지켜본다
 
   판정할 질문: **다음 라운드를 누르고 싶은가.**
@@ -64,10 +65,9 @@
       <div class="sqslots" id="sqSlots"></div>
       <h3 class="sqh">창고 <span class="dim" id="sqBoxN"></span></h3>
       <div class="sqbox" id="sqBox"></div>
-      <!-- 합치고 정리하는 것도 부대를 다루는 일이다. 전장이 아니라 여기에 둔다. -->
+      <!-- 합치기 버튼은 없앴다 — 등급은 중복 뽑기(조각)로 저절로 오른다. 정리만 남긴다. -->
       <div class="rowbtn" style="gap:7px;margin-top:12px">
-        <button id="sqMerge" style="flex:1">셋 합치기</button>
-        <button id="sqSell">고른 것 정리</button>
+        <button id="sqSell" style="flex:1">고른 것 정리</button>
       </div>
       <div class="note" id="sqTip"></div>
       <div class="stick"><button id="sqClose" style="padding:11px 26px">닫기</button></div>

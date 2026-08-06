@@ -168,6 +168,31 @@ export const UPGRADES = {
   // 판을 거듭해 늘려 놓으면 예전엔 못 굴리던 조합이 굴러간다 — 불어나는 맛이 여기에 있다.
   slots: { n:"자리",   d:"배치 자리 +1",         base:4, per:3 },
 };
+/* ══ 등급은 **중복으로 오른다** ══
+   같은 종류를 여러 기 쟁여 두는 것 자체를 없앴으므로(병수님: 보유 중복 불가) "같은 것 셋을
+   합친다"는 성립하지 않는다. 대신 **이미 가진 종류가 또 나오면 그 유닛의 조각이 된다** —
+   모으는 행동은 그대로고(뽑는다), 결과가 창고에 쌓이는 대신 그 자리에서 별이 하나 는다.
+   필요한 조각은 등급을 따라 는다: ★→★★ 2개, ★★→★★★ 3개, … 전설까지 모두 14개. */
+export const fragNeed = (g) => g + 1;
+/** 같은 종류가 여러 기 든 옛 저장을 한 기로 접는다. 남는 것은 조각으로 환산한다 —
+ *  등급 g 짜리 한 기는 그 아래 등급들을 모아 만든 것이므로 조각 fragNeed 만큼의 값이 있다. */
+export function dedupeArmy(raw) {
+  if (!Array.isArray(raw)) return [];
+  const by = new Map();
+  for (const t of raw) {
+    if (!KINDS[t?.kind]) continue;
+    const u = { id: t.id | 0, kind: t.kind, g: Math.max(1, Math.min(5, t.g | 0)),
+                frag: Math.max(0, t.frag | 0),
+                slot: (t.slot === null || t.slot === undefined) ? null : (t.slot | 0) };
+    const cur = by.get(u.kind);
+    if (!cur) { by.set(u.kind, u); continue; }
+    const [keep, drop] = cur.g >= u.g ? [cur, u] : [u, cur];
+    keep.frag += drop.frag + fragNeed(drop.g) - 1;   // 접힌 한 기는 조각으로 남는다
+    if (keep.slot === null) keep.slot = drop.slot;
+    by.set(u.kind, keep);
+  }
+  return [...by.values()];
+}
 export const META = loadMeta();
 export function loadMeta() {
   try {
@@ -185,10 +210,10 @@ export function loadMeta() {
                /* **부대는 판을 넘어 남는다.** 판마다 뽑아 쓰고 버리면 그건 내 유닛이 아니라
                   그 판의 소모품이다 — 모으는 재미도, 배치이라는 말도 성립하지 않는다.
                   각 유닛은 slot 을 가진다: 번호면 그 자리에 서고, null 이면 창고에 있다. */
-               army: Array.isArray(raw.army) ? raw.army.filter(t => KINDS[t?.kind]).map(t => ({
-                 id: t.id | 0, kind: t.kind, g: Math.max(1, Math.min(5, t.g | 0)),
-                 slot: (t.slot === null || t.slot === undefined) ? null : (t.slot | 0),
-               })) : [],
+               /* **종류당 한 기만 보유한다**(병수님). 규칙 이전 저장에는 같은 종류가 여러 기
+                  들어 있으므로 로드할 때 접는다 — 제일 높은 등급 하나만 남기고, 나머지는
+                  조각으로 환산해 얹는다(모아 온 것을 규칙이 바뀌었다고 없애면 안 된다). */
+               army: dedupeArmy(raw.army),
                armyId: raw.armyId | 0,
                // **마지막으로 본 시각.** 탭을 닫아 둔 사이를 재려면 나갈 때의 시각이 남아 있어야
                // 한다. 예전 세이브엔 없으니 0 — 그 경우 오프라인 지급을 건너뛴다(없던 시간을

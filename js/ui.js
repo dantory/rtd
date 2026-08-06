@@ -1,7 +1,7 @@
 import { sfx, setSound, soundOn } from "./sound.js";
-import { $, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
+import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
-import { canMerge, dmgOf, fillFree, inBox, isOut, merge, mergeGroups, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
+import { dmgOf, fillFree, fragLeft, inBox, isOut, nearGradeUp, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
 import { bossNote, drawShop, drawTowers, mobEls, paint, startWave, WAVE_GAP, waveLanes, wavePool } from "./combat.js";
 
 
@@ -45,26 +45,23 @@ export function refresh() {
 
   // **가진 것은 목록이 아니라 진열대로 보여 준다.** 여덟 종이 되고 나니 글 목록은
   // 훑어야 읽히고, 그러면 "뭘 합칠 수 있나"가 한눈에 안 들어온다.
-  const m = mergeGroups();
   const cells = [];
-  for (const kind of KIND_IDS) for (const g of GRADE) {
-    const arr = m.get(kind + ":" + g);
-    if (!arr) continue;
-    const ready = g < 5 && arr.length >= 3;
-    /* **몇 기를 내보냈는지가 칩에 적혀 있어야 한다.** 가진 것과 나가 있는 것이 갈린
-       순간부터 "둘 있는데 하나만 싸우는 중"이 늘 벌어진다 — 그게 안 보이면 왜 약한지 모른다. */
-    const out = arr.filter(isOut).length;
-    cells.push(`<button class="hold${ready ? " ready" : ""}${out ? "" : " away"}" data-hold="${kind}:${g}"
-        title="${GNAME[g]} ${KINDS[kind].n} — ${KINDS[kind].d} · 눌러서 넣기 / 빼기">
-      <img class="spr" src="assets/unit/${kind}.png" alt=""
+  for (const t of [...META.army].sort((a, b) => b.g - a.g || dmgOf(b) - dmgOf(a))) {
+    const K = KINDS[t.kind], out = isOut(t);
+    /* 조각 진행을 칩에 그대로 얹는다 — "하나만 더 뽑으면 오른다"가 보여야 뽑을 이유가 된다. */
+    const need = t.g < 5 ? fragNeed(t.g) : 0;
+    cells.push(`<button class="hold${need && fragLeft(t) === 1 ? " ready" : ""}${out ? "" : " away"}"
+        data-hold="${t.kind}:${t.g}"
+        title="${GNAME[t.g]} ${K.n} — ${K.d}${need ? ` · 조각 ${t.frag | 0}/${need}` : " · 최고 등급"} · 눌러서 넣기 / 빼기">
+      <img class="spr" src="assets/unit/${t.kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
-      <span class="ico">${KINDS[kind].ico}</span>
-      <span class="cnt">${out}/${arr.length}</span>
-      <span class="gr" style="background:${GCOL[g]}"></span></button>`);
+      <span class="ico">${K.ico}</span>
+      <span class="cnt">${need ? `${t.frag | 0}/${need}` : "MAX"}</span>
+      <span class="gr" style="background:${GCOL[t.g]}"></span></button>`);
   }
   $("tally").innerHTML = cells.join("") || `<div class="note">아직 없음 · 판 끝나면 뽑기</div>`;
-  const readyN = [...m.entries()].filter(([k, a]) => +k.split(":")[1] < 5 && a.length >= 3).length;
-  $("holdHint").textContent = readyN ? `· ${readyN}가지 합치기 가능` : "";
+  const readyN = nearGradeUp();
+  $("holdHint").textContent = readyN ? `· ${readyN}가지 곧 등급 상승` : "";
 
   const t = META.army.find(x => x.id === S.sel);
   $("selInfo").innerHTML = t ? `<div class="sel-info">
@@ -110,30 +107,22 @@ export function drawSquad() {
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
       <span class="nm">${K.n}</span>
-      <span class="gr" style="color:${GCOL[t.g]}">${"★".repeat(Math.min(t.g,5))}</span></button>`;
+      <span class="gr" style="color:${GCOL[t.g]}">${"★".repeat(Math.min(t.g,5))}</span>
+      <span class="cnt">${t.g < 5 ? `${t.frag | 0}/${fragNeed(t.g)}` : "MAX"}</span></button>`;
   }).join("");
 
-  const box = new Map();
-  for (const t of inBox()) {
-    const k = t.kind + ":" + t.g;
-    box.set(k, (box.get(k) || 0) + 1);
-  }
   const selT = META.army.find(t => t.id === S.sel);
-  $("sqBox").innerHTML = [...box.entries()].map(([k, n]) => {
-    const [kind, gs] = k.split(":"), g = +gs, K = KINDS[kind];
-    /* 고른 것이 이 묶음에 있으면 카드에 불이 들어온다 — 첫 탭(고르기)이 아무 일도 없는
-       것처럼 보이면 배치 자체가 고장으로 읽힌다(실제로 그렇게 읽혔다). */
-    const on = selT && !isOut(selT) && selT.kind === kind && selT.g === g;
-    // 같은 종류가 이미 자리에 있으면 이 카드는 "넣기"가 아니라 "갈아 끼우기"다
-    const dup = placed().some(t => t.kind === kind);
-    return `<button class="sqb${on ? " sel" : ""}${dup ? " dup" : ""}" data-push="${k}"
-        title="${GNAME[g]} ${K.n} — ${dup ? "눌러서 갈아 끼우기 (같은 종류는 한 자리만)" : "눌러서 넣기"}">
-      <span class="gr" style="background:${GCOL[g]}"></span>
-      <img class="spr" src="assets/unit/${kind}.png" alt=""
+  $("sqBox").innerHTML = inBox().sort((a, b) => b.g - a.g || dmgOf(b) - dmgOf(a)).map(t => {
+    const K = KINDS[t.kind], need = t.g < 5 ? fragNeed(t.g) : 0;
+    const on = selT && selT.id === t.id;
+    return `<button class="sqb${on ? " sel" : ""}" data-push="${t.kind}:${t.g}"
+        title="${GNAME[t.g]} ${K.n} — ${need ? `조각 ${t.frag | 0}/${need}` : "최고 등급"} · 눌러서 넣기">
+      <span class="gr" style="background:${GCOL[t.g]}"></span>
+      <img class="spr" src="assets/unit/${t.kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
       <span class="nm">${K.n}</span>
-      <span class="cnt">${n}</span></button>`;
+      <span class="cnt">${need ? `${t.frag | 0}/${need}` : "MAX"}</span></button>`;
   }).join("") || `<div class="note">창고 비었음 · 뽑으면 여기 쌓임</div>`;
 
   const free = spots.length - at.size;
@@ -141,15 +130,13 @@ export function drawSquad() {
     (free ? ` · <b style="color:var(--amber)">${free}자리 비었음</b>` : "") +
     ` · 자리 누르면 빼기, 창고 누르면 넣기 · 같은 종류는 한 자리만`;
   $("sqBoxN").textContent = `${inBox().length}기 대기`;
-  const k = canMerge();
-  $("sqMerge").disabled = !k;
-  $("sqMerge").textContent = k
-    ? `${GNAME[+k.split(":")[1]]} ${KINDS[k.split(":")[0]].n} 셋 합치기` : "셋 합치기";
   const sel = META.army.find(t => t.id === S.sel);
   $("sqSell").disabled = !sel;
   $("sqTip").innerHTML = sel
-    ? `고른 것: <b style="color:${GCOL[sel.g]}">${GNAME[sel.g]} ${KINDS[sel.kind].n}</b> — 정리하면 자원 +${sellOf(sel)}`
-    : `같은 종류 같은 등급 <b>셋</b> → 한 등급 위 · 화력은 그대로, <b>자리 둘 확보</b>`;
+    ? `고른 것: <b style="color:${GCOL[sel.g]}">${GNAME[sel.g]} ${KINDS[sel.kind].n}</b>` +
+      (sel.g < 5 ? ` — 조각 <b>${sel.frag | 0}/${fragNeed(sel.g)}</b>` : " — 최고 등급") +
+      ` · 정리하면 자원 +${sellOf(sel)}`
+    : `이미 가진 종류가 또 나오면 <b>조각</b> · 조각이 차면 <b>별이 하나</b> 오름 (피해 ×3)`;
 }
 export const openSquad = () => { drawSquad(); $("squad").classList.add("on"); };
 
@@ -240,9 +227,13 @@ export function newGame() {
   fillFree(); syncArmy();          // 배치해 둔 대로 세우고 체력을 채운다
   /* **첫 부대는 그냥 준다.** 빈손으로는 배치이라는 말이 성립하지 않는다.
      매 판 주면 부대가 무한 증식하므로, 부대가 비어 있을 때 한 번만 채운다. */
-  for (let i = META.army.length; i < 4; i++) {
-    const t0 = { id: ++META.armyId, slot: null,
-                 kind: KIND_IDS[Math.floor(Math.random() * KIND_IDS.length)], g: 1 };
+  /* 종류당 한 기이므로 **아직 없는 종류 중에서** 고른다 — 아무 종류나 뽑으면 첫 부대에
+     같은 종류가 두 번 들어와 규칙이 시작부터 깨진다. */
+  while (META.army.length < 4) {
+    const left = KIND_IDS.filter(k => !META.army.some(t => t.kind === k));
+    if (!left.length) break;
+    const t0 = { id: ++META.armyId, slot: null, frag: 0,
+                 kind: left[Math.floor(Math.random() * left.length)], g: 1 };
     META.army.push(t0);
     noteSeen(t0.kind, t0.g);
   }
@@ -295,7 +286,6 @@ export function wireUI() {
     location.reload();
   };
   $("sqClose").onclick = () => $("squad").classList.remove("on");
-  $("sqMerge").onclick = () => { merge(); drawSquad(); };
   $("sqSell").onclick = () => { sell(); drawSquad(); };
   $("squadBtn").onclick = openSquad;
   $("sqSlots").addEventListener("click", (e) => {
@@ -432,7 +422,6 @@ export function wireUI() {
   addEventListener("load", () => setTimeout(focusView, 120));
   addEventListener("keydown", (e) => {
     if (e.key === " ") { e.preventDefault(); if (!S.running) startWave(); }
-    if (e.key === "m" || e.key === "M") merge();
   });
   $("shop").addEventListener("click", (e) => {
     const b = e.target.closest("[data-up]");
