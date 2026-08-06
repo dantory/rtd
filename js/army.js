@@ -75,6 +75,14 @@ export const occupied = () => new Set(placed().map(t => t.slot));
 /** 자리 번호에서 좌표와 체력을 만들어 붙인다. 판을 시작할 때와 자리 수가 바뀔 때 부른다. */
 export function syncArmy() {
   const taken = new Set();
+  /* **한 종류는 한 자리만**(병수님). 규칙이 생기기 전 저장에는 같은 종류가 두 자리에
+     서 있을 수 있으므로 여기서 한 번 걸러 낸다 — 규칙을 넣는 곳마다 따로 막으면
+     어느 한 길이 빠졌을 때 조용히 중복이 살아남는다. 등급이 높은 쪽을 남긴다. */
+  const kinds = new Set();
+  for (const t of [...META.army].sort((a, b) => b.g - a.g)) {
+    if (t.slot === null) continue;
+    if (kinds.has(t.kind)) t.slot = null; else kinds.add(t.kind);
+  }
   for (const t of META.army) {
     // 자리 늘리기를 되돌린 적은 없지만, 저장이 깨져 자리 번호가 범위를 벗어나면 창고로 돌린다
     if (t.slot !== null && (t.slot >= slotMax() || taken.has(t.slot))) t.slot = null;
@@ -97,23 +105,31 @@ export function freeSlots() {
  *  무엇을 내보낼지는 진열대의 칩을 눌러 언제든 바꾼다. */
 export function fillFree() {
   const rank = (t) => t.g * 1e6 + dmgOf(t);
-  const box = inBox().sort((a, b) => rank(b) - rank(a));
-  for (const t of box) {
+  const taken = new Set(placed().map(t => t.kind));
+  for (const t of inBox().sort((a, b) => rank(b) - rank(a))) {
     const free = freeSlots();
     if (!free.length) break;
+    if (taken.has(t.kind)) continue;      // 한 종류는 한 자리만
     t.slot = free[0];
+    taken.add(t.kind);
   }
   /* **창고가 더 세면 바꿔 넣는다.**
      합쳐서 만든 상급이 창고에 앉아 있고 자리엔 하급이 서 있으면 자동 운영이 일을 반만 한
      것이다. 무엇보다 합성 결과가 자리에 안 나가면 **합친 순간이 화면에 안 보인다** —
-     기여는 절대적인데(빼면 25R → 12R) 플레이어에게는 아무 일도 안 일어난 것처럼 보였다. */
-  for (;;) {
-    const best = inBox().sort((a, b) => rank(b) - rank(a))[0];
-    if (!best) break;
-    const worst = placed().sort((a, b) => rank(a) - rank(b))[0];
-    if (!worst || rank(best) <= rank(worst)) break;
-    best.slot = worst.slot;
-    worst.slot = null;
+     기여는 절대적인데(빼면 25R → 12R) 플레이어에게는 아무 일도 안 일어난 것처럼 보였다.
+     겨루는 상대는 **같은 종류가 나가 있으면 그것**, 없으면 제일 약한 자리다 — 그래야
+     바꿔 넣는 동안에도 중복이 안 생긴다. */
+  for (let guard = 0; guard < 64; guard++) {
+    const box = inBox().sort((a, b) => rank(b) - rank(a));
+    const out = placed().sort((a, b) => rank(a) - rank(b));
+    let moved = false;
+    for (const best of box) {
+      const target = out.find(t => t.kind === best.kind) || out[0];
+      if (!target || rank(best) <= rank(target)) continue;
+      best.slot = target.slot; target.slot = null;
+      moved = true; break;
+    }
+    if (!moved) break;
   }
   syncArmy(); saveMeta();
 }
@@ -125,9 +141,16 @@ export function toggleOut(key) {
   const waiting = mine.filter(t => !isOut(t));
   if (waiting.length) {
     let free = freeSlots();
-    /* 자리가 꽉 찼으면 **제일 약한 것과 바꿔 넣는다** — "거둔 다음 내보내라"는 두 손질을
-       요구하는 데다, 예전엔 실패 안내(토스트)마저 배치 창 밑에 깔려 그냥 고장으로 보였다. */
-    if (!free.length) {
+    /* **한 종류는 한 자리만.** 같은 종류가 이미 나가 있으면 거기에 갈아 끼운다 —
+       막아 버리면 눌러도 아무 일이 없어 고장으로 읽히고, 사람이 원한 건 "이걸 넣겠다"다.
+       등급이 다른 같은 종류(하급 소총병 ↔ 중급 소총병)를 갈아 끼울 때도 이 길로 온다. */
+    const sameOut = placed().find(t => t.kind === kind);
+    if (sameOut) {
+      sameOut.slot = null;
+      free = freeSlots();
+    } else if (!free.length) {
+      /* 자리가 꽉 찼으면 **제일 약한 것과 바꿔 넣는다** — "거둔 다음 내보내라"는 두 손질을
+         요구하는 데다, 예전엔 실패 안내(토스트)마저 배치 창 밑에 깔려 그냥 고장으로 보였다. */
       const weakest = placed().sort((x, y) => dmgOf(x) - dmgOf(y))[0];
       if (!weakest) return;
       weakest.slot = null;

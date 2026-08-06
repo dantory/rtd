@@ -120,7 +120,11 @@ export const SLOT_BASE = 3;                                    // 첫 판에 주
 // `| 0` 은 군더더기가 아니다 — 예전 세이브나 검증 하네스가 slots 없는 up 을 넣으면
 // undefined 가 되어 자리 수가 통째로 NaN 이 된다(실제로 그래서 봇이 1R 에 전멸했다).
 // 훈장 셋마다 자리 하나가 **처음부터** 열려 있다 — 환생 뒤의 첫 판이 예전 첫 판과 달라야 한다.
-export const slotMax = () => Math.min(SLOT_SPOTS.length, SLOT_BASE + (META.up.slots | 0) + medalSlots());
+/* **자리는 종류 수를 못 넘는다.** 한 종류는 한 자리만이므로(병수님), 열두 종류보다 자리를
+   더 열어 봐야 그 자리는 영영 빈다 — 막아 두지 않으면 자리 늘리기가 돈 먹는 함정이 된다. */
+export const slotMax = () =>
+  Math.min(SLOT_SPOTS.length, KIND_IDS.length, SLOT_BASE + (META.up.slots | 0) + medalSlots());
+export const slotCapped = () => SLOT_BASE + (META.up.slots | 0) + medalSlots() >= KIND_IDS.length;
 export let SLOT_SET = new Set();
 export let DECK_R = 1;
 /** **앞마당은 자리를 따라 자란다.** 처음부터 9×9 철판을 깔아 두면 자리 셋이 허허벌판에

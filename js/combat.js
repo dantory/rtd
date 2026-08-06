@@ -1,5 +1,5 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
@@ -497,9 +497,12 @@ export function gameOver() {
 export function drawShop() {
   $("shop").innerHTML = Object.entries(UPGRADES).map(([k, u]) => {
     const c = upCost(k), lv = META.up[k];
-    return `<button class="up" data-up="${k}" ${META.relics < c ? "disabled" : ""}>
+    // 자리는 종류 수에서 멎는다 — 더 살 수 있게 두면 안 쓰이는 자리에 자원을 붓게 된다
+    const capped = k === "slots" && slotCapped();
+    return `<button class="up" data-up="${k}" ${capped || META.relics < c ? "disabled" : ""}>
       <span class="n">${u.n}${lv ? ` <span class="dim">${lv}</span>` : ""}</span>
-      <span class="d">${u.d}</span><span class="p">자원 ${c}</span></button>`;
+      <span class="d">${capped ? "더 늘려도 빈 자리 (종류 " + KIND_IDS.length + "개가 상한)" : u.d}</span>
+      <span class="p">${capped ? "최대" : "자원 " + c}</span></button>`;
   }).join("");
   $("shopHave").textContent = META.relics;
   $("shopHave2").textContent = META.relics;

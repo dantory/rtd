@@ -342,6 +342,9 @@
   .sqb:hover{border-color:var(--amber)}
   /* 고른 카드는 불이 들어온다 — 탭 한 번(고르기)이 화면에 남아야 다음 탭(내보내기·해산)이 읽힌다 */
   .sqs.sel,.sqb.sel{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
+  /* 같은 종류가 이미 자리에 있는 카드 — 넣기가 아니라 갈아 끼우기라는 표시 */
+  .sqb.dup{opacity:.55}
+  .sqb.dup .nm{color:var(--steel)}
   /* 카드마다 병과 이름 — 어두운 스프라이트끼리는 그림만으로 안 갈린다(점검 지적) */
   .sqs .nm,.sqb .nm{position:absolute;left:0;right:0;top:3px;font-size:9px;color:var(--dim);
     text-align:center;letter-spacing:0;pointer-events:none}

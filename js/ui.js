@@ -124,7 +124,10 @@ export function drawSquad() {
     /* 고른 것이 이 묶음에 있으면 카드에 불이 들어온다 — 첫 탭(고르기)이 아무 일도 없는
        것처럼 보이면 배치 자체가 고장으로 읽힌다(실제로 그렇게 읽혔다). */
     const on = selT && !isOut(selT) && selT.kind === kind && selT.g === g;
-    return `<button class="sqb${on ? " sel" : ""}" data-push="${k}" title="${GNAME[g]} ${K.n} — 눌러서 넣기">
+    // 같은 종류가 이미 자리에 있으면 이 카드는 "넣기"가 아니라 "갈아 끼우기"다
+    const dup = placed().some(t => t.kind === kind);
+    return `<button class="sqb${on ? " sel" : ""}${dup ? " dup" : ""}" data-push="${k}"
+        title="${GNAME[g]} ${K.n} — ${dup ? "눌러서 갈아 끼우기 (같은 종류는 한 자리만)" : "눌러서 넣기"}">
       <span class="gr" style="background:${GCOL[g]}"></span>
       <img class="spr" src="assets/unit/${kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
@@ -136,7 +139,7 @@ export function drawSquad() {
   const free = spots.length - at.size;
   $("sqNote").innerHTML = `자리 <b>${at.size}/${spots.length}</b>` +
     (free ? ` · <b style="color:var(--amber)">${free}자리 비었음</b>` : "") +
-    ` · 자리 누르면 빼기, 창고 누르면 넣기`;
+    ` · 자리 누르면 빼기, 창고 누르면 넣기 · 같은 종류는 한 자리만`;
   $("sqBoxN").textContent = `${inBox().length}기 대기`;
   const k = canMerge();
   $("sqMerge").disabled = !k;
