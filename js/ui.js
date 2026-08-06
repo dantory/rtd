@@ -1,8 +1,8 @@
 import { sfx, setSound, soundOn } from "./sound.js";
 import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
-import { dmgOf, fillFree, fragLeft, inBox, isOut, nearGradeUp, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
-import { bossNote, drawShop, drawTowers, mobEls, paint, startWave, WAVE_GAP, waveLanes, wavePool } from "./combat.js";
+import { autoBest, dmgOf, fillFree, fragLeft, inBox, isOut, nearGradeUp, placed, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
+import { bossNote, drawShop, drawTowers, mobEls, MOBNAME, MOBWEAK, paint, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
 
 
 /* ══ 패널 ══ */
@@ -25,20 +25,30 @@ export function refresh() {
   $("autoBtn").classList.toggle("on", S.auto);
   $("autoBtn").title = S.auto ? "웨이브 자동 진행" : "웨이브 직접 시작";
   $("runBtn").classList.toggle("on", S.autoRun);
-  $("runBtn").title = S.autoRun ? "뽑기·합치기 자동" : "뽑기·합치기 직접";
+  $("runBtn").title = S.autoRun ? "배치까지 자동 — 힘 센 순으로 알아서 바꿔 넣음" : "배치는 직접 — 빈 자리만 자동으로 채움";
   const lanes = waveLanes(S.round).length;
   /* **다음 웨이브는 상단 바에 상시로.** 배치 결정의 재료라 늘 보여야 한다(병수님 방향).
      웨이브가 도는 중에는 "다음" = 다음 라운드다. 보스·새 적 같은 사건은 배너가 맡는다. */
-  const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패" };
   const nextR = S.running ? S.round + 1 : S.round;
   const kinds = [...new Set(wavePool(nextR))];
-  const icons = kinds.map(k =>
-    `<span class="wavekind"><img class="mobico" src="assets/mob/${k}.png" alt=""
-       onerror="this.remove()">${MOBNAME[k]}</span>`).join("");
+  /* "방패가 온다"까지만 말하고 그게 무엇에 약한지는 안 적으면 예고를 읽어도 손이 안 간다 —
+     배치 화면을 열 이유는 거기서 생긴다. 다만 **낱개마다 붙이면 좁은 폰에서 다 접힌다**
+     (이름이 font-size:0 으로 접히는 자리라 약점도 같이 사라졌다). 그래서 한 칩으로 묶는다. */
+  const icons = kinds.map(k => {
+    const w = MOBWEAK[k];
+    return `<span class="wavekind" title="${MOBNAME[k]}${w ? " — " + w.d : ""}"><img class="mobico"
+       src="assets/mob/${k}.png" alt="" onerror="this.remove()">${MOBNAME[k]}</span>`;
+  }).join("");
+  /* 섞임 웨이브는 넷이 다 오므로 "유리 느리게·한 방·범위·연사·관통"이 되어 아무 말도 아니다.
+     셋을 넘으면 아예 안 적는다 — 고를 것이 없다는 뜻이니 조용한 편이 정확하다. */
+  const wsumAll = [...new Set(kinds.map(k => MOBWEAK[k]?.lb).filter(Boolean))];
+  const wsum = wsumAll.length > 3 ? [] : wsumAll;
+  const th = waveTheme(nextR);
   $("wavebar").innerHTML =
-    `<span>다음 <b>${nextR}R</b> · 적 ${waveN(nextR)}</span>` + icons +
+    `<span>다음 <b>${nextR}R</b>${th ? ` <b style="color:var(--amber)">${th.n}</b>` : ""} · 적 ${waveN(nextR)}</span>` + icons +
     (isBossR(nextR) ? `<img class="mobico" src="assets/mob/boss.png" alt="" title="${bossNote(nextR)}"
-        onerror="this.remove()">` : "");
+        onerror="this.remove()">` : "") +
+    (wsum.length ? `<span class="weaksum" title="이 웨이브에 유리한 공격">유리 ${wsum.join("·")}</span>` : "");
   $("waveNote").textContent = S.running
     ? `${S.toSpawn}마리 중 ${S.spawned}마리 나옴 · 남은 적 ${S.mobs.length}`
     : `적 ${waveN(S.round)}마리 · 체력 ${waveHp(S.round)} · ${lanes}갈래에서 옴`;
@@ -96,13 +106,25 @@ export function openShop() {
  *
  *  자리를 누르면 그 유닛을 거두고, 창고 칸을 누르면 빈 자리에 내보낸다. */
 export function drawSquad() {
+  /* **결정의 재료를 결정하는 자리에 둔다.** 다음 웨이브에 무엇이 오고 그것이 무엇에 약한지는
+     상단 바에도 있지만, 사람이 실제로 갈아 끼우는 곳은 여기다 — 여기서 안 보이면 예고를
+     보러 창을 닫았다 다시 열어야 한다. */
+  const nextR = S.running ? S.round + 1 : S.round;
+  const nk = [...new Set(wavePool(nextR))];
+  const weaks = [...new Set(nk.map(k => MOBWEAK[k]?.lb).filter(Boolean))];
+  const nth = waveTheme(nextR);
+  $("sqWave").innerHTML =
+    `다음 <b>${nextR}R</b>${nth ? ` <b style="color:var(--amber)">${nth.n}</b>` : ""} — ` + nk.map(k => MOBNAME[k]).join(" · ") +
+    (isBossR(nextR) ? ` · <b style="color:var(--amber)">큰 놈</b>` : "") +
+    (weaks.length ? `<br><span style="color:var(--steel)">유리한 공격</span> <b>${weaks.join(" · ")}</b>` : "");
+
   const spots = SLOT_SPOTS.slice(0, slotMax());
   const at = new Map(placed().map(t => [t.x + "," + t.y, t]));
   $("sqSlots").innerHTML = spots.map(([x, y]) => {
     const t = at.get(x + "," + y);
     if (!t) return `<div class="sqs empty"><span class="no">+</span></div>`;
     const K = KINDS[t.kind];
-    return `<button class="sqs${t.id === S.sel ? " sel" : ""}" data-pull="${t.id}" title="${GNAME[t.g]} ${K.n} — 눌러서 빼기">
+    return `<button class="sqs${t.id === S.sel ? " sel" : ""}" data-pull="${t.id}" title="${GNAME[t.g]} ${K.n} — ${K.d}${K.vs ? " · " + K.vs : ""} · 눌러서 빼기">
       <img class="spr" src="assets/unit/${t.kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
       <span class="ico">${K.ico}</span>
@@ -116,7 +138,7 @@ export function drawSquad() {
     const K = KINDS[t.kind], need = t.g < 5 ? fragNeed(t.g) : 0;
     const on = selT && selT.id === t.id;
     return `<button class="sqb${on ? " sel" : ""}" data-push="${t.kind}:${t.g}"
-        title="${GNAME[t.g]} ${K.n} — ${need ? `조각 ${t.frag | 0}/${need}` : "최고 등급"} · 눌러서 넣기">
+        title="${GNAME[t.g]} ${K.n} — ${K.d}${K.vs ? " · " + K.vs : ""}${need ? ` · 조각 ${t.frag | 0}/${need}` : " · 최고 등급"} · 눌러서 넣기">
       <span class="gr" style="background:${GCOL[t.g]}"></span>
       <img class="spr" src="assets/unit/${t.kind}.png" alt=""
         onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
@@ -126,8 +148,14 @@ export function drawSquad() {
   }).join("") || `<div class="note">창고 비었음 · 뽑으면 여기 쌓임</div>`;
 
   const free = spots.length - at.size;
+  /* 자동이 더는 자리를 빼앗지 않으므로(사람 배치를 덮어쓰지 않게), 창고에 더 센 것이
+     앉아 있어도 조용하다 — 그건 그것대로 함정이라 **말은 해 준다.** 누를지는 사람이 정한다. */
+  const rankOf = (t) => t.g * 1e6 + dmgOf(t);
+  const better = placed().length && inBox().some(b =>
+    rankOf(b) > Math.min(...placed().map(rankOf)));
   $("sqNote").innerHTML = `자리 <b>${at.size}/${spots.length}</b>` +
     (free ? ` · <b style="color:var(--amber)">${free}자리 비었음</b>` : "") +
+    (better ? ` · <b style="color:var(--amber)">창고에 더 센 유닛 있음</b>` : "") +
     ` · 자리 누르면 빼기, 창고 누르면 넣기 · 같은 종류는 한 자리만`;
   $("sqBoxN").textContent = `${inBox().length}기 대기`;
   const sel = META.army.find(t => t.id === S.sel);
@@ -136,7 +164,10 @@ export function drawSquad() {
     ? `고른 것: <b style="color:${GCOL[sel.g]}">${GNAME[sel.g]} ${KINDS[sel.kind].n}</b>` +
       (sel.g < 5 ? ` — 조각 <b>${sel.frag | 0}/${fragNeed(sel.g)}</b>` : " — 최고 등급") +
       ` · 정리하면 자원 +${sellOf(sel)}`
-    : `이미 가진 종류가 또 나오면 <b>조각</b> · 조각이 차면 <b>별이 하나</b> 오름 (피해 ×3)`;
+    /* **역할 유닛을 화면이 한 번은 말해야 한다.** 「추천 배치」는 힘만 보므로 위생병·냉동병을
+       영영 안 고른다. 그런데 실측으로는 그 한 자리가 입는 피해를 가장 크게 줄인다 — 안 적어
+       두면 그건 결정이 아니라 숨은 정답이 된다. */
+    : `피해만 높은 게 답은 아님 — <b style="color:var(--steel)">위생병 · 냉동병 · 방패병</b> 한 자리가 버티는 라운드를 크게 늘림`;
 }
 export const openSquad = () => { drawSquad(); $("squad").classList.add("on"); };
 
@@ -225,6 +256,9 @@ export function newGame() {
   });
   mobEls.forEach(el => el.remove()); mobEls.clear();
   fillFree(); syncArmy();          // 배치해 둔 대로 세우고 체력을 채운다
+  /* 재장전은 **판이 바뀔 때만** 처음으로 돌린다. syncArmy 는 자동 채움이 0.4초마다 부르므로
+     거기서 밀면 재장전이 영영 안 도는 셈이 된다(그래서 옮겼다). */
+  for (const t of META.army) { t.cd = 0; t.healT = 0; t.chillT = 0; }
   /* **첫 부대는 그냥 준다.** 빈손으로는 배치이라는 말이 성립하지 않는다.
      매 판 주면 부대가 무한 증식하므로, 부대가 비어 있을 때 한 번만 채운다. */
   /* 종류당 한 기이므로 **아직 없는 종류 중에서** 고른다 — 아무 종류나 뽑으면 첫 부대에
@@ -287,6 +321,9 @@ export function wireUI() {
   };
   $("sqClose").onclick = () => $("squad").classList.remove("on");
   $("sqSell").onclick = () => { sell(); drawSquad(); };
+  /* 힘 센 순으로 자리를 채운다 — 예전에 자동이 0.4초마다 묻지도 않고 하던 계산이다.
+     버튼이 되면 편의가 되고, 그 위에서 예고를 읽고 갈아 끼우는 건 사람 몫으로 남는다. */
+  $("sqAuto").onclick = () => { autoBest(); drawSquad(); refresh(); say("힘 센 순으로 배치"); };
   $("squadBtn").onclick = openSquad;
   $("sqSlots").addEventListener("click", (e) => {
     const b = e.target.closest("[data-pull]");

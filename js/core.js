@@ -11,32 +11,34 @@ export const $ = (id) => document.getElementById(id);
  *  자리에 놓는 것이 구조물이면 아무리 "할당"이라 불러도 화면에는 타워를 세우는 게임으로
  *  보인다. 종류가 곧 벙커의 성격이다 — 무엇을 넣느냐로 공격도 방어도 갈린다.
  *  뒤의 넷은 **때리는 것 말고 다른 일**을 한다. 숫자만 다른 종류는 늘려 봐야 목록만 길어진다. */
+/* `vs` 는 **이 유닛이 어느 적에게 강한가**다(combat.js 의 MOBWEAK 과 짝). 예고에 "방패가
+   온다"고 적어 놓고 무엇을 넣어야 하는지는 안 적으면, 읽어도 손이 안 간다. */
 export const KINDS = {
   gun:   { n:"소총병", ico:"⌖", col:"#c9ccd1", dmg:6,  rng:140, cd:0.55, fx:"hit",
-           d:"꾸준히 사격" },
+           d:"꾸준히 사격", vs:"연사로 방패를 벗김" },
   cannon:{ n:"폭탄병", ico:"◉", col:"#d0785a", dmg:22, rng:118, cd:1.5,  splash:44, fx:"blast",
-           d:"느리지만 터짐" },
+           d:"느리지만 터짐", vs:"떼에 강함" },
   frost: { n:"냉동병", ico:"❆", col:"#6ba8d6", dmg:4,  rng:132, cd:0.7,  slow:0.45, fx:"frost",
-           d:"적을 느리게" },
+           d:"적을 느리게", vs:"빠른 적에 강함" },
   bolt:  { n:"전격병", ico:"⚡", col:"#a978c9", dmg:11, rng:172, cd:0.9,  chain:2, fx:"spark",
-           d:"멀리, 여럿에게 튕김" },
+           d:"멀리, 여럿에게 튕김", vs:"떼에 강함" },
   // ── 뽑기에 결이 생기게 넷을 더한다. **숫자만 다른 유닛은 늘려 봐야 목록만 길어진다** —
   //    저마다 "이건 이럴 때 쓴다"가 달라야 뽑을 때마다 판이 달라진다.
   flame: { n:"화염병", ico:"🔥", col:"#e08a3c", dmg:5, rng:96, cd:0.3, splash:30, fx:"blast",
-           d:"코앞을 빠르게 태움" },
+           d:"코앞을 빠르게 태움", vs:"떼·방패에 강함" },
   rail:  { n:"저격수", ico:"↟", col:"#dfe6ee", dmg:46, rng:230, cd:2.4, pierce:3, fx:"spark",
-           d:"아주 멀리, 뚫고 지나감" },
+           d:"아주 멀리, 뚫고 지나감", vs:"방패 무시 · 두꺼운 적" },
   drone: { n:"정찰병", ico:"✈", col:"#7fb069", dmg:7, rng:150, cd:0.8, bounty:3, fx:"hit",
            d:"잡을 때마다 자원 추가" },
   mine:  { n:"지뢰병",   ico:"◇", col:"#e0c458", dmg:34, rng:70, cd:2.0, splash:52, arm:true, fx:"blast",
-           d:"달라붙은 적을 한꺼번에" },
+           d:"달라붙은 적을 한꺼번에", vs:"떼·두꺼운 적" },
   // ── 때리는 것 말고 다른 일을 하는 넷 ──
   medic:  { n:"위생병", ico:"✚", col:"#e2b8b8", dmg:3, rng:110, cd:1.1, heal:12, fx:"hit",
             d:"싸우면서 벙커 수리" },
   guard:  { n:"방패병", ico:"▣", col:"#8f9aa8", dmg:8, rng:88, cd:0.9, armor:0.24, fx:"hit",
             d:"벙커가 받는 피해 감소" },
   rocket: { n:"로켓병", ico:"➶", col:"#6f8f5a", dmg:62, rng:196, cd:2.8, splash:58, fx:"blast",
-            d:"한 발이 묵직" },
+            d:"한 발이 묵직", vs:"두꺼운 적·떼에 강함" },
   officer:{ n:"지휘관", ico:"★", col:"#d6a84a", dmg:9, rng:150, cd:1.0, aura:0.22, fx:"hit",
             d:"모두의 공격력 상승" },
 };
@@ -346,8 +348,10 @@ export const S = {
   auto: (() => { try { return localStorage.getItem("rtd.auto") !== "0"; } catch { return true; } })(),
   gap: 0,            // 다음 웨이브까지 남은 시간
   bounty: 0,         // 정찰병이 더 벌어들인 몫 — 라운드 자원에 얹힌다
-  // 뽑기·합성까지 알아서. 이게 켜져 있어야 진짜 방치형이 된다.
-  autoRun: (() => { try { return localStorage.getItem("rtd.autorun") !== "0"; } catch { return true; } })(),
+  /* **⚙ = 배치까지 맡긴다.** 기본은 꺼짐이다 — 켜 두면 자동이 매번 제 답(힘 센 순)으로
+     되돌려 놓아 사람이 무엇을 넣든 결과가 안 변한다(병수님: "사람이 할 일이 없다").
+     빈 자리 채우기는 ⚙ 와 무관하게 늘 돈다. 방치로 두고 싶으면 켜면 된다. */
+  autoRun: (() => { try { return localStorage.getItem("rtd.autorun") === "1"; } catch { return false; } })(),
   autoT: 0,
 };
 

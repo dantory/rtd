@@ -32,7 +32,7 @@ const out = await ev(`(() => {
     newGame(); S.auto=false; S.gap=0; S.autoRun=AUTO;
     let g=0, stalled=null, firstHit=0, lowest=1;
     while(!S.over && S.round<=45 && g++<250){   // 30 이면 성장한 판이 벽이 아니라 자에 걸려 '정상종료'로 잡힌다
-      if(!AUTO) fillFree();
+      if(!AUTO) autoBest();   // 벽을 재는 자다 — 배치는 아는 사람 기준(autoBest)으로 고정하고 밸런스만 본다
       startWave();
       let t=0; while(S.running && t<300){ tick(1/30); t+=1/30;
         const f=S.coreHp/S.coreMax; if(f<lowest) lowest=f;

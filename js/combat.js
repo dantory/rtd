@@ -1,7 +1,7 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
 import { $, GCOL, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
-import { armorMul, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
+import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
 import { sfx } from "./sound.js";
 
@@ -22,10 +22,37 @@ const MOB = {
   grunt:  { hp: 0.85, sp: 1.0 },                       // 기준
   runner: { hp: 0.5,  sp: 1.5 },                       // 빠르고 얇다 — 그래도 잡힌다
   brute:  { hp: 3.2,  sp: 0.55 },                      // 아주 느리고 아주 두껍다 — 홀로 새어 들어 본진을 조금씩 깎는다
-  swarm:  { hp: 0.35, sp: 1.2, pack: [2, 3] },         // 한 번에 여럿, 낱개는 얇다
-  shield: { hp: 1.0,  sp: 0.85, guard: 5 },            // 처음 5대를 크게 감쇄
+  swarm:  { hp: 0.35, sp: 1.2, pack: [3, 4] },         // 한 번에 여럿, 낱개는 얇다 — 범위가 답이 되려면 실제로 뭉쳐 와야 한다
+  shield: { hp: 1.0,  sp: 0.85, guard: 8 },            // 처음 여덟 대를 거의 다 흘린다 — 관통이 아니면 벗기는 데 시간이 든다
   boss:   { hp: 8,    sp: 0.625 },                     // 옛 15px/초 = 24×0.625, 그대로
 };
+
+/* ══════════════════════════════════════════════════════════════
+   상성 — **예고를 보고 갈아 끼울 이유.**
+   ──────────────────────────────────────────────────────────────
+   "방패 적이 옵니다"라고 미리 알려 주면서 정작 관통이 방패를 뚫든 말든 결과가 같으면,
+   그 예고는 읽을 이유가 없는 글자다. 배치 화면을 열 이유도 같이 없어진다.
+   그래서 종류마다 **실제 수치로 갈리는 약점**을 하나씩 준다 — 예고를 보고 무엇을 넣을지가
+   바뀌어야 "무엇을 내보낼까"가 비로소 결정이 된다.
+
+     빠름(runner)  느려진 동안 받는 피해 ×2       ← 냉동병
+     두꺼움(brute) 한 방이 큰 공격에 ×2            ← 로켓병 · 저격수 · 지뢰병
+     떼(swarm)     범위·튕김을 온전히 받는다       ← 폭탄병 · 화염병 · 전격병
+     방패(shield)  처음 여덟 대를 82% 흘린다. **관통은 그냥 무시**  ← 저격수 · 연사
+
+   **크기는 등급 계단에 견줘 정한다.** 처음엔 +45% 로 넣었는데, 등급 하나가 피해 ×3 인
+   판에서 45% 는 반올림 오차다 — 실제로 재 보니 예고를 읽는 봇이 힘만 보는 봇보다
+   -1R 이었다(즉 결정이 아니었다). 배로 올려야 "이번 라운드는 저격수"가 성립한다. */
+/** 적 종류의 화면 이름 — 예고(상단 바)·배너·배치 화면이 **같은 표**를 봐야 말이 안 갈린다. */
+export const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패" };
+export const MOBWEAK = {
+  runner: { lb: "느리게",    d: "느려지면 크게 다침" },
+  brute:  { lb: "한 방",     d: "한 방이 큰 공격에 약함" },
+  swarm:  { lb: "범위",      d: "범위·튕김을 온전히 받음" },
+  shield: { lb: "연사·관통", d: "관통은 방패를 무시 · 연사로 방패를 벗김" },
+};
+/** 한 방이 "크다"의 기준 — 그 몹 최대 체력의 이만큼. 배수라 라운드가 올라도 뜻이 안 변한다. */
+const BIGHIT = 0.09;
 
 /* 보스(5의 배수)는 능력 하나를 안고 온다 — 라운드마다 돌려 쓴다. "큰 놈 하나 더"가 아니라
    사건이 되게. haste=곁의 적을 몰아친다, spawn=쓰러지며 새끼를 흩는다,
@@ -66,8 +93,7 @@ export function startWave() {
   if (isBossR(S.round)) {
     banner(`<img class="mobico" src="assets/mob/boss.png" alt="" onerror="this.remove()"> ${bossNote(S.round)}`);
   } else {
-    const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패" };
-    const fresh = [...new Set(wavePool(S.round))].filter(k => !wavePool(S.round - 1).includes(k));
+    const fresh = freshKinds(S.round);
     if (fresh.length) banner("새로운 적 — " + fresh.map(k =>
       `<img class="mobico" src="assets/mob/${k}.png" alt="" onerror="this.remove()"> ${MOBNAME[k]}`).join(" · "), "newkind");
   }
@@ -82,12 +108,36 @@ export function waveLanes(r) {
   return Array.from({ length: n }, (_, i) => base + i * (Math.PI * 2 / n));
 }
 
+/* ══ 웨이브 테마 — **라운드마다 성격이 달라야 예고가 읽을 값이 있는 글이 된다** ══
+   전에는 10 라운드부터 끝까지 같은 표를 썼다(보통 넷·빠름 둘·두꺼움·떼·방패). 그러면
+   예고가 매 라운드 똑같은 말을 하고, 상성을 수치로 넣어 봐야 **갈아 끼울 대상이 없다** —
+   실제로 재 보니 예고를 읽는 봇이 힘만 보는 봇보다 +0.6R, 즉 결정이 아니었다.
+   라운드마다 한 종류가 주가 되게 돌리면 그때부터 "이번엔 저격수" 같은 말이 성립한다.
+   섞임은 일부러 남긴다 — 늘 갈아 끼워야 하면 그것대로 잔일이 된다. */
+const THEMES = [
+  { n:"보통",   pool:["grunt","grunt","grunt","runner"] },
+  { n:"빠름",   pool:["runner","runner","runner","grunt"] },
+  { n:"두꺼움", pool:["brute","grunt","grunt","runner"] },
+  { n:"떼",     pool:["swarm","swarm","swarm","grunt"] },
+  { n:"방패",   pool:["shield","shield","grunt","runner"] },
+  { n:"섞임",   pool:["grunt","runner","brute","swarm","shield"] },
+];
+/** 이 라운드의 성격. 라운드에서 바로 나오므로 예고와 소환이 어긋날 수 없다. */
+export const waveTheme = (r) => (r < 10 ? null : THEMES[(r - 10) % THEMES.length]);
 /** 이번 라운드에 나올 수 있는 종류들 — 소환과 예고가 **같은 표**를 봐야 예고가 거짓말이 안 된다. */
 export function wavePool(r) {
-  return r < 3 ? ["grunt"]
+  const th = waveTheme(r);
+  return th ? th.pool
+       : r < 3 ? ["grunt"]
        : r < 6 ? ["grunt","grunt","runner"]
-       : r < 10 ? ["grunt","grunt","grunt","runner"]
-       : ["grunt","grunt","grunt","grunt","runner","runner","brute","swarm","shield"];
+       : ["grunt","grunt","grunt","runner"];
+}
+/** 이 라운드에 **처음으로** 나오는 종류들. 테마가 돌기 시작한 뒤로는 "지난 라운드에 없던 것"이
+ *  곧 새 얼굴이 아니다(돌아가며 나오니까) — 여태 한 번도 안 나온 것만 새 얼굴이다. */
+export function freshKinds(r) {
+  const before = new Set();
+  for (let i = 1; i < r; i++) for (const k of wavePool(i)) before.add(k);
+  return [...new Set(wavePool(r))].filter(k => !before.has(k));
 }
 
 export function spawnMob() {
@@ -142,9 +192,16 @@ export const mobPos = (m) => ({ x: m.x, y: m.y });
 // 본진까지 남은 거리 — 타워는 **제일 가까이 온 놈**부터 노린다
 export const distToCore = (m) => Math.hypot(m.x - coreCenter().x, m.y - coreCenter().y) - coreRadius();
 
-export function hurt(m, d, from) {
-  // 방패병 — 처음 몇 대는 크게 흘린다(70% 감쇄). 냉동·관통으로 그 대수를 빨리 벗겨야 값이 산다.
-  if (m.guard > 0) { d *= 0.3; m.guard--; }
+/** 한 대 때린다. `tag` 는 **어떻게** 맞혔는지다 — 상성이 여기서 갈린다.
+ *  undefined = 직격 · "splash" = 범위 · "chain" = 튕김 · "pierce" = 관통 */
+export function hurt(m, d, from, tag) {
+  /* ── 상성(MOBWEAK) ── 방패 감쇄보다 **먼저** 건다: 관통이 방패를 무시하는 것과
+     "느려서 크게 다친다"는 서로 다른 층이라, 섞으면 어느 쪽이 먹었는지 못 읽는다. */
+  if (m.kind === "runner" && m.slow > 0) d *= 2;
+  // 두꺼운 놈은 잔매에 안 죽는다 — 한 방이 커야 값이 선다(범위 파편은 한 방으로 안 친다)
+  if (m.kind === "brute" && tag !== "splash" && d >= m.maxHp * BIGHIT) d *= 2;
+  // 방패병 — 처음 몇 대는 크게 흘린다(70% 감쇄). **관통은 그냥 지나간다**(대수도 안 먹는다).
+  if (m.guard > 0 && tag !== "pierce") { d *= 0.18; m.guard--; }
   // 보스 ward — 멀리서는 잘 안 박힌다. 가까이 붙어야(=위험을 감수해야) 온전히 들어간다.
   if (m.boss && m.power === "ward" && distToCore(m) > 120) d *= 0.45;
   m.hp -= d;
@@ -282,7 +339,11 @@ export function tick(dt) {
       if (m.atkT <= 0) {
         /* 언 놈은 때리는 손도 느리다 — 이게 없으면 냉동은 도착만 늦출 뿐 총 피해를 못 줄인다
            (붙은 놈은 멈춰서 때리므로 이동 감속이 무의미해진다). 심사에서 +0.3R 로 죽어 있던 이유. */
-        m.atkT = 1 * (1 + m.slow * 2.5);
+        /* 언 놈은 때리는 손도 느리다. 다만 **곱이 크면 냉기장 하나가 모든 상성을 덮는다** —
+           2.5 로 두었더니 방패 웨이브에서 입는 피해가 4296 → 348 로 떨어져, 어느 테마가
+           오든 답이 냉동병 하나가 됐다(즉 예고를 읽을 이유가 도로 없어진다). 1.0 이면
+           여전히 세지만 절대적이지는 않다. */
+        m.atkT = 1 * (1 + m.slow * 1.0);
         const hit = Math.max(1, Math.round(m.dmg * armorMul()));
         S.coreHp -= hit;
         sfx("hitCore");
@@ -309,13 +370,18 @@ export function tick(dt) {
      한 틱에 몰아 하지 않고 0.4초에 한 번만 손을 대, 불어나는 게 눈에 보이게 한다. */
   /* 배치 화면이 열려 있는 동안은 손을 뗀다 — 사람이 거둔 자리를 0.4초 만에 도로
      채우면 "거두기가 안 된다"로 보인다(실제로 그렇게 보였다). 닫으면 다시 맡는다. */
-  if (S.autoRun && !S.over && !$("squad").classList.contains("on")) {
+  /* **빈 자리는 늘 채우고, 자리를 바꾸는 건 ⚙ 를 켰을 때만.**
+     빈 자리를 두는 건 결정이 아니라 손해라 그건 언제나 자동이 맡는다. 반면 "누구를 빼고
+     누구를 넣을까"는 이 게임이 사람에게 묻는 유일한 것이라, 묻지도 않고 자동이 제 답으로
+     되돌려 놓으면 배치 화면을 열 이유가 사라진다(그게 "할 일이 없다"의 정체였다).
+     ⚙ 는 그래서 **다 맡긴다**는 뜻이 되고, 끄면 사람이 정한 대로 남는다. */
+  if (!S.over && !$("squad").classList.contains("on")) {
     S.autoT = (S.autoT || 0) - dt;
     if (S.autoT <= 0) {
       S.autoT = 0.4;
       const before = placed().map(t => t.id).join(",");
-      fillFree();   // 뽑기·합성은 판 밖 일이 됐다. 판 안에서는 빈 자리만 메운다.
-      // 채웠으면 패널도 깨운다 — 상태만 바뀌고 화면이 낡으면 "자리 0/3"이 첫인상이 된다(실제로 그랬다)
+      if (S.autoRun) autoBest(); else fillFree();
+      // 바뀌었으면 패널도 깨운다 — 상태만 바뀌고 화면이 낡으면 "자리 0/3"이 첫인상이 된다(실제로 그랬다)
       if (placed().map(t => t.id).join(",") !== before) refresh();
     }
   }
@@ -331,7 +397,7 @@ export function tick(dt) {
     t.chillT = 0.3;
     const c2 = coreCenter();
     const r2 = rngOf(t), sk2 = kindSkill(t.kind);
-    const s2 = Math.min(0.8, K2.slow * sk2 * (1 + (t.g - 1) * 0.25));
+    const s2 = Math.min(0.55, K2.slow * sk2 * (1 + (t.g - 1) * 0.25));
     for (const m of S.mobs) {
       if (Math.hypot(m.x - c2.x, m.y - c2.y) > r2) continue;
       m.slow = Math.max(m.slow, s2); m.slowT = Math.max(m.slowT, 0.5);
@@ -388,14 +454,18 @@ export function tick(dt) {
     sfx(K.cd >= 2 ? "heavy" : "shoot");     // 느리고 무거운 종류(로켓·저격·지뢰)는 소리도 무겁게
     boom(bp.x, bp.y, K.fx || "hit");
 
-    hurt(best, d, t);
+    // 관통을 가진 종류는 **첫 표적부터** 방패를 무시한다 — 뒤엣놈만 뚫리면 "관통이 답"이 안 된다
+    hurt(best, d, t, K.pierce ? "pierce" : undefined);
     // 훈련 등급이 오르면 그 종류의 특기도 같이 자란다 — 그게 곧 스킬 성장이다
     const sk = kindSkill(t.kind);
     if (K.slow) { best.slow = Math.max(best.slow, Math.min(0.8, K.slow * sk)); best.slowT = 1.1; }
+    /* 범위 파편은 본래 절반 조금 넘게 들어간다. **떼(swarm)에게만 온전히** 들어간다 —
+       "여럿이 몰려오면 터뜨리는 게 답"이 수치로 성립해야 예고가 읽을 값이 있는 글이 된다. */
     if (K.splash) for (const m of S.mobs) {
       if (m === best || m.dead) continue;
       const p = mobPos(m);
-      if (Math.hypot(p.x - bp.x, p.y - bp.y) <= K.splash * sk) hurt(m, Math.round(d * 0.55));
+      if (Math.hypot(p.x - bp.x, p.y - bp.y) <= K.splash * sk)
+        hurt(m, Math.round(d * (m.kind === "swarm" ? 1 : 0.55)), t, "splash");
     }
     if (K.chain) {
       let n = K.chain + Math.floor(kindLv(t.kind) / 3);
@@ -404,7 +474,8 @@ export function tick(dt) {
         if (m === best || m.dead) continue;
         const p = mobPos(m);
         if (Math.hypot(p.x - bp.x, p.y - bp.y) <= 70) {
-          hurt(m, Math.round(d * 0.5));
+          // 튕김도 떼에게는 온전히 — 전격병이 "떼의 답" 축에 같이 선다
+          hurt(m, Math.round(d * (m.kind === "swarm" ? 0.9 : 0.5)), t, "chain");
           S.shots.push({ x: bp.x, y: bp.y, tx: p.x, ty: p.y, life: 0.12, col: K.col });
           n--;
         }
@@ -422,7 +493,7 @@ export function tick(dt) {
         const along = rx * ux + ry * uy;
         if (along < 0 || along > r) continue;
         if (Math.abs(rx * uy - ry * ux) > 16) continue;    // 선에서 벗어난 것은 뺀다
-        hurt(m, Math.round(d * 0.7));
+        hurt(m, Math.round(d * 0.7), t, "pierce");         // 관통은 방패를 무시하고 지나간다
         n--;
       }
     }
@@ -540,7 +611,7 @@ export function drawShop() {
        카드에 지금 피해·사거리·특기와 한 단계 위 값을 적어 무엇이 얼마나 오를지 미리 보인다. */
     const lv = kindLv(k), c = kindCost(k), can = META.relics >= c, s = dexStat(k);
     return `<button class="dxc train${can ? " can" : ""}" data-train="${k}"
-         title="${K.n} — ${K.d}&#10;${lv}단계 · 다음 단계 자원 ${c}">
+         title="${K.n} — ${K.d}${K.vs ? "&#10;" + K.vs : ""}&#10;${lv}단계 · 다음 단계 자원 ${c}">
        ${newlySeen.has(k) ? `<span class="dxnew">NEW</span>` : ""}
        <img class="spr" src="assets/unit/${k}.png" alt=""
          onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">

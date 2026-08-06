@@ -149,7 +149,9 @@
   #wavebar{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:40;
     max-width:92%;padding:5px 12px;border-radius:6px;background:rgba(14,18,24,.82);
     border:1px solid #2c3542;font-size:12px;color:var(--fg);white-space:nowrap;
-    display:flex;align-items:center;gap:8px;pointer-events:none;
+    /* **넘치면 접힌다.** 섞임 웨이브는 종류가 다섯이라 좁은 폰에서 「유리 …」 칩이 화면
+       밖으로 밀려났다(찍어 보고 알았다). 두 줄이 되더라도 잘리는 것보다 낫다. */
+    display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px 8px;pointer-events:none;
     backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
   #wavebar b{color:var(--amber);font-weight:normal}
   /* 이벤트 배너 — 보스·새 적 출현을 잠깐 알리고 사라진다 */
@@ -162,6 +164,13 @@
   /* 웨이브 예고의 종류 아이콘 — 글줄 높이에 맞춰 작게, 이름을 곁들인다 */
   .wavekind{display:inline-flex;align-items:center;gap:3px;margin-right:7px;white-space:nowrap}
   .wavekind.boss{color:#d08a8a}
+  /* 이 웨이브에 유리한 공격 — 한 칩으로 묶는다. 좁은 폰에서 적 이름은 접혀도 이건 남아야
+     한다(그게 있어야 예고가 "그래서 뭘 넣지"로 이어진다). */
+  #wavebar .weaksum{font-size:11px;color:var(--steel);border:1px solid #33404d;border-radius:6px;
+    padding:1px 6px;white-space:nowrap}
+  /* 배치 화면 맨 위의 다음 웨이브 줄 — 갈아 끼우는 손이 여기 있으니 정보도 여기 둔다 */
+  .sqwave{text-align:left;line-height:1.65;padding:8px 10px;margin-bottom:8px;
+    border:1px solid #2b3138;border-radius:8px;background:#171b20}
   .mobico{width:18px;height:18px;object-fit:contain;image-rendering:pixelated;
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
   .fly{position:absolute;font-size:11px;color:var(--amber);pointer-events:none;

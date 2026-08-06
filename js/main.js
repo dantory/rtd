@@ -1,7 +1,7 @@
 import { buildable, COLS, CORE, fragNeed, GNAME, GRADE, hpOf, KIND_IDS, kindCost, kindLv, KINDS, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalsAt, medalSlots, META, metaDmg, newlySeen, nextMedalAt, noteSeen, prestige, refreshSlots, relicsFor, RING, ROWS, S, saveMeta, SLOT_SPOTS, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { applyView, CELL, clampView, cx, cy, drawGrid, fitView, focusView, layout, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
-import { coreCenter, coreRadius, coverOf, dexStat, dmgOf, fillFree, fragLeft, freeSlots, inBox, placed, recruit, recruitCost, rngOf, sell, spawnRadius, syncArmy } from "./army.js";
-import { distToCore, drawShop, gameOver, mobPos, startWave, step, tick, waveLanes } from "./combat.js";
+import { autoBest, coreCenter, coreRadius, coverOf, dexStat, dmgOf, fillFree, fragLeft, freeSlots, inBox, placed, recruit, recruitCost, rngOf, sell, spawnRadius, syncArmy } from "./army.js";
+import { distToCore, drawShop, gameOver, mobPos, MOBNAME, MOBWEAK, startWave, step, tick, waveLanes, wavePool, waveTheme } from "./combat.js";
 import { newGame, offlineReport, openOffline, openSquad, refresh, wireUI } from "./ui.js";
 
 
@@ -10,9 +10,12 @@ Object.assign(window, { S, META, KINDS, GNAME, recruit, sell, startWave, refresh
   freeSlots, waveHp, waveN, waveLanes, coreCenter, coreRadius, distToCore, hpOf, coverOf,
   cx, cy, rngOf, dmgOf, buildable, CORE, drawGrid, layout, KIND_IDS, GRADE,
   V, fitView, focusView, zoomAt, applyView, clampView, CELL, WORLD_W, WORLD_H, mobPos, RING,
-  COLS, ROWS, spawnRadius, refreshSlots, slotMax, UPGRADES, kindCost, kindLv, fillFree, inBox, placed, syncArmy, recruitCost, SLOT_SPOTS, openSquad });
+  COLS, ROWS, spawnRadius, refreshSlots, slotMax, UPGRADES, kindCost, kindLv, fillFree, autoBest, inBox, placed, syncArmy, recruitCost, SLOT_SPOTS, openSquad });
   // 판 크기와 **자리 수**를 밖에 내준다 — 검증 하네스가 자를 직접 재게
 
+// 상성 표와 웨이브 표도 밖에 내준다 — 검증 봇이 "예고를 읽고 갈아 끼우는" 사람을 흉내 내려면
+// 게임이 쓰는 것과 **같은 표**를 봐야 한다(다른 표를 보면 재는 것이 게임이 아니게 된다).
+Object.assign(window, { wavePool, waveTheme, MOBNAME, MOBWEAK });
 Object.assign(window, { META, newGame, drawShop, relicsFor, upCost, UPGRADES, saveMeta, metaDmg, offlineReport, openOffline, dexStat, noteSeen, newlySeen, gameOver, fragNeed,
   medals, medalGain, medalsAt, medalDmg, medalRelic, medalSlots, nextMedalAt, prestige, MEDAL_GATE });
 
