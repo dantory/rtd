@@ -309,7 +309,9 @@ export function wireUI() {
     toggleOut(b.dataset.push);
     drawSquad();
   });
-  $("recruitBtn").onclick = recruit;
+  /* `= recruit` 로 두면 **클릭 이벤트가 첫 인자로 들어가** free 가 참이 된다 —
+     손으로 누른 뽑기가 값을 안 받고 공짜가 되어 있었다(자원 59 → 59). 감싸서 넘긴다. */
+  $("recruitBtn").onclick = () => recruit();
   $("toSquad").onclick = () => openSquad();
   $("forgeBtn").onclick = openShop;
   $("overSquad").onclick = () => openSquad();
