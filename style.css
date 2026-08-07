@@ -53,8 +53,8 @@
   /* **열린 자리는 세어져야 한다.** 셋뿐인데 어디가 열렸는지 안 보이면 자리가 제약이라는 걸
      알 수가 없다. 열린 칸은 테두리를 확실히 긋고 안쪽을 살짝 띄우고, 잠긴 칸은 덮되
      **바닥이 비칠 만큼만** 덮는다 — 새까맣게 덮으면 앞마당이 통째로 구멍으로 보인다. */
-  /* 빈 자리 칸은 판에 안 그린다 — 채워진 자리는 **대원이 서서** 말하고, 넣고 빼는 것은
-     편성 화면이 맡는다. 판에 빈 네모를 늘어놓으면 "여기 뭘 놓아야 하나"를 계속 묻게 된다. */
+  /* 자리 칸은 이제 판에 안 그린다 — 대원은 벙커 **안**에 있고, 넣고 빼는 것은 편성 화면이
+     맡는다. 판에 빈 네모를 늘어놓으면 "여기 뭘 놓아야 하나"를 계속 묻게 된다. */
   /* **가장자리가 맞물리는 타일이라 딱 맞게 깔아야 한다.** 낱장 흙 타일은 서로 겹쳐 깔아
      이음새를 뭉갰지만(그래도 칸 경계가 읽혔다), Wang 타일은 이웃과 맞물리도록 구워져
      있어서 겹치거나 돌리면 그 맞물림이 깨진다. 한 장 시트에서 잘라 1:1 로 깐다. */
@@ -73,10 +73,8 @@
   .mark{position:absolute;font-size:11px;color:var(--dim);pointer-events:none;letter-spacing:1px}
   /* 본진 — 칸을 쪼개지 않고 한 덩이로. 조각으로 두면 지킬 것이 아니라 타일로 읽힌다. */
   /* 상자 배경·테두리는 뺐다 — 그림이 곧 벙커다. 네모가 비치면 건물이 판때기 위에 얹힌 것처럼 보인다. */
-  /* 벙커는 대원보다 위층이다 — **북쪽 자리의 대원은 건물 뒤로 가려져야** 지붕 위에 선
-     것처럼 안 보인다(대원을 판에 세우고 나서 처음 보인 어긋남). */
   .core{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:5px;pointer-events:none;z-index:1}
+    gap:5px;pointer-events:none}
   /* 한 칸짜리다. 그림이 칸을 꽉 채우고, 체력은 **칸 밖 위쪽**에 얹는다 —
      안에 넣으면 64px 안에서 그림과 겹쳐 둘 다 안 읽힌다. 이름은 뺐다(가운데 것이 본진이다). */
   /* 발자국은 한 칸이되 **그림은 칸을 훌쩍 넘게** — 한 칸에 꽉 맞춰 그리면 뭘 지키는지도
@@ -91,33 +89,9 @@
   .core .cnum{position:absolute;left:-40%;width:180%;top:calc(-80% - 32px);
     font-size:13px;letter-spacing:1px;color:#a8c69a;text-align:center;
     text-shadow:0 1px 3px #000, 0 0 6px rgba(0,0,0,.8);pointer-events:none}
-  /* ── 주둔 대원 ──
-     전에는 대원을 판에 안 그렸다(벙커 안에 있다는 설정). 그랬더니 **누가 쏘는지가 안 읽혀**
-     관전이 얇았다 — 방치형에서 사람이 하는 일이 보는 것인데 볼 것이 벙커 하나였다.
-     자리는 이미 앞마당 칸으로 정해져 있으니, 내보낸 대원은 그 자리에 실제로 선다.
-     발밑에는 **등급색 발판**을 깐다 — 별을 세지 않아도 누가 컸는지가 한눈에 보인다. */
-  .crew{position:absolute;width:46px;height:46px;pointer-events:none;
-    transform:translate(-50%,-50%);z-index:1}
-  .crew::after{content:"";position:absolute;left:50%;bottom:2px;width:62%;height:16%;
-    transform:translateX(-50%);border-radius:50%;
-    background:radial-gradient(ellipse at center,rgba(0,0,0,.55),rgba(0,0,0,0) 70%);
-    box-shadow:0 0 0 1px color-mix(in srgb, var(--gc,#8fa6b2) 55%, transparent)}
-  .crew .spr{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
-    image-rendering:pixelated;filter:drop-shadow(0 2px 3px rgba(0,0,0,.75));
-    transform:translate(calc(var(--rx,0) * 1px), calc(var(--ry,0) * 1px)) scaleX(var(--flip,1))}
-  /* 쏜 순간 — 반동으로 물러난 그 프레임에 총구 쪽이 한 번 밝아진다(0.14초, 아주 짧게) */
-  .crew.fired .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.75)) brightness(1.5)}
-  .crew.noimg{background:#3c4a58;border-radius:6px;box-shadow:0 0 0 1px var(--gc,#8fa6b2)}
-  /* 편성에서 고른 대원 — 판에서도 표가 난다(사거리 링이 누구 것인지가 그제야 붙는다) */
-  .crew.sel::before{content:"";position:absolute;inset:-3px;border-radius:50%;
-    border:1px dashed color-mix(in srgb, var(--kc,#8fa6b2) 85%, transparent)}
-  /* 쏘지 않는 종류(냉기장·위생)가 힘을 쓰는 중 — 제 색으로 한 번 돈다 */
-  .crew.aura .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.75))
-    drop-shadow(0 0 5px var(--kc,#8fa6b2))}
-  /* 합쳐져 별이 오른 대원은 제자리에서 한 번 튄다 */
-  .crew.up{animation:crewUp .5s ease-out}
-  @keyframes crewUp{0%{transform:translate(-50%,-50%) scale(1)}
-    45%{transform:translate(-50%,-62%) scale(1.22)}100%{transform:translate(-50%,-50%) scale(1)}}
+  /* ── 유닛은 판에 안 그린다 ──
+     대원은 벙커 **안**에 있다. 판에서 보이는 것은 벙커가 쏘는 탄과, 고른 대원의 사거리 링뿐.
+     누가 들어가 있는지는 진열대 칩과 편성 화면이 말한다. */
   @keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.18)}100%{transform:scale(1)}}
   @keyframes flare{0%{box-shadow:0 0 0 0 rgba(224,164,88,.9)}100%{box-shadow:0 0 0 16px rgba(224,164,88,0)}}
   .core.merged{animation:flare .55s ease-out}
@@ -126,8 +100,7 @@
     border:2px solid var(--amber);opacity:0;animation:mergeRing .6s ease-out}
   @keyframes mergeRing{0%{transform:scale(.7);opacity:.95}100%{transform:scale(1.9);opacity:0}}
 
-  /* 적은 대원보다 위에 그린다 — 붙어서 때리는 놈이 대원 뒤로 숨으면 그 판이 안 읽힌다 */
-  .mob{position:absolute;pointer-events:none;transition:none;border-radius:50%;z-index:3}
+  .mob{position:absolute;pointer-events:none;transition:none;border-radius:50%}
   /* **발밑 접지 그림자.** 떠 보이는 것의 정체는 바닥에 닿은 자국이 없는 것이다 —
      drop-shadow 는 실루엣을 따라 지므로 "그림자"가 아니라 테두리 광택으로 읽힌다.
      몸이 뜰 때(--sh) 같이 작아지고 옅어져야 딛는 것으로 보인다. DOM 은 안 늘린다. */
@@ -174,10 +147,10 @@
   .mob i{position:absolute;left:50%;transform:translateX(-50%);top:-7px;height:3px;
     border-radius:2px;z-index:2;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
   .mob.boss{filter:drop-shadow(0 0 4px rgba(208,83,83,.8))}
-  .boom{position:absolute;width:40px;height:40px;transform:translate(-50%,-50%);z-index:4;
+  .boom{position:absolute;width:40px;height:40px;transform:translate(-50%,-50%);
     image-rendering:pixelated;pointer-events:none;animation:pop .3s ease-out}
   /* 머즐 — 발사 순간 총안구에서 톡 튀는 섬광. 2~3프레임 느낌으로 짧게(.12s). */
-  .muzzle{position:absolute;width:12px;height:12px;border-radius:50%;pointer-events:none;z-index:4;
+  .muzzle{position:absolute;width:12px;height:12px;border-radius:50%;pointer-events:none;
     transform:translate(-50%,-50%) scale(.4);opacity:0;
     box-shadow:0 0 8px 2px currentColor;mix-blend-mode:screen}
   .muzzle.on{animation:muzzle .12s ease-out}
@@ -235,7 +208,7 @@
     border:1px solid #2b3138;border-radius:8px;background:#171b20}
   .mobico{width:18px;height:18px;object-fit:contain;image-rendering:pixelated;
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
-  .fly{position:absolute;font-size:11px;color:var(--amber);pointer-events:none;z-index:5;
+  .fly{position:absolute;font-size:11px;color:var(--amber);pointer-events:none;
     animation:fly .7s ease-out forwards}
   @keyframes fly{to{transform:translateY(-22px);opacity:0}}
 
