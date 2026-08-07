@@ -484,7 +484,7 @@ export function tick(dt) {
          남은 40%를 몰아치면 순간 밀도가 화력을 잠깐 넘어서고, 중반에도 체력바가 움직인다.
          위생병·방패병이 값을 하는 순간이 여기서 생긴다. */
       const prog = S.spawned / Math.max(1, S.toSpawn);
-      S.spawnT = prog > 0.65 ? 0.3 : 0.55;
+      S.spawnT = prog > 0.65 ? 0.34 : 0.62;
     }
   }
   // 이동과 교전.
