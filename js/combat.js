@@ -801,6 +801,11 @@ export function gameOver() {
      그 뒤로 밀려난 판은 열 판 평균으로 접어 둔다(버리지 않는다). */
   META.runs = (META.runs | 0) + 1;
   META.hist = [S.round, ...(Array.isArray(META.hist) ? META.hist : [])];
+  /* 끝낸 시각도 같이 남긴다 — 막대만으로는 어제 굴린 판인지 한 달 전 판인지가 안 남는다.
+     첫 판 시각은 접혀 나가도 "며칠째"가 살아야 하므로 따로 든다. */
+  const stamp = Date.now();
+  META.histT = [stamp, ...(Array.isArray(META.histT) ? META.histT : [])];
+  if (!(META.firstRun > 0)) META.firstRun = stamp;
   foldHist(META);
   saveMeta();
   sfx(win ? "win" : "lose");
@@ -905,8 +910,20 @@ export function drawShop() {
 /** 기록 — **쌓인 것을 보는 자리.** 방치형의 재미 하나는 "내가 이만큼 굴렸다"인데,
  *  그 증거가 최고 라운드 숫자 하나뿐이었다. 누적 처치·판 수·최근 스물넷의 이력을 함께
  *  놓으면 늘고 있는지 멎었는지가 한눈에 읽힌다 — 멎었으면 그게 환생할 때다. */
+/** 그 판을 **언제** 굴렸나. 날짜를 적는 것보다 자정 기준으로 센 "오늘 / 어제 / N일 전"이
+ *  낫다 — 방치형에서 알고 싶은 건 날짜가 아니라 **요즘 하고 있나**다.
+ *  시각이 없는 옛 세이브의 판은 빈 문자열 — 없던 날짜를 지어내지 않는다. */
+const midnight = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const daysAgo = ts => Math.round((midnight(Date.now()) - midnight(ts)) / 864e5);
+function whenSay(ts) {
+  if (!(ts > 0)) return "";
+  const d = daysAgo(ts);
+  return d <= 0 ? "오늘" : d === 1 ? "어제" : d < 30 ? `${d}일 전` : `${Math.floor(d / 30)}달 전`;
+}
+
 export function drawStats() {
   const hist = Array.isArray(META.hist) ? META.hist : [];
+  const histT = Array.isArray(META.histT) ? META.histT : [];
   const runs = META.runs | 0, kills = META.kills | 0;
   const avg = hist.length ? hist.reduce((a, b) => a + b, 0) / hist.length : 0;
   const cell = (lb, v, col) =>
@@ -936,8 +953,11 @@ export function drawStats() {
   $("hist").innerHTML = hist.length
     ? eps.map((e, i) => bar(epAvg[i], " old", `옛 ${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 그중 최고 ${e.max | 0}`, fade(i))).join("")
       + (eps.length ? `<i class="hsep"></i>` : "")
-      + hist.slice().reverse().map((v, i) =>
-          bar(v, marks[i] ? " nw" : "", `${v}라운드${marks[i] ? " — 최고 기록" : ""}`)).join("")
+      + hist.slice().reverse().map((v, i) => {
+          const when = whenSay(histT[hist.length - 1 - i]);   // 막대는 옛것이 왼쪽, 저장은 최근이 앞
+          return bar(v, marks[i] ? " nw" : "",
+                     `${v}라운드${when ? ` · ${when}` : ""}${marks[i] ? " — 최고 기록" : ""}`);
+        }).join("")
     : `<span class="dim" style="font-size:12px">아직 기록 없음 — 한 판 끝나면 여기 쌓인다</span>`;
   /* 막대 뜻풀이 — **폰엔 마우스가 없다.** 옛 묶음이 무엇인지가 title 에만 있어서 손가락으로는
      영영 못 읽었다. 색 뜻은 밑에 적어 두고, 막대를 누르면 그 판의 설명이 같은 자리에 뜬다. */
@@ -958,11 +978,23 @@ export function drawStats() {
   };
   /* 밑줄 한 줄 — 옛 묶음이 있으면 **그때와 지금을 나란히** 놓는다. 그게 이 화면의 요점이다. */
   const first = eps[0];
+  /* **며칠째인가.** 스물넷 막대는 판 순서일 뿐이라 어제 굴린 건지 한 달 전 건지가 안 남는다.
+     굴린 날수와 오늘 판 수를 한 줄로 놓으면 그래프가 언제의 것인지가 붙는다.
+     시각을 안 들고 있던 옛 세이브에는 이 줄이 없다 — 다음 판부터 쌓인다. */
+  const dayLine = (() => {
+    const nth = META.firstRun > 0 ? daysAgo(META.firstRun) + 1 : 0;
+    if (!nth) return "";
+    const today = histT.filter(t => t > 0 && daysAgo(t) <= 0).length;
+    const last = histT.find(t => t > 0);
+    return `<br>굴린 지 <b>${nth}</b>일째 · ` +
+      (today ? `오늘 <b>${today}</b>판` : `마지막 판 <b>${whenSay(last)}</b>`);
+  })();
   $("statNote").innerHTML = runs
     ? `한 판에 평균 <b>${(kills / runs).toFixed(0)}</b>기 처치` +
       (hist.length >= 4
         ? ` · 최근 넷 평균 <b>${(hist.slice(0, 4).reduce((a, b) => a + b, 0) / 4).toFixed(1)}</b>라운드` : "") +
-      (first ? ` · 첫 ${first.n}판 평균 <b>${(first.sum / first.n).toFixed(1)}</b>라운드` : "")
+      (first ? ` · 첫 ${first.n}판 평균 <b>${(first.sum / first.n).toFixed(1)}</b>라운드` : "") +
+      dayLine
     : `처음 한 판을 끝내면 기록이 남는다`;
 }
 

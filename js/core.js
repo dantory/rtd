@@ -205,6 +205,9 @@ export const HIST_KEEP = 24, EPOCH_SIZE = 10, EPOCH_MAX = 12;
 export function foldHist(meta) {
   if (!Array.isArray(meta.epochs)) meta.epochs = [];
   // hist 는 최신이 앞이므로, 넘친 꼬리가 곧 접어야 할 옛 판(오래된 것부터)이다.
+  // 시각은 접힌 묶음에 담을 자리가 없다 — 막대와 같이 잘라 낸다(한 칸이 열 판 평균이라
+  // "어느 날"이 성립하지 않는다). 며칠째는 firstRun 이 따로 들고 있다.
+  if (Array.isArray(meta.histT)) meta.histT = meta.histT.slice(0, HIST_KEEP);
   const spill = meta.hist.slice(HIST_KEEP).reverse();
   if (!spill.length) return;
   meta.hist = meta.hist.slice(0, HIST_KEEP);
@@ -249,6 +252,14 @@ export function loadMeta() {
                kills: Number.isFinite(raw.kills) && raw.kills > 0 ? Math.floor(raw.kills) : 0,
                runs: raw.runs | 0,
                hist: Array.isArray(raw.hist) ? raw.hist.slice(0, 24).map(v => v | 0) : [],
+               /* **판마다 끝낸 시각.** 스물넷 막대는 판 순서일 뿐이라 어제 굴린 건지 한 달 전
+                  건지가 어디에도 안 남았다. hist 와 같은 순서(최근이 앞)로 나란히 든다.
+                  옛 세이브엔 없으니 0 — 그때는 날짜를 안 적는다(없던 날짜를 지어내지 않는다).
+                  `| 0` 금지: Date.now() 는 32비트를 넘는다. */
+               histT: Array.isArray(raw.histT)
+                 ? raw.histT.slice(0, 24).map(v => (Number.isFinite(v) && v > 0 ? v : 0)) : [],
+               // 제일 처음 판을 끝낸 시각. 접혀 나가도 "며칠째"는 남아야 하므로 따로 든다.
+               firstRun: Number.isFinite(raw.firstRun) && raw.firstRun > 0 ? raw.firstRun : 0,
                /* 접힌 옛 판 — 오래된 것이 앞. 한 칸은 {n: 묶인 판 수, sum: 라운드 합, max: 그중 최고}.
                   max 를 함께 드는 이유는 하나다: 그래프에서 "최고 기록을 세운 판"을 찍으려면
                   접혀 나간 판들의 최고를 알아야 한다. 없으면 옛 기록이 사라져 오찍는다. */
@@ -268,7 +279,8 @@ export function loadMeta() {
            up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
            seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
            lv: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
-           army: [], armyId: 0, kills: 0, runs: 0, hist: [], epochs: [], lastSeen: 0 };
+           army: [], armyId: 0, kills: 0, runs: 0, hist: [], histT: [], firstRun: 0,
+           epochs: [], lastSeen: 0 };
 }
 // 저장할 때마다 지금 시각을 찍는다 — 이 값이 다음 부팅에서 "비운 시간"의 기준이 된다.
 export const saveMeta = () => {
