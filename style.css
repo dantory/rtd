@@ -117,6 +117,16 @@
   .mob.hitting .spr{animation:mobHit .5s ease-in-out infinite}
   @keyframes mobHit{0%,100%{transform:translateY(0) scale(1) scaleX(var(--flip,1))}
     50%{transform:translateY(-1.5px) scale(1.06) scaleX(var(--flip,1))}}
+  /* 사거리 밖에 서서 쏘는 놈 — 붉은 점선 고리로 "저놈은 안 오고 쏜다"를 말한다.
+     이게 없으면 사람은 "왜 저놈만 안 죽지"를 알 길이 없다(자체 검수에서 나온 것). */
+  .mob.standing::before{content:"";position:absolute;inset:-6px;border-radius:50%;
+    border:2px dashed rgba(208,83,83,.75);animation:standRing 1.6s linear infinite}
+  @keyframes standRing{to{transform:rotate(360deg)}}
+  /* 자폭체 — 다가오는 내내 심지가 깜빡인다. 붙기 전에 잡아야 하는 놈이라 눈에 띄어야 한다. */
+  .mob.fuse::before{content:"";position:absolute;inset:-4px;border-radius:50%;
+    box-shadow:0 0 0 2px rgba(224,164,88,.85), 0 0 12px 3px rgba(224,120,40,.55);
+    animation:fusePulse .7s ease-in-out infinite}
+  @keyframes fusePulse{0%,100%{opacity:.35;transform:scale(.96)}50%{opacity:1;transform:scale(1.06)}}
   .mob.noimg{background:#7a4a4a;border-radius:50%}
   /* **적은 붉은 계열로 통일하되, 결이 다른 놈은 색조도 갈라야 한다.**
      하나의 필터로 전부 물들였더니 등에 초록 주머니를 진 치유체도, 불꽃을 인 자폭체도

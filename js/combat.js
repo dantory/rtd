@@ -510,6 +510,11 @@ export function tick(dt) {
     const reach = cr + 8 + (prof.standoff || 0);
     if (d <= reach) {                             // 때릴 자리에 닿았다
       m.stuck = true;
+      /* 포격체가 처음 자리를 잡으면 **한 번만** 말해 준다 — 매번 띄우면 잔소리다. */
+      if (prof.standoff && !S.saidStandoff) {
+        S.saidStandoff = true;
+        say('<b style="color:var(--bad)">포격</b>은 멀리서 쏨 — <b>사거리 긴 유닛</b>이라야 닿음');
+      }
       /* **자폭체는 한 번뿐이다.** 닿는 순간 크게 터지고 스스로 사라진다 —
          붙기 전에 잡아야 한다는 압박이 여기서 생긴다(막으면 그 판은 안 깎인다). */
       if (prof.bomb) {
@@ -962,6 +967,12 @@ export function paint() {
       `--sh:${(1 - bob / 8).toFixed(2)}`;
     el.classList.toggle("slowed", !!m.slow);
     el.classList.toggle("hitting", !!m.stuck);   // 붙은 놈은 걷는 대신 때리는 결로
+    /* **왜 안 잡히는지, 왜 위험한지를 화면이 말해야 한다.**
+       포격체는 사거리 밖에 서서 쏘는데, 사람은 "왜 저놈만 안 죽지"를 알 방법이 예고 칩뿐이었다.
+       자폭체는 붙기 전에 잡아야 하는데 다가오는 동안 아무 표시가 없었다. 둘 다 표식을 준다. */
+    const pf = MOB[m.kind] || {};
+    el.classList.toggle("standing", !!(pf.standoff && m.stuck));
+    el.classList.toggle("fuse", !!pf.bomb);
     const bar = el.querySelector("i");
     if (bar) {
       bar.style.width = Math.max(3, sz * 0.8 * pct) + "px";
