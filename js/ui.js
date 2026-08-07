@@ -264,7 +264,9 @@ export function newGame() {
      매 판 주면 부대가 무한 증식하므로, 부대가 비어 있을 때 한 번만 채운다. */
   /* 종류당 한 기이므로 **아직 없는 종류 중에서** 고른다 — 아무 종류나 뽑으면 첫 부대에
      같은 종류가 두 번 들어와 규칙이 시작부터 깨진다. */
-  while (META.army.length < 4) {
+  /* 첫 부대를 넷에서 셋으로 — 자리가 셋이라 넷째는 어차피 창고에서 논다.
+     초반이 헐렁했던 이유 중 하나가 시작부터 여유가 있었던 것이다. */
+  while (META.army.length < 3) {
     const left = KIND_IDS.filter(k => !META.army.some(t => t.kind === k));
     if (!left.length) break;
     const t0 = { id: ++META.armyId, slot: null, frag: 0,
