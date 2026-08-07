@@ -1,6 +1,6 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
-import { banner, drawGrid, px, say } from "./view.js";
+import { $, CORE, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, SLOT_SPOTS, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { banner, CELL, cx, cy, drawGrid, px, py, say } from "./view.js";
 import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, powerOf, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
 import { sfx } from "./sound.js";
@@ -440,11 +440,13 @@ function bossRing(x, y) {
   setTimeout(() => el.remove(), 600);
 }
 
-/** 합쳐지면 벙커가 한 번 빛난다 — 유닛이 안에 있으니 연출도 벙커에서 터져야 맞다. */
+/** 합쳐지면 벙커가 한 번 빛나고, **자리에 선 그 대원도** 같이 튄다 —
+ *  누가 올라갔는지가 판에서 보여야 합치기가 사건이 된다. */
 export function popTower(t, cls) {
   const el = $("coreEl");
-  if (!el) return;
-  el.classList.remove("merged"); void el.offsetWidth; el.classList.add("merged");
+  if (el) { el.classList.remove("merged"); void el.offsetWidth; el.classList.add("merged"); }
+  const ce = t && crewEls.get(t.id);
+  if (ce) { ce.classList.remove("up"); void ce.offsetWidth; ce.classList.add("up"); }
 }
 
 /* 떠오르는 숫자에도 **상한이 있어야 한다.** 전리품이 떨어지기 시작하자 한 웨이브에 수백 개가
@@ -631,6 +633,7 @@ export function tick(dt) {
     for (const m of S.mobs) {
       if (Math.hypot(m.x - c2.x, m.y - c2.y) > r2) continue;
       m.slow = Math.max(m.slow, s2); m.slowT = Math.max(m.slowT, 0.5);
+      t.pulseAt = performance.now();          // 얼리는 중 — 그 대원이 제 색으로 돈다
     }
   }
 
@@ -645,12 +648,14 @@ export function tick(dt) {
     if (S.coreHp >= S.coreMax) continue;
     const amt = Math.max(1, Math.round(h * gradeMul(t.g) * 0.5 * kindSkill(t.kind)));
     S.coreHp = Math.min(S.coreMax, S.coreHp + amt);
+    t.pulseAt = performance.now();            // 고치는 중 — 위생병 자리에서 표가 난다
     const c2 = coreCenter();
     flyText(c2.x, c2.y - coreRadius(), "+" + amt, "#7fb069");
   }
 
   // 유닛 — **내보낸 것만 쏜다.** 창고에 있는 건 구경만 한다.
-  // 유닛은 벙커 안에 있으므로 사거리도 탄도 전부 **벙커**가 기준이다.
+  // 사거리는 **벙커** 기준이다(대원은 벙커를 끼고 서 있으니 자리마다 사거리가 달라지면
+  // 배치가 운이 된다). 탄이 나가는 곳만 그 대원의 자리다 — 보이는 것과 재는 것을 나눈다.
   const cc = coreCenter();
   for (const t of placed()) {
     t.cd = (t.cd || 0) - dt;
@@ -672,15 +677,13 @@ export function tick(dt) {
     t.cd = K.cd;
     const d = dmgOf(t);
     const bp = mobPos(best);
-    /* 총안구 — 탄은 벙커의 **목표를 향한 면**에서 나간다. 자리 번호만큼 옆으로 어긋나게
-       해서, 여럿이 같은 놈을 쏠 때도 줄기가 한 가닥으로 뭉개지지 않는다. */
-    const L = Math.hypot(bp.x - cc.x, bp.y - cc.y) || 1;
-    const dirx = (bp.x - cc.x) / L, diry = (bp.y - cc.y) / L;
-    const lat = ((t.slot ?? 0) - (slotMax() - 1) / 2) * 9;
-    const tx = cc.x + dirx * coreRadius() * 0.9 - diry * lat;
-    const ty = cc.y + diry * coreRadius() * 0.9 + dirx * lat;
-    S.shots.push({ x: tx, y: ty, tx: bp.x, ty: bp.y, life: 0.14, col: K.col });
-    muzzle(tx, ty, K.col);                  // 총안구에서 불빛이 튄다
+    /* 탄은 **쏜 대원의 자리**에서 나간다. 자리가 서로 다르니 여럿이 같은 놈을 쏘아도
+       줄기가 한 가닥으로 뭉개지지 않고, 무엇보다 **누가 쏘는지**가 보인다. */
+    const cp = crewPos(t);
+    t.aim = Math.atan2(bp.y - cp.y, bp.x - cp.x);   // 겨눈 쪽 — 반동과 좌우 반전이 이걸 본다
+    t.firedAt = performance.now();
+    S.shots.push({ x: cp.x, y: cp.y, tx: bp.x, ty: bp.y, life: 0.14, col: K.col });
+    muzzle(cp.x, cp.y, K.col);              // 총구에서 불빛이 튄다
     sfx(K.cd >= 2 ? "heavy" : "shoot");     // 느리고 무거운 종류(로켓·저격·지뢰)는 소리도 무겁게
     boom(bp.x, bp.y, K.fx || "hit");
 
@@ -714,12 +717,13 @@ export function tick(dt) {
     // 관통 — 탄이 지나간 **직선 위**의 것들도 맞는다. 한 갈래로 몰려오면 값을 한다.
     if (K.pierce) {
       let n = K.pierce + Math.floor(kindLv(t.kind) / 3);
-      const ux = (bp.x - tx) / (Math.hypot(bp.x - tx, bp.y - ty) || 1);
-      const uy = (bp.y - ty) / (Math.hypot(bp.x - tx, bp.y - ty) || 1);
+      // 직선의 시작은 **쏜 대원의 자리**다 — 탄이 나가는 곳과 관통 판정이 갈리면 안 된다
+      const ux = (bp.x - cp.x) / (Math.hypot(bp.x - cp.x, bp.y - cp.y) || 1);
+      const uy = (bp.y - cp.y) / (Math.hypot(bp.x - cp.x, bp.y - cp.y) || 1);
       for (const m of S.mobs) {
         if (n <= 0) break;
         if (m === best || m.dead) continue;
-        const rx = m.x - tx, ry = m.y - ty;
+        const rx = m.x - cp.x, ry = m.y - cp.y;
         const along = rx * ux + ry * uy;
         if (along < 0 || along > r) continue;
         if (Math.abs(rx * uy - ry * ux) > 16) continue;    // 선에서 벗어난 것은 뺀다
@@ -907,8 +911,65 @@ export function drawMedals() {
 }
 
 /* ══ 그리기 ══ */
-/** 유닛은 벙커 안이라 판에 그릴 것이 없다 — 고른 유닛의 **사거리 링**만 벙커에서 그린다.
- *  사거리의 중심이 벙커라는 것 자체가 "안에서 쏜다"는 설명이다. */
+/* ══ 주둔 대원 ══
+   자체 검수에서 나온 것: **유닛이 판에 안 보여 누가 쏘는지가 안 읽혔다.** 방치형에서
+   사람이 하는 일은 짜 놓은 것이 굴러가는 걸 보는 것인데, 화면에는 벙커 하나와 사방에서
+   오는 적뿐이라 관전이 얇았다 — 벙커에서 색깔만 다른 줄기가 나갔다.
+   자리는 이미 앞마당 칸(SLOT_SPOTS)으로 정해져 있었는데 그리지만 않았던 것이라,
+   **내보낸 대원을 제 자리에 세운다.** 쏘는 순간 그 대원이 반동으로 물러나고 총구 불빛도
+   거기서 튄다. 그래서 "저 저격수가 저놈을 잡는다"가 화면에서 읽힌다.
+   사거리·판정은 그대로 벙커 기준이다 — 보이는 것만 바꾸고 수치는 안 건드린다. */
+/** 대원이 서는 자리. 자리를 못 받았으면(있을 수 없지만) 벙커 한가운데로 물러선다. */
+export const crewPos = (t) => (t.x == null ? coreCenter() : { x: cx(t.x), y: cy(t.y) - 4 });
+export let crewEls = new Map();
+function drawCrew() {
+  const alive = new Set();
+  const now = performance.now();
+  for (const t of placed()) {
+    alive.add(t.id);
+    let el = crewEls.get(t.id);
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "crew";
+      el.innerHTML = `<img class="spr" src="assets/unit/${t.kind}.png" alt=""
+          onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">`;
+      $("world").appendChild(el);
+      crewEls.set(t.id, el);
+    }
+    /* 종류·등급·자리가 바뀌었을 때만 손을 댄다 — 매 프레임 innerHTML 을 다시 쓰면
+       이미지가 깜빡이고 GPU 가 헛돈다(이펙트 끊김을 만든 것과 같은 실수). */
+    const sig = `${t.kind}|${t.g}|${t.x},${t.y}`;
+    if (el.dataset.sig !== sig) {
+      el.dataset.sig = sig;
+      const img = el.querySelector(".spr");
+      if (img && !img.src.endsWith(`${t.kind}.png`)) img.src = `assets/unit/${t.kind}.png`;
+      const p = crewPos(t);
+      el.style.left = p.x + "px"; el.style.top = p.y + "px";
+      el.style.setProperty("--gc", GCOL[t.g] || "#8fa6b2");
+      el.style.setProperty("--kc", (KINDS[t.kind] || {}).col || "#8fa6b2");
+      /* 벙커 뒤쪽(북쪽) 자리는 건물에 가려야 한다 — 안 가리면 대원이 지붕 위에 올라선 것으로
+         보인다. 앞쪽 자리는 건물보다 위층(2)이라 앞마당에 선 것으로 읽힌다. */
+      el.style.zIndex = (t.y ?? CORE.y) < CORE.y ? 0 : 2;
+    }
+    // 편성에서 고른 대원은 판에서도 표가 난다 — 사거리 링만으로는 "누구의 링인지"가 안 붙는다
+    el.classList.toggle("sel", t.id === S.sel);
+    /* 쏘지 않는 종류(냉기장·위생)는 반동이 없어 가만히 서 있기만 했다 — **일하고 있다는 것이
+       화면에 안 나오면 자리를 낭비하는 것으로 읽힌다.** 힘을 쓸 때마다 제 색으로 한 번 돈다. */
+    el.classList.toggle("aura", now - (t.pulseAt || -1e9) < 420);
+    /* 반동 — 쏜 순간부터 0.14초에 걸쳐 **겨눈 반대쪽으로** 물러났다 돌아온다.
+       게임 시간이 아니라 실제 시각으로 재야 배속(6배)의 서브틱과 안 엉킨다. */
+    const k = Math.max(0, 1 - (now - (t.firedAt || -1e9)) / 140);
+    const a = t.aim || 0;
+    el.style.setProperty("--rx", (-Math.cos(a) * 5 * k).toFixed(2));
+    el.style.setProperty("--ry", (-Math.sin(a) * 5 * k).toFixed(2));
+    el.style.setProperty("--flip", t.firedAt && Math.cos(a) < 0 ? -1 : 1);
+    el.classList.toggle("fired", k > 0.05);
+  }
+  for (const [id, el] of crewEls) if (!alive.has(id)) { el.remove(); crewEls.delete(id); }
+}
+
+/** 고른 유닛의 **사거리 링**을 벙커에서 그린다 — 사거리의 중심이 벙커라는 것 자체가
+ *  "대원은 벙커를 끼고 지킨다"는 설명이다. */
 export function drawTowers() {
   [...document.querySelectorAll("#world .rng")].forEach(e => e.remove());
   const t = META.army.find(x => x.id === S.sel);
@@ -918,6 +979,45 @@ export function drawTowers() {
   rg.style.cssText = `left:${c.x-r}px;top:${c.y-r}px;width:${r*2}px;height:${r*2}px;
     border-color:${KINDS[t.kind].col}`;
   $("world").appendChild(rg);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   내보낸 유닛을 **판에 그린다** — 관전이 얇았던 진짜 이유.
+   ──────────────────────────────────────────────────────────────
+   유닛을 벙커 안으로 넣은 뒤로 화면에 있는 것은 벙커 하나, 적, 탄 줄기뿐이었다.
+   "내가 짜 놓은 것이 나 없이 굴러가는 걸 본다"가 이 장르의 심장인데 **짜 놓은 것이
+   화면에 없으면** 볼 것도 없다. 누가 쏘는지가 안 읽히니 배치를 바꿔도 감흥이 없다.
+
+   **맞지는 않는다.** 벙커가 대신 맞는 규칙은 그대로다(자리가 몇 개뿐인데 유닛이 죽으면
+   화력이 통째로 사라져 그 판이 거기서 끝난다). 그리는 것은 **누가 서 있는가**일 뿐이다.
+   벙커 둘레 제 자리에 작게 세우고, 쏠 때 그 유닛이 반짝인다.
+   ══════════════════════════════════════════════════════════ */
+export let unitEls = new Map();
+export function paintUnits() {
+  const live = new Set();
+  for (const t of placed()) {
+    live.add(t.id);
+    let el = unitEls.get(t.id);
+    if (!el || el.dataset.kind !== t.kind) {
+      if (el) el.remove();
+      el = document.createElement("div");
+      el.className = "punit";
+      el.dataset.kind = t.kind;
+      el.innerHTML = `<img class="spr" src="assets/unit/${t.kind}.png" alt=""
+          onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">`;
+      $("world").appendChild(el);
+      unitEls.set(t.id, el);
+    }
+    const p = SLOT_SPOTS[t.slot];
+    if (!p) continue;
+    const sz = 30;
+    el.style.cssText = `left:${px(p[0]) + CELL / 2 - sz / 2}px;top:${py(p[1]) + CELL / 2 - sz / 2}px;` +
+      `width:${sz}px;height:${sz}px;--ucol:${KINDS[t.kind].col}`;
+    el.classList.toggle("sel", t.id === S.sel);
+    // 쏜 직후에는 반짝인다 — 재장전이 갓 돌아간 유닛이 방금 쏜 놈이다
+    el.classList.toggle("fired", (t.cd || 0) > KINDS[t.kind].cd * 0.72);
+  }
+  for (const [id, el] of unitEls) if (!live.has(id)) { el.remove(); unitEls.delete(id); }
 }
 
 export let mobEls = new Map();
@@ -981,6 +1081,10 @@ export function paint() {
     }
   }
   for (const [id, el] of mobEls) if (!alive.has(id)) { el.remove(); mobEls.delete(id); }
+
+  drawCrew();   // 내보낸 대원은 제 자리에 서서 쏜다 — 관전이 얇았던 것의 정체가 이거였다
+
+  paintUnits();      // 내보낸 유닛을 벙커 둘레에 그린다 — 짜 놓은 것이 보여야 관전이 된다
 
   // 타워 체력바는 매 프레임 바뀐다 — 구성이 그대로여도 여기서 다시 쓴다
   if (placed().some(t => t.hp < t.maxHp) || towersHurtLast) {
