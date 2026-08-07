@@ -764,6 +764,19 @@ export function tick(dt) {
   }
 }
 
+/* 화면에 나가는 말은 어미 없는 짧은 명사구 — 등수도 숫자 대신 우리말로 읽는다. */
+const NTH = ["", "첫", "두", "세", "네", "다섯", "여섯", "일곱", "여덟"];
+/** 방금 끝난 판이 **최근 여덟 판 중 몇 번째**인가. 이 판은 이미 hist 맨 앞에 들어 있다.
+ *  같은 라운드는 같은 등수로 본다(자기보다 **더 멀리 간 판**만 센다).
+ *  세 판이 안 쌓였으면 아무 말도 안 한다 — 두 판 중 첫 번째는 정보가 아니다. */
+function runRank() {
+  const recent = (Array.isArray(META.hist) ? META.hist : []).slice(0, 8);
+  if (recent.length < 3) return "";
+  const rank = 1 + recent.filter(v => v > recent[0]).length;
+  const of = `최근 ${NTH[recent.length]} 판 중`;
+  return rank === 1 ? `${of} 가장 멀리` : `${of} ${NTH[rank]} 번째`;
+}
+
 export function gameOver() {
   S.over = true; S.running = false; S.mobs = []; S.shots = [];
   document.querySelectorAll("#world .fly, #world .boom").forEach(e => e.remove());
@@ -802,6 +815,12 @@ export function gameOver() {
       .filter(Boolean).join(" · ") + `</b>`;
   /* 환생할 것이 생겼으면 결과에서 한 줄로 알린다 — 강화 메뉴를 열어 봐야 아는 성장 축이면
      있으나 마나다. 다만 여기서 하지는 않는다: 되돌릴 수 없는 결정은 제 자리에서 내린다. */
+  /* **이번 판이 최근 것들 사이에서 몇 번째인가.** 쌓인 것이 「강화」 안에만 있어서, 판을
+     닫을 때마다 보이는 것은 이번 라운드 수 하나뿐이었다 — 늘고 있는지 줄고 있는지가
+     안 읽힌다. 최고 기록은 한 번 세우면 몇 십 판을 안 움직이므로 자로 쓸 수 없다.
+     최근 여덟 판 안에서의 등수는 매 판 바뀌어 **판마다 읽힌다**. */
+  const rankLine = runRank();
+  if (rankLine) $("overD").innerHTML += `<br><span style="color:#8a8f98">${rankLine}</span>`;
   if (medalGain() > 0)
     $("overD").innerHTML += `<br><b style="color:#d6a84a">「강화」에서 환생 가능 — 훈장 +${medalGain()}</b>`;
   drawShop();

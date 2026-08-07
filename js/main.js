@@ -31,3 +31,8 @@ if (offRep) openOffline(offRep);
 setTimeout(focusView, 60);
 /* 방치 중엔 saveMeta 가 뜸해 lastSeen 이 멎는다 — 주기적으로 찍어 비운 시간을 이어 준다. */
 setInterval(saveMeta, 10000);
+/* **탭을 닫는 순간에도 한 번 찍는다.** 처치 수는 판이 끝나야 저장되고 그 사이는 10 초짜리
+   주기 저장에 얹혀 갔다 — 마지막 저장 뒤에 잡은 것은 그대로 샜다. 폰에서는 `unload` 가
+   아예 안 오는 일이 있어 `visibilitychange`(숨김)를 같이 건다. */
+addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveMeta(); });
+addEventListener("pagehide", saveMeta);
