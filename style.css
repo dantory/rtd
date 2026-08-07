@@ -283,6 +283,15 @@
   /* 접힌 옛 판 — 판마다가 아니라 열 판 평균이라 흐리게 두고, 얇은 금으로 최근 구간과 가른다 */
   .hist .hb.old{background:#2b3444;opacity:.75}
   .hist .hsep{flex:0 0 2px;align-self:stretch;background:#3a4658;opacity:.5;border-radius:1px}
+  .hist .hb{cursor:pointer}
+  /* 뜻풀이 줄 — 폰에서 title 대신. 눌린 막대의 설명이 같은 자리에 덮어써진다 */
+  .hlgd{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:5px;
+    min-height:13px;font-size:10px;color:var(--dim);letter-spacing:0}
+  .hlgd .lgi{display:inline-flex;align-items:center;gap:3px}
+  .hlgd .sw{width:7px;height:9px;border-radius:1px 1px 0 0;background:#3a4658}
+  .hlgd .sw.old{background:#2b3444;opacity:.75}
+  .hlgd .sw.nw{background:var(--amber)}
+  .hlgd .rd{color:var(--amber)}
   .dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
   .dxc{position:relative;padding:6px 3px 4px;border-radius:5px;background:#161c24;
     border:1px solid #262f3a;display:flex;flex-direction:column;align-items:center;gap:2px}

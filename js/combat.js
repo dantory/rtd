@@ -928,13 +928,31 @@ export function drawStats() {
   let run = eps.reduce((m, e) => Math.max(m, e.max | 0), 0);
   const marks = hist.slice().reverse().map(v => { const nw = v > run; run = Math.max(run, v); return nw; });
   const bar = (h, cls, title) =>
-    `<i class="hb${cls}" style="height:${Math.max(6, Math.round(h / top * 100))}%" title="${title}"></i>`;
+    `<i class="hb${cls}" style="height:${Math.max(6, Math.round(h / top * 100))}%"
+       title="${title}" data-say="${title}"></i>`;
   $("hist").innerHTML = hist.length
     ? eps.map((e, i) => bar(epAvg[i], " old", `옛 ${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 그중 최고 ${e.max | 0}`)).join("")
       + (eps.length ? `<i class="hsep"></i>` : "")
       + hist.slice().reverse().map((v, i) =>
           bar(v, marks[i] ? " nw" : "", `${v}라운드${marks[i] ? " — 최고 기록" : ""}`)).join("")
     : `<span class="dim" style="font-size:12px">아직 기록 없음 — 한 판 끝나면 여기 쌓인다</span>`;
+  /* 막대 뜻풀이 — **폰엔 마우스가 없다.** 옛 묶음이 무엇인지가 title 에만 있어서 손가락으로는
+     영영 못 읽었다. 색 뜻은 밑에 적어 두고, 막대를 누르면 그 판의 설명이 같은 자리에 뜬다. */
+  const lg = $("histLegend");
+  const legend = () => {
+    lg.innerHTML = hist.length
+      ? (eps.length ? `<span class="lgi"><i class="sw old"></i>옛 판 열씩 묶음</span>` : "") +
+        `<span class="lgi"><i class="sw"></i>한 판</span>` +
+        (marks.some(Boolean) ? `<span class="lgi"><i class="sw nw"></i>최고 기록</span>` : "") +
+        `<span class="lgi dim">막대를 누르면 그 판</span>`
+      : "";
+  };
+  legend();
+  $("hist").onclick = e => {
+    const say = e.target && e.target.dataset && e.target.dataset.say;
+    if (say) lg.innerHTML = `<span class="rd">${say}</span>`;
+    else legend();
+  };
   /* 밑줄 한 줄 — 옛 묶음이 있으면 **그때와 지금을 나란히** 놓는다. 그게 이 화면의 요점이다. */
   const first = eps[0];
   $("statNote").innerHTML = runs
