@@ -11,7 +11,9 @@
  *
  *      node funtest.mjs [판수]      # serve.mjs(8772) + 크롬(9333)
  */
-const RUNS = Number(process.argv[2] || 6);
+/* 기본을 여섯에서 열로. 초반을 조인 뒤(첫 판 7R) **앞 판들이 거의 같아져서** 여섯 판
+   표본으로는 판정이 흔들린다 — 같은 코드로 6판은 ✗(+2.5), 10판은 ✓(+4.2)가 나왔다. */
+const RUNS = Number(process.argv[2] || 10);
 
 const list = await (await fetch("http://127.0.0.1:9333/json/list")).json();
 const ws = new WebSocket(list.find(x => x.type === "page").webSocketDebuggerUrl);
@@ -128,8 +130,16 @@ console.log(`   ${growth.seq.join(" → ")}\n`);
 
 const chk = (n, ok, d) => console.log(`${ok ? "✓" : "✗"} ${n}${d ? "  — " + d : ""}`);
 console.log("── 판정 ──");
-chk("무엇을 내보내느냐가 결과를 바꾼다 (이 구조의 존재 이유)", smart.avg > blind.avg + 3,
-    `아무거나 ${blind.avg}R → 골라 내보내면 ${smart.avg}R`);
+/* **초반 판은 아무리 잘 골라도 고를 것이 없다.** 부대가 서너 기고 자리가 셋이면 아무거나
+   넣으나 골라 넣으나 **같은 셋**이 들어간다 — 첫 판이 7R 로 짧아진 뒤로 앞 절반이 거의
+   동일해졌고, 그래서 전체 평균으로 재면 차이가 희석된다(6판 +2.5 ✗ / 10판 +4.2 ✓).
+   고르는 것이 값을 하기 시작하는 건 부대가 갖춰진 뒤라, **뒤 절반**으로 판정한다
+   (counteraudit 이 같은 이유로 쓰는 기준이다). 전체 차이도 같이 적어 둔다. */
+const back = a => a.slice(Math.floor(a.length / 2));
+const mean = a => +(a.reduce((x, y) => x + y, 0) / a.length).toFixed(1);
+const bl = mean(back(blind.seq)), sm = mean(back(smart.seq));
+chk("무엇을 내보내느냐가 결과를 바꾼다 (이 구조의 존재 이유)", sm > bl + 3,
+    `뒤 절반 ${bl}R → ${sm}R (+${(sm - bl).toFixed(1)}) · 전체 ${blind.avg} → ${smart.avg}`);
 // **징집은 중급(2)까지만 나온다 — 상급(3)은 합성으로만 닿는다.** 그래서 평균이 2.5 근처에서
 // 출렁이던 옛 기준 대신 "상급에 닿았는가"를 본다: 3 이상이면 같은 것 셋을 합친 적이 있다는 증거다.
 chk("합성으로 등급이 오른다", smart.peak >= 3, `최고 ${smart.peak}등급 도달 (평균 ${smart.grade})`);
