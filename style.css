@@ -295,6 +295,9 @@
     border-top:2px solid #7b8aa4}
   .hlgd .sw.nw{background:var(--amber)}
   .hlgd .rd{color:var(--amber)}
+  /* 제일 좁은 폰(320px)에서만 뒷말을 접는다 — 넉 줄이 두 줄로 접히면 「눌러서 그 판」이
+     밀려 내려가 안 읽힌다. 재는 법: node tools/histlegend.mjs (줄 수가 1 이어야 한다). */
+  @media (max-width: 340px){ .hlgd .lgx{display:none} }
   .dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
   .dxc{position:relative;padding:6px 3px 4px;border-radius:5px;background:#161c24;
     border:1px solid #262f3a;display:flex;flex-direction:column;align-items:center;gap:2px}

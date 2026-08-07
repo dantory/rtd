@@ -927,11 +927,14 @@ export function drawStats() {
   // 접혀 나간 판들의 최고가 곧 최근 구간이 넘어야 할 선 — 여기서부터 되짚는다
   let run = eps.reduce((m, e) => Math.max(m, e.max | 0), 0);
   const marks = hist.slice().reverse().map(v => { const nw = v > run; run = Math.max(run, v); return nw; });
-  const bar = (h, cls, title) =>
-    `<i class="hb${cls}" style="height:${Math.max(6, Math.round(h / top * 100))}%"
+  const bar = (h, cls, title, st = "") =>
+    `<i class="hb${cls}" style="height:${Math.max(6, Math.round(h / top * 100))}%;${st}"
        title="${title}" data-say="${title}"></i>`;
+  /* 옛 묶음은 **멀수록 흐리게**. 넷이 다 같은 사선 무늬라 "왼쪽이 더 옛날"이 안 읽혔다 —
+     묶음은 다 열 판씩이라 폭으로는 못 가른다. 바래는 정도가 곧 거리다. */
+  const fade = i => `opacity:${(0.42 + 0.58 * (i + 1) / eps.length).toFixed(2)}`;
   $("hist").innerHTML = hist.length
-    ? eps.map((e, i) => bar(epAvg[i], " old", `옛 ${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 그중 최고 ${e.max | 0}`)).join("")
+    ? eps.map((e, i) => bar(epAvg[i], " old", `옛 ${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 그중 최고 ${e.max | 0}`, fade(i))).join("")
       + (eps.length ? `<i class="hsep"></i>` : "")
       + hist.slice().reverse().map((v, i) =>
           bar(v, marks[i] ? " nw" : "", `${v}라운드${marks[i] ? " — 최고 기록" : ""}`)).join("")
@@ -941,10 +944,10 @@ export function drawStats() {
   const lg = $("histLegend");
   const legend = () => {
     lg.innerHTML = hist.length
-      ? (eps.length ? `<span class="lgi"><i class="sw old"></i>옛 판 열씩 묶음</span>` : "") +
+      ? (eps.length ? `<span class="lgi"><i class="sw old"></i>옛 열 판<span class="lgx">씩 묶음</span></span>` : "") +
         `<span class="lgi"><i class="sw"></i>한 판</span>` +
-        (marks.some(Boolean) ? `<span class="lgi"><i class="sw nw"></i>최고 기록</span>` : "") +
-        `<span class="lgi dim">막대를 누르면 그 판</span>`
+        (marks.some(Boolean) ? `<span class="lgi"><i class="sw nw"></i>최고</span>` : "") +
+        `<span class="lgi dim">눌러서 그 판</span>`
       : "";
   };
   legend();
