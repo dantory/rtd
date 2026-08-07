@@ -1,5 +1,5 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, EPOCH_SIZE, foldHist, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, foldHist, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, powerOf, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
@@ -918,19 +918,30 @@ export function drawStats() {
     cell("최고 라운드", (META.best | 0), "var(--amber)") +
     cell("최근 평균", avg ? avg.toFixed(1) : "—", "#7fb069");
   /* 이력 막대 — 왼쪽이 오래된 것, 오른쪽이 방금 것. 최고 기록을 세운 판만 호박색으로
-     찍는다(그게 이 그래프에서 유일하게 사건인 지점이다). */
-  const top = Math.max(1, ...hist);
-  let run = 0;                                    // 앞에서부터 되짚어 가며 그때의 최고를 센다
+     찍는다(그게 이 그래프에서 유일하게 사건인 지점이다).
+     **왼쪽 앞머리는 접힌 옛 판**이다 — 열 판 평균 한 칸, 흐린 색에 얇은 간격으로 갈라 둔다.
+     스물넷에서 잘라 버리면 백 판을 굴려도 "예전엔 이랬는데"가 어디에도 안 남는다. */
+  const eps = Array.isArray(META.epochs) ? META.epochs : [];
+  const epAvg = eps.map(e => e.sum / Math.max(1, e.n));
+  const top = Math.max(1, ...hist, ...epAvg);
+  // 접혀 나간 판들의 최고가 곧 최근 구간이 넘어야 할 선 — 여기서부터 되짚는다
+  let run = eps.reduce((m, e) => Math.max(m, e.max | 0), 0);
   const marks = hist.slice().reverse().map(v => { const nw = v > run; run = Math.max(run, v); return nw; });
+  const bar = (h, cls, title) =>
+    `<i class="hb${cls}" style="height:${Math.max(6, Math.round(h / top * 100))}%" title="${title}"></i>`;
   $("hist").innerHTML = hist.length
-    ? hist.slice().reverse().map((v, i) =>
-        `<i class="hb${marks[i] ? " nw" : ""}" style="height:${Math.max(6, Math.round(v / top * 100))}%"
-            title="${v}라운드${marks[i] ? " — 최고 기록" : ""}"></i>`).join("")
+    ? eps.map((e, i) => bar(epAvg[i], " old", `옛 ${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 그중 최고 ${e.max | 0}`)).join("")
+      + (eps.length ? `<i class="hsep"></i>` : "")
+      + hist.slice().reverse().map((v, i) =>
+          bar(v, marks[i] ? " nw" : "", `${v}라운드${marks[i] ? " — 최고 기록" : ""}`)).join("")
     : `<span class="dim" style="font-size:12px">아직 기록 없음 — 한 판 끝나면 여기 쌓인다</span>`;
+  /* 밑줄 한 줄 — 옛 묶음이 있으면 **그때와 지금을 나란히** 놓는다. 그게 이 화면의 요점이다. */
+  const first = eps[0];
   $("statNote").innerHTML = runs
     ? `한 판에 평균 <b>${(kills / runs).toFixed(0)}</b>기 처치` +
       (hist.length >= 4
-        ? ` · 최근 넷 평균 <b>${(hist.slice(0, 4).reduce((a, b) => a + b, 0) / 4).toFixed(1)}</b>라운드` : "")
+        ? ` · 최근 넷 평균 <b>${(hist.slice(0, 4).reduce((a, b) => a + b, 0) / 4).toFixed(1)}</b>라운드` : "") +
+      (first ? ` · 첫 ${first.n}판 평균 <b>${(first.sum / first.n).toFixed(1)}</b>라운드` : "")
     : `처음 한 판을 끝내면 기록이 남는다`;
 }
 
