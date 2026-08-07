@@ -757,8 +757,33 @@ export function paint() {
     }
     const p = mobPos(m), sz = m.boss ? 76 : 44;
     const pct = Math.max(0, m.hp / m.maxHp);
-    el.style.cssText = `left:${p.x - sz/2}px;top:${p.y - sz/2}px;width:${sz}px;height:${sz}px`;
+    /* ══ 걸음 ══
+       **그림 한 장을 좌표만 바꿔 밀면 걷는 게 아니라 미끄러진다**(병수님: "그냥 둥둥
+       떠다니던데"). 걷기 프레임이 아직 없으므로 한 장으로 낼 수 있는 것을 낸다:
+         · 걸음 위상을 **시간이 아니라 지나온 거리**로 센다 — 그래야 느려진 놈은 발도
+           천천히 놀리고, 붙어서 멈춘 놈은 발이 멎는다(감속이 눈에 보인다).
+         · 발이 땅을 딛는 결이라 위아래는 |sin| 로, 몸통 흔들림은 그 절반 주기로.
+         · 진행 방향이 왼쪽이면 좌우를 뒤집는다.
+         · **발밑 그림자**가 제일 크다 — 떠 있어 보이는 것의 정체는 접지가 없는 것이다.
+           몸이 뜰 때 그림자가 같이 작아져야 "딛었다"가 읽힌다.
+       DOM 은 안 늘린다 — 그림자는 .mob 의 ::after 이고, 값만 CSS 변수로 넘긴다. */
+    const dx = m.x - (m.px ?? m.x), dy = m.y - (m.py ?? m.y);
+    m.px = m.x; m.py = m.y;
+    m.walked = (m.walked || 0) + Math.hypot(dx, dy);
+    const ph = (m.walked / (m.boss ? 22 : 13)) * Math.PI;    // 한 걸음의 보폭
+    const walking = !m.stuck;
+    const bob  = walking ? Math.abs(Math.sin(ph)) * (m.boss ? 5.5 : 3.4) : 0;
+    const tilt = walking ? Math.sin(ph * 0.5) * (m.boss ? 3 : 5.5) : 0;
+    /* 딛는 순간 살짝 눌리고 뜨는 순간 늘어난다 — 위아래 이동만으로는 "떠오른다"로 읽히고,
+       눌림이 붙어야 발이 땅을 민 것으로 보인다(스프라이트가 한 장이라 이게 걸음의 대역이다). */
+    const sq = walking ? Math.cos(ph * 2) * 0.05 : 0;
+    if (dx < -0.02) m.flip = -1; else if (dx > 0.02) m.flip = 1;
+    el.style.cssText = `left:${p.x - sz/2}px;top:${p.y - sz/2}px;width:${sz}px;height:${sz}px;` +
+      `--bob:${bob.toFixed(2)};--tilt:${tilt.toFixed(2)};--flip:${m.flip || 1};` +
+      `--sx:${(1 + sq).toFixed(3)};--sy:${(1 - sq).toFixed(3)};` +
+      `--sh:${(1 - bob / 8).toFixed(2)}`;
     el.classList.toggle("slowed", !!m.slow);
+    el.classList.toggle("hitting", !!m.stuck);   // 붙은 놈은 걷는 대신 때리는 결로
     const bar = el.querySelector("i");
     if (bar) {
       bar.style.width = Math.max(3, sz * 0.8 * pct) + "px";
