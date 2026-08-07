@@ -219,6 +219,12 @@ export function loadMeta() {
                   조각으로 환산해 얹는다(모아 온 것을 규칙이 바뀌었다고 없애면 안 된다). */
                army: dedupeArmy(raw.army),
                armyId: raw.armyId | 0,
+               /* ══ 쌓인 것 ══ 방치형에서 "이만큼 했다"가 남는 데가 최고 기록 숫자 하나뿐이었다.
+                  누적 처치·판 수·최근 기록은 **환생해도 안 지운다** — 지우면 그건 기록이 아니라
+                  이번 회차의 계기판이다. hist 는 최근 것부터 24판까지만 든다(그래프 폭이 화면). */
+               kills: Number.isFinite(raw.kills) && raw.kills > 0 ? Math.floor(raw.kills) : 0,
+               runs: raw.runs | 0,
+               hist: Array.isArray(raw.hist) ? raw.hist.slice(0, 24).map(v => v | 0) : [],
                // **마지막으로 본 시각.** 탭을 닫아 둔 사이를 재려면 나갈 때의 시각이 남아 있어야
                // 한다. 예전 세이브엔 없으니 0 — 그 경우 오프라인 지급을 건너뛴다(없던 시간을
                // 지어내지 않는다). saveMeta 가 갱신하므로 게임이 도는 동안 저절로 흐른다.
@@ -230,7 +236,7 @@ export function loadMeta() {
            up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
            seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
            lv: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
-           army: [], armyId: 0, lastSeen: 0 };
+           army: [], armyId: 0, kills: 0, runs: 0, hist: [], lastSeen: 0 };
 }
 // 저장할 때마다 지금 시각을 찍는다 — 이 값이 다음 부팅에서 "비운 시간"의 기준이 된다.
 export const saveMeta = () => {

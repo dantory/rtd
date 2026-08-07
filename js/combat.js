@@ -293,6 +293,9 @@ export function hurt(m, d, from, tag) {
   m.hp -= d;
   if (m.hp <= 0) {
     m.dead = true;
+    /* 누적 처치. **여기서 저장하지 않는다** — 판당 수백 번 도는 자리라 localStorage 를
+       때리면 그대로 프레임이 튄다. 판이 끝날 때(gameOver) 한 번에 적는다. */
+    META.kills = (META.kills | 0) + 1;
     sfx(m.boss ? "boss" : "kill");
     /* 골드가 사라졌으니 정찰병의 몫도 자원 쪽으로 옮겨 간다(relicTick 에서 셈한다).
        띄우는 숫자도 골드가 아니라 **그 몫**이다 — 없는 재화를 띄우면 거짓말이 된다. */
@@ -781,6 +784,9 @@ export function gameOver() {
      기록을 넘어선 판이다 — 그게 이 게임에서 이긴다는 것의 유일한 뜻이다. */
   const win = S.round > META.best;
   META.best = Math.max(META.best, S.round);
+  /* 이 판을 기록에 남긴다. 최근 것이 앞이고 24판까지만 — 그 뒤는 그래프에 안 들어간다. */
+  META.runs = (META.runs | 0) + 1;
+  META.hist = [S.round, ...(Array.isArray(META.hist) ? META.hist : [])].slice(0, 24);
   saveMeta();
   sfx(win ? "win" : "lose");
   $("overT").textContent = win ? "승리" : "패배";
@@ -858,7 +864,40 @@ export function drawShop() {
   $("dexHave").textContent = seenCount();
   $("dexAll").textContent = KIND_IDS.length;
   drawMobDex();
+  drawStats();
   drawMedals();
+}
+
+/** 기록 — **쌓인 것을 보는 자리.** 방치형의 재미 하나는 "내가 이만큼 굴렸다"인데,
+ *  그 증거가 최고 라운드 숫자 하나뿐이었다. 누적 처치·판 수·최근 스물넷의 이력을 함께
+ *  놓으면 늘고 있는지 멎었는지가 한눈에 읽힌다 — 멎었으면 그게 환생할 때다. */
+export function drawStats() {
+  const hist = Array.isArray(META.hist) ? META.hist : [];
+  const runs = META.runs | 0, kills = META.kills | 0;
+  const avg = hist.length ? hist.reduce((a, b) => a + b, 0) / hist.length : 0;
+  const cell = (lb, v, col) =>
+    `<div class="stc"><span class="stv"${col ? ` style="color:${col}"` : ""}>${v}</span>
+       <span class="stl">${lb}</span></div>`;
+  $("stats").innerHTML =
+    cell("누적 처치", kills.toLocaleString(), "#d05353") +
+    cell("판 수", runs.toLocaleString()) +
+    cell("최고 라운드", (META.best | 0), "var(--amber)") +
+    cell("최근 평균", avg ? avg.toFixed(1) : "—", "#7fb069");
+  /* 이력 막대 — 왼쪽이 오래된 것, 오른쪽이 방금 것. 최고 기록을 세운 판만 호박색으로
+     찍는다(그게 이 그래프에서 유일하게 사건인 지점이다). */
+  const top = Math.max(1, ...hist);
+  let run = 0;                                    // 앞에서부터 되짚어 가며 그때의 최고를 센다
+  const marks = hist.slice().reverse().map(v => { const nw = v > run; run = Math.max(run, v); return nw; });
+  $("hist").innerHTML = hist.length
+    ? hist.slice().reverse().map((v, i) =>
+        `<i class="hb${marks[i] ? " nw" : ""}" style="height:${Math.max(6, Math.round(v / top * 100))}%"
+            title="${v}라운드${marks[i] ? " — 최고 기록" : ""}"></i>`).join("")
+    : `<span class="dim" style="font-size:12px">아직 기록 없음 — 한 판 끝나면 여기 쌓인다</span>`;
+  $("statNote").innerHTML = runs
+    ? `한 판에 평균 <b>${(kills / runs).toFixed(0)}</b>기 처치` +
+      (hist.length >= 4
+        ? ` · 최근 넷 평균 <b>${(hist.slice(0, 4).reduce((a, b) => a + b, 0) / 4).toFixed(1)}</b>라운드` : "")
+    : `처음 한 판을 끝내면 기록이 남는다`;
 }
 
 /** 적 도감 — **만난 적만** 펼쳐 보이고, 못 만난 것은 "몇 라운드에 나온다"만 적는다.

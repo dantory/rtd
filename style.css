@@ -271,6 +271,15 @@
   .mdc .ico{font-size:22px;color:var(--dim);line-height:38px}
   .mdc .mdn{font-size:12px;color:var(--fg)}
   .mdc .mdt{font-size:10px;color:var(--dim);line-height:1.45}
+  /* 기록 — 숫자 넉 장과 이력 막대. 숫자는 크게(쌓인 것이 주인공), 이름표는 작게. */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+  .stc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;
+    background:#161b22;border:1px solid #2b3340;border-radius:7px}
+  .stc .stv{font-size:19px;color:var(--fg);line-height:1.1}
+  .stc .stl{font-size:10px;color:var(--dim);letter-spacing:1px}
+  .hist{display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:8px;padding:0 2px}
+  .hist .hb{flex:1;min-width:3px;background:#3a4658;border-radius:2px 2px 0 0;transition:height .2s}
+  .hist .hb.nw{background:var(--amber)}
   .dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
   .dxc{position:relative;padding:6px 3px 4px;border-radius:5px;background:#161c24;
     border:1px solid #262f3a;display:flex;flex-direction:column;align-items:center;gap:2px}
