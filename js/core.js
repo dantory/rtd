@@ -253,6 +253,21 @@ export function noteSeen(kind, g) {
 }
 export const seenCount = () => KIND_IDS.filter(k => META.seen[k]).length;
 
+/* ══ 적 도감 ══
+   **넣은 컨텐츠를 읽을 데가 있어야 한다.** 적이 아홉 종이 됐는데 무엇이 오고 무엇에
+   약한지 볼 곳이 예고 칩 하나뿐이었다 — 유닛 도감만 있고 적 도감이 없었다.
+   만난 적만 펼쳐 보이고 못 만난 것은 자리를 비워 둔다(몇이 남았는지 보여야 밀 이유가 된다). */
+export const metSet = () => {
+  try { return new Set(JSON.parse(localStorage.getItem("rtd.met") || "[]")); } catch { return new Set(); }
+};
+export function noteMet(kind) {
+  const s = metSet();
+  if (s.has(kind)) return false;
+  s.add(kind);
+  try { localStorage.setItem("rtd.met", JSON.stringify([...s])); } catch {}
+  return true;
+}
+
 /* ══ 종류 훈련 — **모은 것을 키우는 축** ══
    전역 업그레이드(모든 피해 +13%)만 있으면 열두 종류가 다 같은 속도로 세진다. 그러면
    무엇을 모았는지가 결과에 안 남고, 도감은 그저 장식이 된다. 종류마다 따로 키우면

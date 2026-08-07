@@ -1,5 +1,5 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, powerOf, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
@@ -76,13 +76,33 @@ const BIGHIT = 0.09;
 /* 보스(5의 배수)는 능력 하나를 안고 온다 — 라운드마다 돌려 쓴다. "큰 놈 하나 더"가 아니라
    사건이 되게. haste=곁의 적을 몰아친다, spawn=쓰러지며 새끼를 흩는다,
    ward=멀리서는 잘 안 박힌다(가까이 붙어야 온전히 들어간다). */
-const BOSS_POWERS = ["haste", "spawn", "ward"];
+const BOSS_POWERS = ["haste", "spawn", "ward", "quake", "armor"];
+export const POWNAME = {
+  haste: "주변 적을 몰아침",
+  spawn: "쓰러지면 새끼가 흩어짐",
+  ward:  "멀리서는 잘 안 박힘",
+  quake: "가끔 벙커를 직접 뒤흔듦",
+  armor: "받는 피해가 절반",
+};
 export const bossPower = (r) => BOSS_POWERS[(Math.floor(r / 5) - 1 + BOSS_POWERS.length) % BOSS_POWERS.length];
-export const bossNote = (r) => ({
-  haste: "큰 놈 등장 — 주변 적을 몰아침",
-  spawn: "큰 놈 등장 — 쓰러지면 새끼가 흩어짐",
-  ward:  "큰 놈 등장 — 멀리서는 잘 안 박힘",
-}[bossPower(r)]);
+
+/* ══ 이름 있는 놈 ══
+   **보스가 5라운드마다 오는데 능력 셋이 돌기만 하면 그건 사건이 아니라 일정이다.**
+   스물다섯 라운드마다 이름을 가진 놈이 온다 — 능력을 둘 안고, 훨씬 두껍고, 쓰러뜨리면
+   크게 떨군다. 자주 오면 특별할 것이 없으므로 **드물게** 두는 것이 요점이다. */
+const NAMED = [
+  { n:"강철 파괴자", powers:["armor","quake"], hp:2.4, sp:0.95 },
+  { n:"역병 어미",   powers:["spawn","haste"], hp:2.0, sp:1.15 },
+  { n:"장막의 것",   powers:["ward","armor"],  hp:2.6, sp:0.85 },
+];
+export const namedBoss = (r) => (r % 25 === 0 ? NAMED[(Math.floor(r / 25) - 1) % NAMED.length] : null);
+/** 이 몹이 그 능력을 가졌나 — 이름 있는 놈은 둘을 안고 온다. */
+export const hasPow = (m, p) => m.powers ? m.powers.includes(p) : m.power === p;
+export function bossNote(r) {
+  const nb = namedBoss(r);
+  if (nb) return `「${nb.n}」 — ${nb.powers.map(p => POWNAME[p]).join(" · ")}`;
+  return "큰 놈 등장 — " + POWNAME[bossPower(r)];
+}
 
 /** 보스가 쓰러진 자리에서 새끼가 흩어진다 — runner 결의 얇은 몹 4마리. 소환 수(S.spawned)에는
  *  세지 않는다: 웨이브가 끝나려면 이 새끼들까지 치워야 하니 S.mobs 로만 남긴다. */
@@ -239,7 +259,13 @@ export function spawnMob() {
       slow: 0, slowT: 0, atkT: 0,
       guard: prof.guard || 0,               // 방패병 — 처음 몇 대를 크게 감쇄
     };
-    if (boss) m.power = bossPower(S.round);  // 보스는 능력 하나를 안고 온다
+    if (boss) {
+      const nb = namedBoss(S.round);
+      if (nb) { m.powers = nb.powers.slice(); m.named = nb.n;
+                m.hp = m.maxHp = hp * nb.hp; m.speed *= nb.sp; }
+      else m.power = bossPower(S.round);   // 보통 보스는 능력 하나
+    }
+    noteMet(kind);                           // 도감에 적는다 — 만난 것만 펼쳐 보인다
     S.mobs.push(m);
   }
   // swarm 이라도 한 번의 소환은 한 번으로 센다 — waveN 은 소환 횟수다(몸은 그보다 많아질 수 있다)
@@ -261,7 +287,9 @@ export function hurt(m, d, from, tag) {
   // 방패병 — 처음 몇 대는 크게 흘린다(70% 감쇄). **관통은 그냥 지나간다**(대수도 안 먹는다).
   if (m.guard > 0 && tag !== "pierce") { d *= 0.18; m.guard--; }
   // 보스 ward — 멀리서는 잘 안 박힌다. 가까이 붙어야(=위험을 감수해야) 온전히 들어간다.
-  if (m.boss && m.power === "ward" && distToCore(m) > 120) d *= 0.45;
+  if (m.boss && hasPow(m, "ward") && distToCore(m) > 120) d *= 0.45;
+  // 장갑 — 받는 피해가 절반. 이름 있는 놈이 두꺼운 이유의 절반이 이것이다.
+  if (m.boss && hasPow(m, "armor")) d *= 0.5;
   m.hp -= d;
   if (m.hp <= 0) {
     m.dead = true;
@@ -275,6 +303,15 @@ export function hurt(m, d, from, tag) {
       flyText(p.x, p.y, m.boss ? "처치" : "+" + extra, "#e0a458");
     }
     if (m.boss) { const p = mobPos(m); bossRing(p.x, p.y); }   // 보스만 크게 — 링 확산 1회
+    /* 이름 있는 놈은 **쓰러뜨린 값이 있어야 한다.** 두껍기만 하고 떨구는 게 같으면
+       그건 사건이 아니라 시간 낭비다. */
+    if (m.named) {
+      const gain = 20 + S.round * 2;
+      META.relics += gain; saveMeta();
+      const p = mobPos(m);
+      flyText(p.x, p.y - 30, "「" + m.named + "」 격파  +" + gain, "#e0a458");
+      banner(`「${m.named}」 격파 — 자원 +${gain}`, "newkind");
+    }
     dropFrag(m);                       // **판 도중에도 뭔가 떨어진다** — 파밍의 리듬이 여기서 생긴다
   }
 }
@@ -451,7 +488,7 @@ export function tick(dt) {
   // 적이 노리는 건 벙커 하나다. 유닛은 그 안에 있어 맞지 않는다.
   const c = coreCenter(), cr = coreRadius();
   // 보스 haste — 곁의 적을 몰아친다. 오라(170px) 안의 몹은 1.5배로 온다(보스 자신은 뺀다).
-  const haste = S.mobs.find(m => m.boss && m.power === "haste");
+  const haste = S.mobs.find(m => m.boss && hasPow(m, "haste"));
   for (const m of S.mobs) {
     if (m.slowT > 0) { m.slowT -= dt; if (m.slowT <= 0) m.slow = 0; }
     m.atkT -= dt;
@@ -511,7 +548,7 @@ export function tick(dt) {
     m.y += (c.y - m.y) / d * v;
   }
   // 보스 spawn — 쓰러지며 새끼 4마리를 흩는다. 필터로 치우기 직전에 한 번만.
-  for (const m of S.mobs) if (m.dead && m.boss && m.power === "spawn" && !m.split) { m.split = true; spawnBrood(m); }
+  for (const m of S.mobs) if (m.dead && m.boss && hasPow(m, "spawn") && !m.split) { m.split = true; spawnBrood(m); }
   /* 분열체 — 쓰러지면 둘로 나뉜다. **새끼는 다시 안 나뉜다**(grunt 로 낳는다) —
      안 그러면 한 마리가 웨이브를 무한히 늘려 판이 안 끝난다. */
   for (const m of S.mobs) {
@@ -542,6 +579,20 @@ export function tick(dt) {
       // 바뀌었으면 패널도 깨운다 — 상태만 바뀌고 화면이 낡으면 "자리 0/3"이 첫인상이 된다(실제로 그랬다)
       if (placed().map(t => t.id).join(",") !== before) refresh();
     }
+  }
+
+  /* 큰 놈의 포효(quake) — **멀리 있어도 벙커가 흔들린다.** 보스가 화면 끝에 있는 동안
+     아무 일도 안 일어나면 "큰 놈이 온다"는 예고가 허풍이 된다. */
+  for (const m of S.mobs) {
+    if (!m.boss || m.dead || !hasPow(m, "quake")) continue;
+    m.quakeT = (m.quakeT || 4) - dt;
+    if (m.quakeT > 0) continue;
+    m.quakeT = 4;
+    const hit = Math.max(1, Math.round(m.dmg * 1.6 * armorMul()));
+    S.coreHp -= hit;
+    sfx("hitCore"); bunkerHit();
+    flyText(c.x, c.y - cr, "-" + hit, "#e0a458");
+    if (S.coreHp <= 0) { S.coreHp = 0; gameOver(); return; }
   }
 
   /* 치유체 — 곁의 적을 조금씩 되살린다. **끊지 않으면 웨이브가 안 죽는다**는 압박이라
@@ -801,7 +852,31 @@ export function drawShop() {
   }).join("");
   $("dexHave").textContent = seenCount();
   $("dexAll").textContent = KIND_IDS.length;
+  drawMobDex();
   drawMedals();
+}
+
+/** 적 도감 — **만난 적만** 펼쳐 보이고, 못 만난 것은 "몇 라운드에 나온다"만 적는다.
+ *  적기는 것은 하나다: **무엇에 약한가.** 그게 배치 화면을 열 이유이자 이 게임의 결정이다. */
+export function drawMobDex() {
+  const met = metSet();
+  const ORDER = ["grunt", "runner", "brute", "swarm", "shield", "splitter", "healer", "shooter", "bomber", "boss"];
+  $("mdex").innerHTML = ORDER.map(k => {
+    const w = MOBWEAK[k], from = mobFrom(k);
+    if (!met.has(k)) {
+      return `<div class="mdc off" title="아직 못 만남"><span class="ico">?</span>
+        <span class="mdn">???</span>
+        <span class="mdt">${from ? `<b>${from}R</b>부터` : "곧"}</span></div>`;
+    }
+    const nm = k === "boss" ? "큰 놈" : MOBNAME[k];
+    return `<div class="mdc k-${k}" title="${nm}${w ? " — " + w.d : ""}">
+      <img class="spr" src="assets/mob/${k}.png" alt=""
+        onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()">
+      <span class="mdn">${nm}</span>
+      <span class="mdt">${w ? w.d : (k === "boss" ? "5라운드마다 · 능력을 하나 안고 옴" : "특별한 것 없음")}</span></div>`;
+  }).join("");
+  $("mdexHave").textContent = ORDER.filter(k => met.has(k)).length;
+  $("mdexAll").textContent = ORDER.length;
 }
 
 /** 환생 칸. **지금 무엇을 얻고 무엇을 잃는지**를 버튼 앞에서 다 말한다 —
