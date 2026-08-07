@@ -155,12 +155,28 @@ export function fillFree() {
  *  기준은 순수한 힘(등급·피해)이라 **상성은 안 본다**: 예고를 읽고 갈아 끼우는 사람이
  *  이 버튼보다 잘할 여지가 남아 있어야 배치 화면을 열 이유가 생긴다. */
 export function autoBest() {
+  /* **역할 한두 자리는 떼어 놓는다.** 힘(등급·피해)만 보면 위생병·냉동병·방패병은 피해가
+     낮아 영영 안 뽑힌다. 그런데 그 한 자리가 입는 피해를 가장 크게 줄인다(방패 웨이브
+     4296 → 6). 자를 돌려 보니 실제로 **무작위로 넣는 봇이 이 버튼보다 2R 더 갔다** —
+     버튼이 틀린 답을 주고 있었던 것이다.
+     상성(테마)은 여전히 안 본다: 예고를 읽고 갈아 끼우는 사람이 이 버튼보다 잘할 여지는
+     남겨 둔다. */
+  const roleRank = (t) => (KINDS[t.kind].heal ? 3 : KINDS[t.kind].slow ? 2 : KINDS[t.kind].armor ? 1 : 0);
+  const keep = META.army.filter(t => roleRank(t) > 0)
+    .sort((a, b) => roleRank(b) - roleRank(a) || rank(b) - rank(a))
+    .slice(0, slotMax() >= 5 ? 2 : 1);
+  const kept = new Set(keep.map(t => t.id));
+  for (const t of META.army) t.slot = null;
+  keep.forEach((t, i) => { t.slot = i; });
+  syncArmy();
   fillFree();
   /* 창고가 더 세면 바꿔 넣는다. 겨루는 상대는 **같은 종류가 나가 있으면 그것**, 없으면
-     제일 약한 자리다 — 그래야 바꿔 넣는 동안에도 중복이 안 생긴다. */
+     제일 약한 자리다 — 그래야 바꿔 넣는 동안에도 중복이 안 생긴다.
+     떼어 둔 역할 자리는 여기서 건드리지 않는다 — 안 그러면 바로 위에서 앉힌 것을
+     이 고리가 다시 뽑아 버려 예약이 무의미해진다. */
   for (let guard = 0; guard < 64; guard++) {
     const box = inBox().sort((a, b) => rank(b) - rank(a));
-    const out = placed().sort((a, b) => rank(a) - rank(b));
+    const out = placed().filter(t => !kept.has(t.id)).sort((a, b) => rank(a) - rank(b));
     let moved = false;
     for (const best of box) {
       const target = out.find(t => t.kind === best.kind) || out[0];

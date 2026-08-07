@@ -197,6 +197,28 @@ export function dedupeArmy(raw) {
   }
   return [...by.values()];
 }
+
+/* ══ 이력 접기 ══ 최근 24판은 판마다 그대로 두고, 그 뒤로 밀려난 판은 **열 판 평균 한 칸**으로
+   접는다. 칸이 EPOCH_MAX 를 넘으면 제일 오래된 두 칸을 합친다 — 저장이 무한정 늘지 않으면서
+   "처음 열 판"은 끝까지 남는다(그게 지금과 견줄 기준선이다). */
+export const HIST_KEEP = 24, EPOCH_SIZE = 10, EPOCH_MAX = 12;
+export function foldHist(meta) {
+  if (!Array.isArray(meta.epochs)) meta.epochs = [];
+  // hist 는 최신이 앞이므로, 넘친 꼬리가 곧 접어야 할 옛 판(오래된 것부터)이다.
+  const spill = meta.hist.slice(HIST_KEEP).reverse();
+  if (!spill.length) return;
+  meta.hist = meta.hist.slice(0, HIST_KEEP);
+  for (const v of spill) {
+    const last = meta.epochs[meta.epochs.length - 1];
+    if (last && last.n < EPOCH_SIZE) { last.n++; last.sum += v | 0; last.max = Math.max(last.max | 0, v | 0); }
+    else meta.epochs.push({ n: 1, sum: v | 0, max: v | 0 });
+  }
+  while (meta.epochs.length > EPOCH_MAX) {
+    const [a, b] = meta.epochs.splice(0, 2);
+    meta.epochs.unshift({ n: a.n + b.n, sum: a.sum + b.sum, max: Math.max(a.max | 0, b.max | 0) });
+  }
+}
+
 export const META = loadMeta();
 export function loadMeta() {
   try {
@@ -221,10 +243,20 @@ export function loadMeta() {
                armyId: raw.armyId | 0,
                /* ══ 쌓인 것 ══ 방치형에서 "이만큼 했다"가 남는 데가 최고 기록 숫자 하나뿐이었다.
                   누적 처치·판 수·최근 기록은 **환생해도 안 지운다** — 지우면 그건 기록이 아니라
-                  이번 회차의 계기판이다. hist 는 최근 것부터 24판까지만 든다(그래프 폭이 화면). */
+                  이번 회차의 계기판이다. hist 는 최근 것부터 24판까지만 든다(그래프 폭이 화면).
+                  24판을 넘겨 밀려난 판은 **버리지 않고** epochs 에 열 판씩 묶어 평균으로 접는다 —
+                  백 판을 굴린 사람에게 "예전엔 15R 였는데"가 보여야 성장이 성장으로 읽힌다. */
                kills: Number.isFinite(raw.kills) && raw.kills > 0 ? Math.floor(raw.kills) : 0,
                runs: raw.runs | 0,
                hist: Array.isArray(raw.hist) ? raw.hist.slice(0, 24).map(v => v | 0) : [],
+               /* 접힌 옛 판 — 오래된 것이 앞. 한 칸은 {n: 묶인 판 수, sum: 라운드 합, max: 그중 최고}.
+                  max 를 함께 드는 이유는 하나다: 그래프에서 "최고 기록을 세운 판"을 찍으려면
+                  접혀 나간 판들의 최고를 알아야 한다. 없으면 옛 기록이 사라져 오찍는다. */
+               epochs: Array.isArray(raw.epochs)
+                 ? raw.epochs.map(e => ({ n: Math.max(0, e?.n | 0), sum: Math.max(0, e?.sum | 0),
+                                          max: Math.max(0, e?.max | 0) }))
+                             .filter(e => e.n > 0).slice(-EPOCH_MAX)
+                 : [],
                // **마지막으로 본 시각.** 탭을 닫아 둔 사이를 재려면 나갈 때의 시각이 남아 있어야
                // 한다. 예전 세이브엔 없으니 0 — 그 경우 오프라인 지급을 건너뛴다(없던 시간을
                // 지어내지 않는다). saveMeta 가 갱신하므로 게임이 도는 동안 저절로 흐른다.
@@ -236,7 +268,7 @@ export function loadMeta() {
            up: Object.fromEntries(Object.keys(UPGRADES).map(k => [k, 0])),
            seen: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
            lv: Object.fromEntries(KIND_IDS.map(k => [k, 0])),
-           army: [], armyId: 0, kills: 0, runs: 0, hist: [], lastSeen: 0 };
+           army: [], armyId: 0, kills: 0, runs: 0, hist: [], epochs: [], lastSeen: 0 };
 }
 // 저장할 때마다 지금 시각을 찍는다 — 이 값이 다음 부팅에서 "비운 시간"의 기준이 된다.
 export const saveMeta = () => {
@@ -318,7 +350,7 @@ export const relicTick = (round) =>
    그동안 강화 화면을 한 번도 안 연다. 즉 **성장 없이 굴러가는 구간**이 너무 길었다.
    240 으로 낮추면 첫 판이 대여섯 라운드에서 끝나고, 그때 산 체력 한 단계(+90)가
    **37% 짜리 큰 결정**이 된다 — 초반부터 성장이 벽을 넘는 수단이 된다. */
-export const metaLife = () => 240 + META.up.life * 90;   // 본진 체력
+export const metaLife = () => 110 + META.up.life * 70;   // 본진 체력
 export const metaDmg  = () => (1 + META.up.dmg * 0.13) * medalDmg();
 
 /* ══════════════════════════════════════════════════════════════

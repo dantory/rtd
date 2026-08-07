@@ -1,5 +1,5 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, EPOCH_SIZE, foldHist, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, powerOf, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
@@ -797,17 +797,32 @@ export function gameOver() {
      기록을 넘어선 판이다 — 그게 이 게임에서 이긴다는 것의 유일한 뜻이다. */
   const win = S.round > META.best;
   META.best = Math.max(META.best, S.round);
-  /* 이 판을 기록에 남긴다. 최근 것이 앞이고 24판까지만 — 그 뒤는 그래프에 안 들어간다. */
+  /* 이 판을 기록에 남긴다. 최근 것이 앞이고 24판까지 판마다,
+     그 뒤로 밀려난 판은 열 판 평균으로 접어 둔다(버리지 않는다). */
   META.runs = (META.runs | 0) + 1;
-  META.hist = [S.round, ...(Array.isArray(META.hist) ? META.hist : [])].slice(0, 24);
+  META.hist = [S.round, ...(Array.isArray(META.hist) ? META.hist : [])];
+  foldHist(META);
   saveMeta();
   sfx(win ? "win" : "lose");
   $("overT").textContent = win ? "승리" : "패배";
   $("overT").style.color = win ? "#7fb069" : "#d05353";
-  $("overD").innerHTML = win
+  /* ══ 어디서 막혔나를 **관문으로** 말한다 ══
+     인크리멘털은 "얼마나 갔나"가 아니라 **"무엇을 못 넘었나"**로 읽혀야 강화할 이유가 선다.
+     이 게임은 5라운드마다 큰 놈이 오므로 그것이 곧 관문이다 — 첫 판이 5R 에서 끝나면
+     그건 "5라운드까지 갔다"가 아니라 **"첫 큰 놈을 못 넘었다"**다. 그리고 다음 관문이
+     어디인지 같이 적어 두면 강화 화면을 여는 손이 그 숫자를 보고 움직인다. */
+  const gateHere = isBossR(S.round);          // 큰 놈이 오는 라운드에서 무너졌나
+  const nextGate = Math.ceil((S.round + (gateHere ? 1 : 0)) / 5) * 5;
+  const gateLine = win
+    ? `다음 관문 <b style="color:var(--amber)">${nextGate}라운드</b> 큰 놈`
+    : gateHere
+      ? `<b style="color:var(--bad)">${S.round}라운드 큰 놈</b>을 못 넘음 · 강화하고 다시`
+      : `다음 관문 <b style="color:var(--amber)">${nextGate}라운드</b> 큰 놈`;
+  $("overD").innerHTML = (win
     ? `<b>${S.round}라운드</b> — 최고 기록 갱신!<br><b style="color:var(--amber)">자원 +${got}</b>`
     : `<b>${S.round}라운드</b>에서 벙커 파괴 · 최고 ${META.best}라운드<br>` +
-      `<b style="color:var(--amber)">자원 +${got}</b>`;
+      `<b style="color:var(--amber)">자원 +${got}</b>`) +
+    `<br><span style="color:var(--steel);font-size:12px">${gateLine}</span>`;
   /* 받은 것을 정산에 적는다. **새 종류와 조각을 갈라서** 적어야 한다 — 둘 다 "유닛 +N"
      이라고 하면 부대가 안 늘었는데 늘었다고 말하는 셈이다(조각은 별로 간다). */
   $("overD").innerHTML += ` · <b style="color:#7fb069">` +

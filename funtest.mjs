@@ -116,16 +116,19 @@ const play = (place, useMeta) => [
   '})()'
 ].filter(Boolean).join("\n");
 
-const blind  = await ev(play(false, false));
-const smart  = await ev(play(true,  false));
-const growth = await ev(play(true,  true));
+/* **두 봇 다 자원을 쓰게 한다.** 예전에는 자원 없이 돌려 배치 축만 떼어 재려 했는데,
+   초반을 조인 뒤로(첫 판 5R) 자원을 안 쓰면 **아무 성장이 없어** 두 봇이 나란히 5~8R 에
+   머문다 — 잴 것이 사라진다. 자원은 양쪽 똑같이 쓰므로 갈리는 축은 여전히 배치 하나다. */
+const blind  = await ev(play(false, true));
+const smart  = await ev(play(true,  true));
+const growth = smart;
 
 console.log(`\n═══ 벙커디펜스 지표 (각 ${RUNS}판) ═══\n`);
 console.log(`── 아무거나 내보낸다   평균 ${blind.avg}R · 최고등급 ${blind.grade}`);
 console.log(`   ${blind.seq.join(" · ")}`);
 console.log(`── 센 것을 골라 내보낸다 평균 ${smart.avg}R · 최고등급 ${smart.grade}`);
 console.log(`   ${smart.seq.join(" · ")}`);
-console.log(`── 골라 내보내고 + 자원을 쓴다 평균 ${growth.avg}R`);
+console.log(`── 성장 곡선(골라 내보내고 자원을 쓴다)`);
 console.log(`   ${growth.seq.join(" → ")}\n`);
 
 const chk = (n, ok, d) => console.log(`${ok ? "✓" : "✗"} ${n}${d ? "  — " + d : ""}`);
@@ -145,6 +148,10 @@ chk("무엇을 내보내느냐가 결과를 바꾼다 (이 구조의 존재 이�
 chk("합성으로 등급이 오른다", smart.peak >= 3, `최고 ${smart.peak}등급 도달 (평균 ${smart.grade})`);
 const f = growth.seq.slice(0,2).reduce((a,b)=>a+b,0)/2, l = growth.seq.slice(-2).reduce((a,b)=>a+b,0)/2;
 chk("판을 거듭하면 더 간다 (자원)", l >= f, `처음 2판 ${f.toFixed(1)}R → 마지막 2판 ${l.toFixed(1)}R`);
-chk("첫 벽이 너무 이르지 않다", smart.avg >= 7, `${smart.avg}R`);
+/* 기준을 7R → 4R 로 내렸다. **첫 판이 짧은 것은 이제 결함이 아니라 설계다**
+   (병수님: "인크리멘털 게임은 처음엔 첫판도 못깨야지"). 다만 3R 아래로 내려가면
+   첫 정산에서 살 것이 하나도 없어 성장이 시작을 못 하므로 바닥은 남긴다. */
+chk("첫 판이 너무 짧지는 않다(살 것이 나올 만큼은 간다)", growth.seq[0] >= 4,
+    `첫 판 ${growth.seq[0]}R · 평균 ${smart.avg}R`);
 chk("예외 없이 돈다", errors.length === 0, errors.slice(0,2).join(" | ").slice(0,150));
 ws.close(); process.exit(0);

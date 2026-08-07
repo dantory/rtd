@@ -14,7 +14,16 @@ await new Promise(r => { ws.onopen = r; });
 let id = 0; const pend = new Map();
 ws.onmessage = e => { const m = JSON.parse(e.data); if (pend.has(m.id)) { pend.get(m.id)(m.result); pend.delete(m.id); } };
 const send = (m, params = {}) => new Promise(res => { const i = ++id; pend.set(i, res); ws.send(JSON.stringify({ id: i, method: m, params })); });
-const ev = async (x) => (await send("Runtime.evaluate", { expression: x, returnByValue: true, awaitPromise: true }))?.result?.value;
+/** 페이지 안에서 터진 것을 삼키지 않는다 — 예전에 여기서 값이 undefined 로 돌아와
+ *  "out is not iterable" 이라는 엉뚱한 자리에서 죽었다. 진짜 이유는 페이지 안 예외였다. */
+const ev = async (x) => {
+  const r = await send("Runtime.evaluate", { expression: x, returnByValue: true, awaitPromise: true });
+  if (r?.exceptionDetails) {
+    console.error("페이지 예외:", r.exceptionDetails.exception?.description || r.exceptionDetails.text);
+    process.exit(1);
+  }
+  return r?.result?.value;
+};
 await send("Runtime.enable");
 await send("Page.navigate", { url: "http://127.0.0.1:8772/index.html" });
 await new Promise(r => setTimeout(r, 1000));
