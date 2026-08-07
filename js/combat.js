@@ -25,7 +25,21 @@ const MOB = {
   swarm:  { hp: 0.35, sp: 1.2, pack: [3, 4] },         // 한 번에 여럿, 낱개는 얇다 — 범위가 답이 되려면 실제로 뭉쳐 와야 한다
   shield: { hp: 1.0,  sp: 0.85, guard: 8 },            // 처음 여덟 대를 거의 다 흘린다 — 관통이 아니면 벗기는 데 시간이 든다
   boss:   { hp: 8,    sp: 0.625 },                     // 옛 15px/초 = 24×0.625, 그대로
+
+  /* ══ 뒤에서 열리는 넷 ══
+     **20 라운드가 넘어도 같은 적만 나오면 거기서 컨텐츠가 끝난다.** 재 보니 적 다섯이
+     10R 에 전부 나오고 그 뒤로 새 얼굴이 없었다 — 30R 이나 15R 이나 화면이 같았다.
+     넷 다 "무엇으로 상대하나"가 서로 다르게 갈리도록 둔다(겹치면 종류가 는 게 아니다). */
+  /* 세기는 **자로 정한다.** 처음 값(1.1 / 0.035 / 1.0 / 6)으로는 새 적이 열리는 20R 이
+     그대로 벽이 되어, 자원을 안 쓰는 봇이 스무 판을 돌아도 20R 에서 평평해졌다.
+     새 얼굴은 "새로 볼 것"이지 "여기서 끝"이 아니어야 한다. */
+  splitter:{ hp: 0.9, sp: 0.9,  split: 2, from: 25 },   // 죽으면 둘로 나뉜다 → 범위로 한꺼번에
+  healer:  { hp: 0.8, sp: 0.8,  heal: 0.018, from: 32 },// 곁의 적을 되살린다 → 멀리서 먼저 끊어야
+  shooter: { hp: 0.8, sp: 0.75, standoff: 120, from: 40 }, // 멀찍이 서서 쏜다 → 사거리 싸움
+  bomber:  { hp: 1.3, sp: 0.7,  bomb: 3.5, from: 48 },  // 닿으면 한 번 크게 터진다 → 붙기 전에
 };
+/** 이 종류가 열리는 최소 라운드. 0 이면 처음부터. */
+export const mobFrom = (k) => MOB[k]?.from || 0;
 
 /* ══════════════════════════════════════════════════════════════
    상성 — **예고를 보고 갈아 끼울 이유.**
@@ -44,12 +58,17 @@ const MOB = {
    판에서 45% 는 반올림 오차다 — 실제로 재 보니 예고를 읽는 봇이 힘만 보는 봇보다
    -1R 이었다(즉 결정이 아니었다). 배로 올려야 "이번 라운드는 저격수"가 성립한다. */
 /** 적 종류의 화면 이름 — 예고(상단 바)·배너·배치 화면이 **같은 표**를 봐야 말이 안 갈린다. */
-export const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패" };
+export const MOBNAME = { grunt:"보통", runner:"빠름", brute:"두꺼움", swarm:"떼", shield:"방패",
+  splitter:"분열", healer:"치유", shooter:"포격", bomber:"자폭" };
 export const MOBWEAK = {
   runner: { lb: "느리게",    d: "느려지면 크게 다침" },
   brute:  { lb: "한 방",     d: "한 방이 큰 공격에 약함" },
   swarm:  { lb: "범위",      d: "범위·튕김을 온전히 받음" },
   shield: { lb: "연사·관통", d: "관통은 방패를 무시 · 연사로 방패를 벗김" },
+  splitter:{ lb: "범위",     d: "죽으면 둘로 나뉨 — 범위로 한꺼번에 쓸어야" },
+  healer:  { lb: "사거리",   d: "곁의 적을 되살림 — 멀리서 먼저 끊어야" },
+  shooter: { lb: "사거리",   d: "멀찍이 서서 벙커를 포격 — 사거리가 닿아야 잡힘" },
+  bomber:  { lb: "사거리·한 방", d: "닿으면 크게 터짐 — 붙기 전에 잡아야" },
 };
 /** 한 방이 "크다"의 기준 — 그 몹 최대 체력의 이만큼. 배수라 라운드가 올라도 뜻이 안 변한다. */
 const BIGHIT = 0.09;
@@ -77,6 +96,23 @@ function spawnBrood(boss) {
       x: boss.x + (Math.random() - 0.5) * 20, y: boss.y + (Math.random() - 0.5) * 20,
       speed: 24 * MOB.runner.sp * (1 + (S.round - 1) * 0.02),
       dmg: Math.round(2 + S.round * 0.28),
+      slow: 0, slowT: 0, atkT: 0, guard: 0,
+    });
+  }
+}
+
+/** 잔챙이를 흩뿌린다 — 분열체가 쓰러진 자리에서. 소환 수(S.spawned)에는 안 센다:
+ *  웨이브가 끝나려면 이 새끼들까지 치워야 하니 S.mobs 로만 남긴다. */
+function spawnLings(src, n, hpMul) {
+  const c = coreCenter();
+  for (let i = 0; i < n; i++) {
+    const th = Math.atan2(src.y - c.y, src.x - c.x) + (Math.random() - 0.5) * 1.4;
+    const hp = Math.max(1, src.maxHp * hpMul);
+    S.mobs.push({
+      id: nextId++, hp, maxHp: hp, boss: false, th, kind: "grunt",
+      x: src.x + (Math.random() - 0.5) * 22, y: src.y + (Math.random() - 0.5) * 22,
+      speed: 24 * MOB.grunt.sp * (1 + (S.round - 1) * 0.02) * 1.15,
+      dmg: Math.round(src.dmg * 0.6),
       slow: 0, slowT: 0, atkT: 0, guard: 0,
     });
   }
@@ -121,9 +157,31 @@ const THEMES = [
   { n:"떼",     pool:["swarm","swarm","swarm","grunt"] },
   { n:"방패",   pool:["shield","shield","grunt","runner"] },
   { n:"섞임",   pool:["grunt","runner","brute","swarm","shield"] },
+  /* **뒤로 갈수록 테마가 는다.** 여섯 개만 돌면 10R 에 본 것을 40R 에도 본다 —
+     라운드대마다 하나씩 열려야 "저기까지 가면 뭐가 나오지"가 생긴다. */
+  /* 해금 지점은 **자로 정했다.** 처음엔 20·25·30·35 로 뒀는데, 자원을 안 쓰는 봇의 천장이
+     마침 20R 이라 새 얼굴이 열리는 자리와 벽이 정확히 겹쳤다 — 새 적이 "새로 볼 것"이
+     아니라 "여기서 끝"이 되어 버렸고, 판정(무엇을 내보내느냐)까지 같이 깨졌다.
+     천장 위로 올려 두면 **자원을 써서 밀어낸 사람에게만** 새 얼굴이 나온다. */
+  { n:"분열",   from:25, pool:["splitter","splitter","grunt","runner"] },
+  { n:"치유",   from:32, pool:["healer","brute","grunt","shield"] },
+  { n:"포격",   from:40, pool:["shooter","shooter","grunt","runner"] },
+  { n:"자폭",   from:48, pool:["bomber","grunt","runner","swarm"] },
+  { n:"난장",   from:56, pool:["splitter","healer","shooter","bomber","brute","shield"] },
 ];
+/** 이 라운드에 쓸 수 있는 테마들 — 라운드가 오를수록 는다(그래서 주기도 길어진다). */
+const themesAt = (r) => THEMES.filter(t => r >= (t.from || 0));
 /** 이 라운드의 성격. 라운드에서 바로 나오므로 예고와 소환이 어긋날 수 없다. */
-export const waveTheme = (r) => (r < 10 ? null : THEMES[(r - 10) % THEMES.length]);
+export function waveTheme(r) {
+  if (r < 10) return null;
+  /* **열리는 그 라운드는 그 테마로 못 박는다.** 순환에 던져 놓으면 새 얼굴이 언제 나올지
+     운에 맡기게 되고, 그러면 "25라운드를 넘겼더니 처음 보는 놈이 나왔다"는 사건이 안 된다.
+     이 라운드에만 배너("새로운 적")가 같이 뜬다(freshKinds). */
+  const opened = THEMES.find(t => t.from === r);
+  if (opened) return opened;
+  const av = themesAt(r);
+  return av[(r - 10) % av.length];
+}
 /** 이번 라운드에 나올 수 있는 종류들 — 소환과 예고가 **같은 표**를 봐야 예고가 거짓말이 안 된다. */
 export function wavePool(r) {
   const th = waveTheme(r);
@@ -252,6 +310,7 @@ function dropSize() {
   return r > 0.97 ? 5 : r > 0.85 ? 2 : 1;
 }
 function dropFrag(m) {
+  if (m.noLoot) return;                    // 스스로 터진 자폭체는 남기는 것이 없다
   if (!m.boss && Math.random() > DROP_RATE) return;
   const p = mobPos(m);
   /* 넷 중 셋은 자원 — 세 라운드마다 뭉텅이로 주던 것을 잘게 쪼갠 것이다(총량은 그대로). */
@@ -406,9 +465,26 @@ export function tick(dt) {
      *  깎이는 것은 본진뿐이고, 그래서 방어는 받는 피해를 줄이는 일(방패병)과
      *  깎인 것을 되돌리는 일(위생병)로 갈린다. 잃는 것은 판이지 모아 온 유닛이 아니다. */
     m.stuck = false;
+    const prof = MOB[m.kind] || {};
     const d = Math.hypot(m.x - c.x, m.y - c.y);
-    if (d <= cr + 8) {                            // 본진에 붙었다
+    /* **포격병은 붙지 않는다.** 사거리 밖에 서서 쏘므로, 벙커에 닿아야만 때린다는 전제가
+       여기서 깨진다 — 멈추는 거리를 종류가 정하게 한다. 그러면 "사거리가 닿아야 잡힌다"가
+       실제 규칙이 되고, 짧은 사거리(화염병·지뢰병)만 세워 두면 손도 못 대고 맞는다. */
+    const reach = cr + 8 + (prof.standoff || 0);
+    if (d <= reach) {                             // 때릴 자리에 닿았다
       m.stuck = true;
+      /* **자폭체는 한 번뿐이다.** 닿는 순간 크게 터지고 스스로 사라진다 —
+         붙기 전에 잡아야 한다는 압박이 여기서 생긴다(막으면 그 판은 안 깎인다). */
+      if (prof.bomb) {
+        const hit = Math.max(1, Math.round(m.dmg * prof.bomb * armorMul()));
+        S.coreHp -= hit;
+        m.dead = true; m.noLoot = true;           // 스스로 터진 것은 전리품이 없다
+        sfx("hitCore"); boom(m.x, m.y, "blast");
+        flyText(c.x, c.y - cr, "-" + hit, "#e0a458");
+        bunkerHit();
+        if (S.coreHp <= 0) { S.coreHp = 0; gameOver(); return; }
+        continue;
+      }
       if (m.atkT <= 0) {
         /* 언 놈은 때리는 손도 느리다 — 이게 없으면 냉동은 도착만 늦출 뿐 총 피해를 못 줄인다
            (붙은 놈은 멈춰서 때리므로 이동 감속이 무의미해진다). 심사에서 +0.3R 로 죽어 있던 이유. */
@@ -421,6 +497,8 @@ export function tick(dt) {
         S.coreHp -= hit;
         sfx("hitCore");
         flyText(c.x, c.y - cr, "-" + hit, "#d05353");
+        // 멀리서 쏘는 놈은 **탄이 보여야** 왜 깎이는지 읽힌다(붙은 놈은 붙은 게 곧 설명이다)
+        if (prof.standoff) S.shots.push({ x: m.x, y: m.y, tx: c.x, ty: c.y, life: 0.16, col: "#d05353" });
         bunkerHit();                       // 맞는 손맛 — 흔들림·붉은 비네트(0.5초 스로틀)
         if (S.coreHp <= 0) { S.coreHp = 0; gameOver(); return; }
       }
@@ -434,6 +512,13 @@ export function tick(dt) {
   }
   // 보스 spawn — 쓰러지며 새끼 4마리를 흩는다. 필터로 치우기 직전에 한 번만.
   for (const m of S.mobs) if (m.dead && m.boss && m.power === "spawn" && !m.split) { m.split = true; spawnBrood(m); }
+  /* 분열체 — 쓰러지면 둘로 나뉜다. **새끼는 다시 안 나뉜다**(grunt 로 낳는다) —
+     안 그러면 한 마리가 웨이브를 무한히 늘려 판이 안 끝난다. */
+  for (const m of S.mobs) {
+    if (!m.dead || m.split || !(MOB[m.kind] || {}).split) continue;
+    m.split = true;
+    spawnLings(m, MOB[m.kind].split, 0.4);
+  }
   S.mobs = S.mobs.filter(m => !m.dead);
 
   /* ══ 알아서 돌린다 ══
@@ -456,6 +541,22 @@ export function tick(dt) {
       if (S.autoRun) autoBest(); else fillFree();
       // 바뀌었으면 패널도 깨운다 — 상태만 바뀌고 화면이 낡으면 "자리 0/3"이 첫인상이 된다(실제로 그랬다)
       if (placed().map(t => t.id).join(",") !== before) refresh();
+    }
+  }
+
+  /* 치유체 — 곁의 적을 조금씩 되살린다. **끊지 않으면 웨이브가 안 죽는다**는 압박이라
+     사거리가 긴 종류로 먼저 걷어내는 것이 답이 된다(붙기를 기다리면 이미 늦다).
+     자기 자신은 안 고친다 — 그러면 혼자 불사가 되어 교착이 난다. */
+  for (const h of S.mobs) {
+    const hp = (MOB[h.kind] || {}).heal;
+    if (!hp || h.dead) continue;
+    h.healT = (h.healT || 0) - dt;
+    if (h.healT > 0) continue;
+    h.healT = 0.5;
+    for (const m of S.mobs) {
+      if (m === h || m.dead || m.hp >= m.maxHp) continue;
+      if (Math.hypot(m.x - h.x, m.y - h.y) > 110) continue;
+      m.hp = Math.min(m.maxHp, m.hp + m.maxHp * hp);
     }
   }
 
@@ -749,7 +850,9 @@ export function paint() {
     let el = mobEls.get(m.id);
     if (!el) {
       el = document.createElement("div");
-      el.className = "mob" + (m.boss ? " boss" : "");
+      /* 종류를 클래스로 남긴다 — **색조를 종류마다 갈라야 한 화면에서 구분된다.**
+         공통 필터 하나로 전부 붉게 물들이면 치유체의 초록도 자폭체의 불꽃도 죽는다. */
+      el.className = "mob k-" + m.kind + (m.boss ? " boss" : "");
       el.innerHTML = `<img class="spr" src="assets/mob/${m.kind}.png" alt=""
           onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()"><i></i>`;
       $("world").appendChild(el);

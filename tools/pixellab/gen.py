@@ -70,6 +70,18 @@ SPRITES = {
     "mob/boss":   (f"{MOB}, towering hulking siege monstrosity with armour plating and glowing red core, "
                    f"far larger than the others, menacing", 96),
 
+    # ── 뒤에서 열리는 넷 ── **20 라운드가 넘어도 같은 적만 나오면 컨텐츠가 거기서 끝난다.**
+    #    (병수님: "컨텐츠 충분함?" — 재 보니 적 다섯이 10R 에 전부 나오고 그 뒤로 새 얼굴이 없었다.)
+    #    넷 다 "무엇으로 상대하나"가 서로 다르게 갈리도록, 생김새에도 그 답이 보이게 굽는다.
+    "mob/splitter": (f"{MOB}, bulbous segmented creature bulging as if about to burst into pieces, "
+                    f"glowing split seams along the body, dark red", 48),
+    "mob/healer":   (f"{MOB}, hunched creature carrying a glowing green organic sac that emits healing mist, "
+                    f"dark red body with sickly green glow", 48),
+    "mob/shooter":  (f"{MOB}, creature braced on four legs with a long barrelled cannon growth on its back, "
+                    f"aiming forward, rust red", 52),
+    "mob/bomber":   (f"{MOB}, creature hauling a huge unstable glowing explosive sac on its back, "
+                    f"hazard markings, dark red with hot orange glow", 52),
+
     # ── 이펙트 ── 스프라이트 위에 겹쳐 한 번 번쩍이므로 배경이 없어야 하고 실루엣이 단순해야 한다.
     "fx/hit":   ("a small sharp burst of white and amber sparks, impact flash, "
                  "no background, dark sci-fi pixel effect", 32),

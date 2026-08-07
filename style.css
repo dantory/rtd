@@ -118,10 +118,21 @@
   @keyframes mobHit{0%,100%{transform:translateY(0) scale(1) scaleX(var(--flip,1))}
     50%{transform:translateY(-1.5px) scale(1.06) scaleX(var(--flip,1))}}
   .mob.noimg{background:#7a4a4a;border-radius:50%}
+  /* **적은 붉은 계열로 통일하되, 결이 다른 놈은 색조도 갈라야 한다.**
+     하나의 필터로 전부 물들였더니 등에 초록 주머니를 진 치유체도, 불꽃을 인 자폭체도
+     똑같은 붉은 덩어리가 됐다 — 한 화면에 아홉 종이 섞이면 그건 종류가 는 게 아니다. */
   .mob .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
     grayscale(1) sepia(1) saturate(5.5) hue-rotate(-32deg) brightness(.95)}
+  .mob.k-splitter .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
+    grayscale(1) sepia(1) saturate(4.5) hue-rotate(-72deg) brightness(1)}      /* 자주 */
+  .mob.k-healer .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
+    grayscale(1) sepia(1) saturate(4) hue-rotate(50deg) brightness(1.05)}      /* 초록 */
+  .mob.k-shooter .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
+    grayscale(1) sepia(1) saturate(5) hue-rotate(-8deg) brightness(1.05)}      /* 주황 */
+  .mob.k-bomber .spr{filter:drop-shadow(0 2px 4px rgba(0,0,0,.85))
+    grayscale(1) sepia(1) saturate(6) hue-rotate(4deg) brightness(1.15)}       /* 밝은 주황 — 제일 눈에 띄어야 한다 */
   /* 서리를 맞으면 파랗게 식는다 — 로그를 안 봐도 느려진 게 보인다 */
-  .mob.slowed .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
+  .mob.slowed.slowed .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
     grayscale(1) sepia(1) saturate(4) hue-rotate(160deg) brightness(1.15)}
   .mob i{position:absolute;left:50%;transform:translateX(-50%);top:-7px;height:3px;
     border-radius:2px;z-index:2;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
