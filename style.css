@@ -280,8 +280,10 @@
   .hist{display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:8px;padding:0 2px}
   .hist .hb{flex:1;min-width:3px;background:#3a4658;border-radius:2px 2px 0 0;transition:height .2s}
   .hist .hb.nw{background:var(--amber)}
-  /* 접힌 옛 판 — 판마다가 아니라 열 판 평균이라 흐리게 두고, 얇은 금으로 최근 구간과 가른다 */
-  .hist .hb.old{background:#2b3444;opacity:.75}
+  /* 접힌 옛 판 — 열 판 평균 한 칸. 색만으로는 폰 밝기에서 최근 막대와 구별이 안 돼
+     (#2b3444 대 #3a4658), 사선 무늬와 밝은 윗선으로 가른다. */
+  .hist .hb.old{background:repeating-linear-gradient(135deg,#242c3a 0 3px,#3b475c 3px 6px);
+    border-top:2px solid #7b8aa4;opacity:1;min-height:8px}
   .hist .hsep{flex:0 0 2px;align-self:stretch;background:#3a4658;opacity:.5;border-radius:1px}
   .hist .hb{cursor:pointer}
   /* 뜻풀이 줄 — 폰에서 title 대신. 눌린 막대의 설명이 같은 자리에 덮어써진다 */
@@ -289,7 +291,8 @@
     min-height:13px;font-size:10px;color:var(--dim);letter-spacing:0}
   .hlgd .lgi{display:inline-flex;align-items:center;gap:3px}
   .hlgd .sw{width:7px;height:9px;border-radius:1px 1px 0 0;background:#3a4658}
-  .hlgd .sw.old{background:#2b3444;opacity:.75}
+  .hlgd .sw.old{background:repeating-linear-gradient(135deg,#242c3a 0 3px,#3b475c 3px 6px);
+    border-top:2px solid #7b8aa4}
   .hlgd .sw.nw{background:var(--amber)}
   .hlgd .rd{color:var(--amber)}
   .dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px}
