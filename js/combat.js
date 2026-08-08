@@ -33,10 +33,10 @@ const MOB = {
   /* 세기는 **자로 정한다.** 처음 값(1.1 / 0.035 / 1.0 / 6)으로는 새 적이 열리는 20R 이
      그대로 벽이 되어, 자원을 안 쓰는 봇이 스무 판을 돌아도 20R 에서 평평해졌다.
      새 얼굴은 "새로 볼 것"이지 "여기서 끝"이 아니어야 한다. */
-  splitter:{ hp: 0.9, sp: 0.9,  split: 2, from: 25 },   // 죽으면 둘로 나뉜다 → 범위로 한꺼번에
-  healer:  { hp: 0.8, sp: 0.8,  heal: 0.018, from: 32 },// 곁의 적을 되살린다 → 멀리서 먼저 끊어야
-  shooter: { hp: 0.8, sp: 0.75, standoff: 120, from: 40 }, // 멀찍이 서서 쏜다 → 사거리 싸움
-  bomber:  { hp: 1.3, sp: 0.7,  bomb: 3.5, from: 48 },  // 닿으면 한 번 크게 터진다 → 붙기 전에
+  splitter:{ hp: 0.9, sp: 0.9,  split: 2, from: 12 },   // 죽으면 둘로 나뉜다 → 범위로 한꺼번에
+  healer:  { hp: 0.8, sp: 0.8,  heal: 0.018, from: 18 },// 곁의 적을 되살린다 → 멀리서 먼저 끊어야
+  shooter: { hp: 0.8, sp: 0.75, standoff: 120, from: 26 }, // 멀찍이 서서 쏜다 → 사거리 싸움
+  bomber:  { hp: 1.3, sp: 0.7,  bomb: 3.5, from: 34 },  // 닿으면 한 번 크게 터진다 → 붙기 전에
 };
 /** 이 종류가 열리는 최소 라운드. 0 이면 처음부터. */
 export const mobFrom = (k) => MOB[k]?.from || 0;
@@ -218,12 +218,16 @@ const THEMES = [
   /* 해금 지점은 **자로 정했다.** 처음엔 20·25·30·35 로 뒀는데, 자원을 안 쓰는 봇의 천장이
      마침 20R 이라 새 얼굴이 열리는 자리와 벽이 정확히 겹쳤다 — 새 적이 "새로 볼 것"이
      아니라 "여기서 끝"이 되어 버렸고, 판정(무엇을 내보내느냐)까지 같이 깨졌다.
-     천장 위로 올려 두면 **자원을 써서 밀어낸 사람에게만** 새 얼굴이 나온다. */
-  { n:"분열",   from:25, pool:["splitter","splitter","grunt","runner"] },
-  { n:"치유",   from:32, pool:["healer","brute","grunt","shield"] },
-  { n:"포격",   from:40, pool:["shooter","shooter","grunt","runner"] },
-  { n:"자폭",   from:48, pool:["bomber","grunt","runner","swarm"] },
-  { n:"난장",   from:56, pool:["splitter","healer","shooter","bomber","brute","shield"] },
+     그래서 25·32·40·48·56 으로 올렸는데, 이번엔 **너무 멀어졌다**: 초반을 조인 뒤로
+     사람이 실제로 노는 구간이 R5~R20 인데 거기서는 다섯 종만 돌아, 병수님이 "라운드
+     진행이 너무 반복"이라고 했다. 강화 없이 열 판을 굴리면 R25 까지 간다(probe) —
+     그 안쪽에 12·18·26·34·42 로 촘촘히 깔아, 여덟 라운드마다 새 얼굴이 하나씩 열리게 한다.
+     첫 몇 판은 R4~R9 에서 끝나므로 초반이 새 적으로 덮이지도 않는다. */
+  { n:"분열",   from:12, pool:["splitter","splitter","grunt","runner"] },
+  { n:"치유",   from:18, pool:["healer","brute","grunt","shield"] },
+  { n:"포격",   from:26, pool:["shooter","shooter","grunt","runner"] },
+  { n:"자폭",   from:34, pool:["bomber","grunt","runner","swarm"] },
+  { n:"난장",   from:42, pool:["splitter","healer","shooter","bomber","brute","shield"] },
 ];
 /** 이 라운드에 쓸 수 있는 테마들 — 라운드가 오를수록 는다(그래서 주기도 길어진다). */
 const themesAt = (r) => THEMES.filter(t => r >= (t.from || 0));
