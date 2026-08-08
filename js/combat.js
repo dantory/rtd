@@ -293,9 +293,20 @@ export const distToCore = (m) => Math.hypot(m.x - coreCenter().x, m.y - coreCent
 export function hurt(m, d, from, tag) {
   /* ── 상성(MOBWEAK) ── 방패 감쇄보다 **먼저** 건다: 관통이 방패를 무시하는 것과
      "느려서 크게 다친다"는 서로 다른 층이라, 섞으면 어느 쪽이 먹었는지 못 읽는다. */
-  if (m.kind === "runner" && m.slow > 0) d *= 2;
+  /* **상성 배수는 등급을 타고 같이 큰다.**
+   *
+   *  전에는 어느 등급이든 ×2 로 못 박혀 있었다. 그런데 등급은 ×3 씩 뛴다(5등급이면 ×81) —
+   *  다 키우고 나면 **무엇을 내보내든 다 5등급이라 ×2 가 반올림 오차**가 된다. 실제로
+   *  자 둘이 같은 말을 했다: funtest 20판에서 아무거나 vs 골라서가 +0.3R, counteraudit
+   *  에서는 예고를 읽는 쪽이 오히려 -0.8R — **읽으면 손해**였다.
+   *  등급을 태우면 1등급 ×2 에서 5등급 ×6 이 되어, 다 큰 뒤에도 "이번엔 저놈"이 남는다. */
+  const cw = 1 + (from ? from.g : 1);
+  if (m.kind === "runner" && m.slow > 0) d *= cw;
   // 두꺼운 놈은 잔매에 안 죽는다 — 한 방이 커야 값이 선다(범위 파편은 한 방으로 안 친다)
-  if (m.kind === "brute" && tag !== "splash" && d >= m.maxHp * BIGHIT) d *= 2;
+  if (m.kind === "brute" && tag !== "splash" && d >= m.maxHp * BIGHIT) d *= cw;
+  /* 떼·분열체는 **범위로 쓸어야** 값이 선다. 여태 "범위를 온전히 받는다"는 말만 있고
+     수치가 없어서, 도감에 적힌 상성 중 이 둘만 실제로는 아무 일도 안 했다. */
+  if ((m.kind === "swarm" || m.kind === "splitter") && (tag === "splash" || tag === "chain")) d *= cw;
   // 방패병 — 처음 몇 대는 크게 흘린다(70% 감쇄). **관통은 그냥 지나간다**(대수도 안 먹는다).
   if (m.guard > 0 && tag !== "pierce") { d *= 0.18; m.guard--; }
   // 보스 ward — 멀리서는 잘 안 박힌다. 가까이 붙어야(=위험을 감수해야) 온전히 들어간다.
