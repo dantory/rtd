@@ -863,9 +863,12 @@ export function gameOver() {
       if (t && rarityOf(t.kind) > 0) rareGot.push(t.kind);
     }
   }
-  /* **이겼는지 졌는지를 먼저 말한다.** 끝나는 방식이 하나뿐인 무한 판이라 "승리"는
-     기록을 넘어선 판이다 — 그게 이 게임에서 이긴다는 것의 유일한 뜻이다. */
-  const win = S.round > META.best;
+  /* **"승리"라고 쓰면 안 된다.** 이 게임에서 판이 끝나는 방식은 하나뿐이다 — 벙커가
+     부서지는 것. 기록을 넘어선 판을 "승리"라고 적었더니, 벙커 체력 0 으로 무너진 화면에
+     승리라고 떠서 병수님이 지적했다(2026-08-08). 맞는 말이다: **졌는데 이겼다고 말하면
+     그건 표현이 아니라 거짓말이다.**
+     기록을 넘긴 것은 축하할 일이지 이긴 것이 아니므로, 제목을 「최고 기록」으로 바꾼다. */
+  const best = S.round > META.best;
   META.best = Math.max(META.best, S.round);
   /* 이 판을 기록에 남긴다. 최근 것이 앞이고 24판까지 판마다,
      그 뒤로 밀려난 판은 열 판 평균으로 접어 둔다(버리지 않는다). */
@@ -878,9 +881,9 @@ export function gameOver() {
   if (!(META.firstRun > 0)) META.firstRun = stamp;
   foldHist(META);
   saveMeta();
-  sfx(win ? "win" : "lose");
-  $("overT").textContent = win ? "승리" : "패배";
-  $("overT").style.color = win ? "#7fb069" : "#d05353";
+  sfx(best ? "win" : "lose");
+  $("overT").textContent = best ? "최고 기록" : "패배";
+  $("overT").style.color = best ? "#e0a458" : "#d05353";
   /* ══ 어디서 막혔나를 **관문으로** 말한다 ══
      인크리멘털은 "얼마나 갔나"가 아니라 **"무엇을 못 넘었나"**로 읽혀야 강화할 이유가 선다.
      이 게임은 5라운드마다 큰 놈이 오므로 그것이 곧 관문이다 — 첫 판이 5R 에서 끝나면
@@ -888,13 +891,14 @@ export function gameOver() {
      어디인지 같이 적어 두면 강화 화면을 여는 손이 그 숫자를 보고 움직인다. */
   const gateHere = isBossR(S.round);          // 큰 놈이 오는 라운드에서 무너졌나
   const nextGate = Math.ceil((S.round + (gateHere ? 1 : 0)) / 5) * 5;
-  const gateLine = win
+  const gateLine = best
     ? `다음 관문 <b style="color:var(--amber)">${nextGate}라운드</b> 큰 놈`
     : gateHere
       ? `<b style="color:var(--bad)">${S.round}라운드 큰 놈</b>을 못 넘음 · 강화하고 다시`
       : `다음 관문 <b style="color:var(--amber)">${nextGate}라운드</b> 큰 놈`;
-  $("overD").innerHTML = (win
-    ? `<b>${S.round}라운드</b> — 최고 기록 갱신!<br><b style="color:var(--amber)">자원 +${got}</b>`
+  $("overD").innerHTML = (best
+    ? `<b>${S.round}라운드</b>에서 벙커 파괴 — <b style="color:var(--amber)">여태 가장 멀리</b><br>` +
+      `<b style="color:var(--amber)">자원 +${got}</b>`
     : `<b>${S.round}라운드</b>에서 벙커 파괴 · 최고 ${META.best}라운드<br>` +
       `<b style="color:var(--amber)">자원 +${got}</b>`) +
     `<br><span style="color:var(--steel);font-size:12px">${gateLine}</span>`;
