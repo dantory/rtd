@@ -477,5 +477,5 @@ export const S = {
  *  한 번에 즉사하는 낭떠러지다(바로 아래 주석이 경계하던 그것). 마릿수로 메우면 몇 마리가
  *  새어 들어와 본진이 서서히 깎이고, 죽기 두세 라운드 전부터 체력바가 움직인다. */
 export const waveHp   = (r) => Math.round(72 * Math.pow(1.245, r - 1));
-export const waveN    = (r) => 11 + Math.floor(r * 2.6);
+export const waveN    = (r) => 14 + Math.floor(r * 3.0);
 export const isBossR  = (r) => r % 5 === 0;
