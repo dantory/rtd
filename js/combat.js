@@ -969,6 +969,17 @@ export function drawStats() {
   /* 옛 묶음은 **멀수록 흐리게**. 넷이 다 같은 사선 무늬라 "왼쪽이 더 옛날"이 안 읽혔다 —
      묶음은 다 열 판씩이라 폭으로는 못 가른다. 바래는 정도가 곧 거리다. */
   const fade = i => `opacity:${(0.42 + 0.58 * (i + 1) / eps.length).toFixed(2)}`;
+  /* **처음 켠 사람에겐 이 화면이 0 넷과 빈 줄뿐이다.** 무엇이 쌓이는 자리인지가 안 보이니
+     들어와 볼 이유도 없다. 한 판도 안 끝냈으면 **예시 그래프**를 흐리게 깔아 둔다 —
+     오르는 열넉 칸에 마지막이 호박색(최고 기록). 눌리지 않고 「예시」라 적어 두어
+     제 기록으로 오해할 자리를 없앤다. 첫 판이 끝나면 통째로 사라진다. */
+  const GHOST = [4, 6, 5, 8, 7, 9, 8, 12, 10, 14, 13, 17, 16, 21];
+  const ghost = () => {
+    const gt = Math.max(...GHOST);
+    return `<span class="ghlab">예시</span>` + GHOST.map((v, i) =>
+      `<i class="hb gh${i === GHOST.length - 1 ? " nw" : ""}"
+         style="height:${Math.round(v / gt * 100)}%"></i>`).join("");
+  };
   $("hist").innerHTML = hist.length
     ? eps.map((e, i) => bar(epAvg[i], " old", `${epWhen(e)}${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 최고 ${e.max | 0}`, fade(i))).join("")
       + (eps.length ? `<i class="hsep"></i>` : "")
@@ -983,7 +994,7 @@ export function drawStats() {
           return bar(v, (marks[i] ? " nw" : "") + (newDay ? " day" : ""),
                      `${v}라운드${when ? ` · ${when}` : ""}${marks[i] ? " — 최고 기록" : ""}`);
         }).join("")
-    : `<span class="dim" style="font-size:12px">아직 기록 없음 — 한 판 끝나면 여기 쌓인다</span>`;
+    : ghost();
   /* 막대 뜻풀이 — **폰엔 마우스가 없다.** 옛 묶음이 무엇인지가 title 에만 있어서 손가락으로는
      영영 못 읽었다. 색 뜻은 밑에 적어 두고, 막대를 누르면 그 판의 설명이 같은 자리에 뜬다. */
   const lg = $("histLegend");
@@ -993,7 +1004,7 @@ export function drawStats() {
         `<span class="lgi"><i class="sw"></i>한 판</span>` +
         (marks.some(Boolean) ? `<span class="lgi"><i class="sw nw"></i>최고</span>` : "") +
         `<span class="lgi dim">눌러서 그 판</span>`
-      : "";
+      : `<span class="lgi dim">예시 — 판마다 한 칸, 높이가 그 판의 라운드</span>`;
   };
   legend();
   $("hist").onclick = e => {

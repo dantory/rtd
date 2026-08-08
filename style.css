@@ -277,7 +277,14 @@
     background:#161b22;border:1px solid #2b3340;border-radius:7px}
   .stc .stv{font-size:19px;color:var(--fg);line-height:1.1}
   .stc .stl{font-size:10px;color:var(--dim);letter-spacing:1px}
-  .hist{display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:8px;padding:0 2px}
+  .hist{display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:8px;padding:0 2px;
+    position:relative}
+  /* 예시 그래프 — 한 판도 안 끝낸 사람에게 "여기에 무엇이 쌓이는가"를 보인다. 흐리고
+     눌리지 않는다. 「예시」 글자를 겹쳐 두어야 제 기록으로 오해하지 않는다. */
+  .hist .hb.gh{background:#2b3440;opacity:.45;pointer-events:none;cursor:default}
+  .hist .hb.gh.nw{background:var(--amber);opacity:.3}
+  .hist .ghlab{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    font-size:10px;letter-spacing:3px;color:var(--dim);opacity:.85;pointer-events:none}
   .hist .hb{flex:1;min-width:3px;background:#3a4658;border-radius:2px 2px 0 0;transition:height .2s}
   .hist .hb.nw{background:var(--amber)}
   /* 접힌 옛 판 — 열 판 평균 한 칸. 색만으로는 폰 밝기에서 최근 막대와 구별이 안 돼
