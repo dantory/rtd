@@ -954,8 +954,14 @@ export function drawStats() {
     ? eps.map((e, i) => bar(epAvg[i], " old", `옛 ${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 그중 최고 ${e.max | 0}`, fade(i))).join("")
       + (eps.length ? `<i class="hsep"></i>` : "")
       + hist.slice().reverse().map((v, i) => {
-          const when = whenSay(histT[hist.length - 1 - i]);   // 막대는 옛것이 왼쪽, 저장은 최근이 앞
-          return bar(v, marks[i] ? " nw" : "",
+          const ts = histT[hist.length - 1 - i];              // 막대는 옛것이 왼쪽, 저장은 최근이 앞
+          const when = whenSay(ts);
+          /* **날이 바뀌는 자리에 선.** 스물넷 막대가 판 순서일 뿐이라 "어제 다섯 판 굴렸구나"가
+             막대를 눌러야만 보였다. 앞 막대와 날이 다르면 그 왼쪽에 얇은 선을 세운다.
+             맨 왼쪽 판과 시각 없는 옛 세이브의 판은 견줄 앞날이 없으니 긋지 않는다. */
+          const prev = histT[hist.length - i];
+          const newDay = i > 0 && ts > 0 && prev > 0 && midnight(ts) !== midnight(prev);
+          return bar(v, (marks[i] ? " nw" : "") + (newDay ? " day" : ""),
                      `${v}라운드${when ? ` · ${when}` : ""}${marks[i] ? " — 최고 기록" : ""}`);
         }).join("")
     : `<span class="dim" style="font-size:12px">아직 기록 없음 — 한 판 끝나면 여기 쌓인다</span>`;

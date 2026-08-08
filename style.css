@@ -285,7 +285,12 @@
   .hist .hb.old{background:repeating-linear-gradient(135deg,#242c3a 0 3px,#3b475c 3px 6px);
     border-top:2px solid #7b8aa4;opacity:1;min-height:8px}
   .hist .hsep{flex:0 0 2px;align-self:stretch;background:#3a4658;opacity:.5;border-radius:1px}
-  .hist .hb{cursor:pointer}
+  .hist .hb{cursor:pointer;position:relative}
+  /* 날 경계 — 하루가 바뀌는 자리에 얇은 선. 막대는 판 순서일 뿐이라 "어제 다섯 판"이
+     막대를 눌러야만 읽혔다. 선은 막대 사이 틈(gap 3px)에 놓아 막대를 가리지 않는다.
+     높이 46px 는 .hist 높이 — 바닥에서 그래프 꼭대기까지 곧게 선다. */
+  .hist .hb.day::before{content:"";position:absolute;left:-2px;bottom:0;width:1px;height:46px;
+    background:#6b7a95;opacity:.5}
   /* 뜻풀이 줄 — 폰에서 title 대신. 눌린 막대의 설명이 같은 자리에 덮어써진다 */
   .hlgd{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:5px;
     min-height:13px;font-size:10px;color:var(--dim);letter-spacing:0}
