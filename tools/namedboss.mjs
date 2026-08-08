@@ -15,8 +15,11 @@
 import { chromium } from "/Users/lbs/source/personal/game-asset-editor/node_modules/playwright/index.mjs";
 
 /* 25 · 50 · 75 — NAMED 셋이 한 번씩 다 나오는 라운드. 50 은 보통 보스 라운드(5 의 배수)이기도
-   해서, 여기서 이름 있는 놈이 안 나오면 `namedBoss` 의 나머지 셈이 틀어진 것이다. */
-const ROUNDS = [25, 50, 75];
+   해서, 여기서 이름 있는 놈이 안 나오면 `namedBoss` 의 나머지 셈이 틀어진 것이다.
+   100 · 150 · 175 는 **두 바퀴째부터** — 셋뿐이라 재탕이던 자리다. 이름 앞에 수식이 붙어
+   길어지므로 여기서 이름표가 새는지를 같이 잰다(첫 바퀴에서만 재면 못 잡는다). */
+const ROUNDS = [25, 50, 75, 100, 150, 175];
+const CYCLE1 = 75;                       // 이 라운드까지가 첫 바퀴
 
 const probe = (r) => `(() => {
   S.over = true;                        // 게임 고리를 멈춘다 — 재는 사이에 걸어가면 자가 흔들린다
@@ -79,14 +82,21 @@ for (const x of rows) {
     if (!x.ring) fail.push("테 색 없음");
     if (x.tagSpill > 0) fail.push(`이름표가 몸보다 넓다 +${x.tagSpill}px`);
     if (x.overBar > 0) fail.push(`이름표가 체력바를 덮는다 ${x.overBar}px`);
-    rings.add(x.ring);
+    /* 두 바퀴째는 **더 험한 놈**이어야 한다 — 이름이 그대로거나 능력이 안 늘었으면
+       그냥 재탕이다(그걸 고치려고 얹은 것이므로 여기서 잡는다). */
+    if (x.round > CYCLE1) {
+      const np = (x.powers || "").split("·").filter(Boolean).length;
+      if (np < 3) fail.push(`두 바퀴째인데 능력이 ${np}개`);
+      if (!/^(거듭난|굶주린|심연의|잿빛|\d+대) /.test(x.named || "")) fail.push(`이름에 바퀴 수식이 없다(${x.named})`);
+    } else rings.add(x.ring);
   }
   if (fail.length) bad++;
   console.log(`${fail.length ? "✗" : "✓"} ${x.round}R  ${x.named || "—"}  ` +
-    `${x.size || 0}px  테[${x.ring || "—"}]  이름표「${x.tag || "—"}」 ${x.tagW}px` +
+    `${x.size || 0}px  테[${x.ring || "—"}]  이름표「${x.tag || "—"}」 ${x.tagW}px  [${x.powers || "—"}]` +
     (fail.length ? "   ← " + fail.join(" / ") : ""));
 }
-if (rings.size < ROUNDS.length) { bad++; console.log(`✗ 테 색이 겹친다 — ${rings.size}종`); }
+// 테 색은 **첫 바퀴 셋**만 센다 — 두 바퀴째는 같은 몸의 더 험한 판이라 색을 물려받는 것이 맞다
+if (rings.size < 3) { bad++; console.log(`✗ 테 색이 겹친다 — ${rings.size}종`); }
 
-console.log(bad ? `\n✗ ${bad}건` : "\n✓ 셋 다 알아본다");
+console.log(bad ? `\n✗ ${bad}건` : `\n✓ ${rows.length}판 다 알아본다 — 두 바퀴째는 더 험하다`);
 process.exit(bad ? 1 : 0);

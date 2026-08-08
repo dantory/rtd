@@ -98,7 +98,26 @@ const NAMED = [
   { n:"역병 어미",   powers:["spawn","haste"], hp:2.0, sp:1.15, hue:  60, ring:"140,190,110" },
   { n:"장막의 것",   powers:["ward","armor"],  hp:2.6, sp:0.85, hue: -95, ring:"170,130,210" },
 ];
-export const namedBoss = (r) => (r % 25 === 0 ? NAMED[(Math.floor(r / 25) - 1) % NAMED.length] : null);
+/* **셋뿐이라 100R 부터는 재탕이었다.** 25·50·75 다음이 다시 강철 파괴자면 그건 순환이지
+   사건이 아니다 — 한 바퀴 돌 때마다 **그다음은 더 험한 놈**이 되게 한다. 몸이 두꺼워지고
+   (바퀴마다 +60%), 능력을 하나씩 더 안고(둘→셋→넷, 다섯이 상한), 이름 앞에 그 바퀴의
+   수식이 붙는다 — **같은 놈이 아니라는 것이 예고 줄에서부터 읽혀야** 갈아 끼울 마음이 든다. */
+const NAMED_TIER = ["", "거듭난", "굶주린", "심연의", "잿빛"];
+export function namedBoss(r) {
+  if (r % 25 !== 0) return null;
+  const i = Math.floor(r / 25) - 1;
+  const base = NAMED[i % NAMED.length];
+  const cyc = Math.floor(i / NAMED.length);            // 0 = 첫 바퀴(25·50·75)
+  if (!cyc) return base;
+  const powers = base.powers.slice();
+  const cap = Math.min(2 + cyc, BOSS_POWERS.length);
+  for (const p of BOSS_POWERS) {                       // 바퀴마다 능력 하나씩 더
+    if (powers.length >= cap) break;
+    if (!powers.includes(p)) powers.push(p);
+  }
+  return { ...base, powers, n: `${NAMED_TIER[cyc] || cyc + 1 + "대"} ${base.n}`,
+           hp: base.hp * (1 + 0.6 * cyc), sp: base.sp * (1 + 0.04 * cyc) };
+}
 /** 이 몹이 그 능력을 가졌나 — 이름 있는 놈은 둘을 안고 온다. */
 export const hasPow = (m, p) => m.powers ? m.powers.includes(p) : m.power === p;
 export function bossNote(r) {
