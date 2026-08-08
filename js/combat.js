@@ -484,16 +484,27 @@ export function boom(x, y, kind) {
 
 /** 발사 순간 총안구에서 튀는 짧은 섬광. **DOM 한 개를 자리만 옮겨 재쓴다** — 여러 자리가
  *  거의 동시에 쏘지만 눈에는 벙커에서 불빛이 튀는 것으로 뭉쳐 읽히면 되니 하나면 족하다. */
-let muzzleEl = null;
-function muzzle(x, y, col) {
-  if (!muzzleEl) {
-    muzzleEl = document.createElement("div");
-    muzzleEl.className = "muzzle";
-    $("world").appendChild(muzzleEl);
+/* **총안구는 자리마다 하나씩이다.**
+ *
+ *  하나를 돌려 쓰고 있었다. 자리가 셋일 때는 "벙커에서 불빛이 튄다"로 뭉쳐 읽혔지만,
+ *  열두 기가 저마다 다른 박자로 쏘는 지금은 **한 번에 한 곳만 번쩍여서 누가 일하는지가
+ *  안 읽힌다.** 유닛은 벙커 안에 있어 판에 안 보이므로(병수님이 정한 규칙), 무엇을 넣었고
+ *  그게 값을 하는지는 **벙커 표면에서** 읽혀야 한다 — 그게 이 게임에서 관전의 전부다.
+ *  자리마다 따로 두면 로켓병 자리가 2.8초에 한 번 크게, 화염병 자리가 쉴 새 없이 깜빡여
+ *  **배치가 화면에 그대로 나온다.** DOM 은 열두 개까지고 만들어 두고 돌려 쓴다. */
+const muzzleEls = new Map();
+function muzzle(x, y, col, slot) {
+  const key = slot ?? -1;
+  let el = muzzleEls.get(key);
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "muzzle";
+    $("world").appendChild(el);
+    muzzleEls.set(key, el);
   }
-  muzzleEl.style.cssText = `left:${x}px;top:${y}px;background:${col};color:${col}`;
+  el.style.cssText = `left:${x}px;top:${y}px;background:${col};color:${col}`;
   // 애니메이션을 다시 태우려면 클래스를 뗐다 붙인다(reflow 사이에 끼워야 재시작한다)
-  muzzleEl.classList.remove("on"); void muzzleEl.offsetWidth; muzzleEl.classList.add("on");
+  el.classList.remove("on"); void el.offsetWidth; el.classList.add("on");
 }
 
 /** 벙커 피격 — 맞는 순간 스프라이트가 아주 살짝 흔들리고 붉은 비네트가 한 번 깜빡인다.
@@ -766,7 +777,7 @@ export function tick(dt) {
     const tx = cc.x + dirx * coreRadius() * 0.9 - diry * lat;
     const ty = cc.y + diry * coreRadius() * 0.9 + dirx * lat;
     S.shots.push({ x: tx, y: ty, tx: bp.x, ty: bp.y, life: 0.14, col: K.col });
-    muzzle(tx, ty, K.col);                  // 총안구에서 불빛이 튄다
+    muzzle(tx, ty, K.col, t.slot);          // 그 자리의 총안구에서 불빛이 튄다
     sfx(K.cd >= 2 ? "heavy" : "shoot");     // 느리고 무거운 종류(로켓·저격·지뢰)는 소리도 무겁게
     boom(bp.x, bp.y, K.fx || "hit");
 
@@ -1436,6 +1447,13 @@ export function paint() {
       `${(s.y + (s.ty - s.y) * f).toFixed(1)}px,0) translate(-50%,-50%) rotate(${a.toFixed(3)}rad) scaleX(1.7)`;
     if (el._col !== s.col) { el.style.background = el.style.color = s.col; el._col = s.col; }
   }
+
+  /* **관문 라운드는 화면이 달라야 한다.** 5라운드마다 오는 큰 놈이 이 게임의 벽인데,
+     지금은 배너 한 줄이 지나가면 그 뒤로는 여느 라운드와 똑같이 생겼다 — 벽에 서 있다는
+     것이 화면에 없으면 「강화하고 다시」라는 정산 문구가 갑자기 튀어나온 말이 된다.
+     판 가장자리에 붉은 기운을 얹는다(판 안은 안 건드린다 — 적과 탄이 묻히면 안 된다). */
+  const w = $("world");
+  if (w) w.classList.toggle("gate", !!(S.running && isBossR(S.round)));
 
   // 체력은 벙커 곁에서 읽힌다 — 헤더에는 안 적는다(같은 숫자가 두 곳이면 눈이 갈라진다)
   const cb = $("coreBar"), cn = $("coreNum");

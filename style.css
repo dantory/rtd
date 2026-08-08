@@ -548,3 +548,9 @@
   .pathrow.done{color:var(--steel);font-size:12px}
   .pathb{flex:1;min-width:96px;padding:6px 8px;font-size:12px;line-height:1.35;text-align:left}
   .pathb .dim{display:block}
+
+  /* ── 관문 라운드 — 판 가장자리에 붉은 기운. 판 안은 안 건드린다(적·탄이 묻히면 안 된다) ── */
+  #world.gate::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:1;
+    box-shadow:inset 0 0 110px 30px rgba(186,40,40,.42);
+    animation:gatePulse 2.6s ease-in-out infinite}
+  @keyframes gatePulse{0%,100%{opacity:.55}50%{opacity:1}}
