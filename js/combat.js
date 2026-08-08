@@ -906,7 +906,7 @@ export function gameOver() {
      없으므로 아예 숨긴다 — 눌리지도 않는 버튼이 자리만 먹으면 화면이 시끄러워진다. */
   const sk = $("skipBtn"), to = skipTo();
   if (sk) {
-    sk.style.display = to >= 5 ? "" : "none";
+    sk.style.display = to >= 10 ? "" : "none";
     sk.textContent = to + "라운드부터";
   }
   $("overT").textContent = best ? "최고 기록" : "패배";
