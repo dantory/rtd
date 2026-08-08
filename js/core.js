@@ -202,23 +202,40 @@ export function dedupeArmy(raw) {
    접는다. 칸이 EPOCH_MAX 를 넘으면 제일 오래된 두 칸을 합친다 — 저장이 무한정 늘지 않으면서
    "처음 열 판"은 끝까지 남는다(그게 지금과 견줄 기준선이다). */
 export const HIST_KEEP = 24, EPOCH_SIZE = 10, EPOCH_MAX = 12;
+/* 묶음이 **언제의 것인지**를 함께 든다. 판마다의 시각은 접히면서 사라지지만, 묶음의
+   처음(t0)과 끝(t1)만 남겨도 「옛 열 판」이 "두 달 전 열 판"이 된다 — 그게 없으면
+   왼쪽 막대가 언제 것인지 영영 모른다. 시각 없는 옛 세이브의 판은 0 이라 건너뛴다. */
+const noteT = (e, t) => {
+  if (!(t > 0)) return;
+  e.t0 = e.t0 > 0 ? Math.min(e.t0, t) : t;
+  e.t1 = e.t1 > 0 ? Math.max(e.t1, t) : t;
+};
 export function foldHist(meta) {
   if (!Array.isArray(meta.epochs)) meta.epochs = [];
   // hist 는 최신이 앞이므로, 넘친 꼬리가 곧 접어야 할 옛 판(오래된 것부터)이다.
-  // 시각은 접힌 묶음에 담을 자리가 없다 — 막대와 같이 잘라 낸다(한 칸이 열 판 평균이라
-  // "어느 날"이 성립하지 않는다). 며칠째는 firstRun 이 따로 들고 있다.
-  if (Array.isArray(meta.histT)) meta.histT = meta.histT.slice(0, HIST_KEEP);
+  // 판마다의 시각은 접힌 묶음에 낱개로 담을 자리가 없다 — 막대와 같이 잘라 내되,
+  // 묶음의 시각 범위(t0·t1)로만 남긴다. 며칠째는 firstRun 이 따로 들고 있다.
   const spill = meta.hist.slice(HIST_KEEP).reverse();
+  const spillT = (Array.isArray(meta.histT) ? meta.histT.slice(HIST_KEEP) : []).reverse();
+  if (Array.isArray(meta.histT)) meta.histT = meta.histT.slice(0, HIST_KEEP);
   if (!spill.length) return;
   meta.hist = meta.hist.slice(0, HIST_KEEP);
-  for (const v of spill) {
+  spill.forEach((v, i) => {
+    const t = spillT[i] > 0 ? spillT[i] : 0;
     const last = meta.epochs[meta.epochs.length - 1];
-    if (last && last.n < EPOCH_SIZE) { last.n++; last.sum += v | 0; last.max = Math.max(last.max | 0, v | 0); }
-    else meta.epochs.push({ n: 1, sum: v | 0, max: v | 0 });
-  }
+    if (last && last.n < EPOCH_SIZE) {
+      last.n++; last.sum += v | 0; last.max = Math.max(last.max | 0, v | 0); noteT(last, t);
+    } else {
+      const e = { n: 1, sum: v | 0, max: v | 0, t0: 0, t1: 0 };
+      noteT(e, t);
+      meta.epochs.push(e);
+    }
+  });
   while (meta.epochs.length > EPOCH_MAX) {
     const [a, b] = meta.epochs.splice(0, 2);
-    meta.epochs.unshift({ n: a.n + b.n, sum: a.sum + b.sum, max: Math.max(a.max | 0, b.max | 0) });
+    const e = { n: a.n + b.n, sum: a.sum + b.sum, max: Math.max(a.max | 0, b.max | 0), t0: 0, t1: 0 };
+    noteT(e, a.t0); noteT(e, b.t0); noteT(e, a.t1); noteT(e, b.t1);
+    meta.epochs.unshift(e);
   }
 }
 
@@ -263,9 +280,13 @@ export function loadMeta() {
                /* 접힌 옛 판 — 오래된 것이 앞. 한 칸은 {n: 묶인 판 수, sum: 라운드 합, max: 그중 최고}.
                   max 를 함께 드는 이유는 하나다: 그래프에서 "최고 기록을 세운 판"을 찍으려면
                   접혀 나간 판들의 최고를 알아야 한다. 없으면 옛 기록이 사라져 오찍는다. */
+               /* t0·t1 은 그 묶음의 처음·마지막 판 시각 — 「옛 열 판」이 언제였나.
+                  `| 0` 금지(Date.now() 는 32비트를 넘는다). 시각 없던 묶음은 0 으로 남는다. */
                epochs: Array.isArray(raw.epochs)
                  ? raw.epochs.map(e => ({ n: Math.max(0, e?.n | 0), sum: Math.max(0, e?.sum | 0),
-                                          max: Math.max(0, e?.max | 0) }))
+                                          max: Math.max(0, e?.max | 0),
+                                          t0: Number.isFinite(e?.t0) && e.t0 > 0 ? e.t0 : 0,
+                                          t1: Number.isFinite(e?.t1) && e.t1 > 0 ? e.t1 : 0 }))
                              .filter(e => e.n > 0).slice(-EPOCH_MAX)
                  : [],
                // **마지막으로 본 시각.** 탭을 닫아 둔 사이를 재려면 나갈 때의 시각이 남아 있어야

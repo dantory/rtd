@@ -1,8 +1,9 @@
 import { buildable, COLS, CORE, fragNeed, GNAME, GRADE, hpOf, KIND_IDS, kindCost, kindLv, KINDS, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalsAt, medalSlots, META, metaDmg, newlySeen, nextMedalAt, noteSeen, prestige, refreshSlots, relicsFor, RING, ROWS, S, saveMeta, SLOT_SPOTS, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { applyView, CELL, clampView, cx, cy, drawGrid, fitView, focusView, layout, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { autoBest, coreCenter, coreRadius, coverOf, dexStat, dmgOf, fillFree, fragLeft, freeSlots, inBox, placed, recruit, recruitCost, rngOf, sell, spawnRadius, syncArmy } from "./army.js";
-import { bossNote, distToCore, drawShop, gameOver, hasPow, hurt, mobPos, MOBNAME, MOBWEAK, namedBoss, POWNAME, spawnMob, startWave, step, tick, waveLanes, wavePool, waveTheme } from "./combat.js";
+import { bossNote, distToCore, drawShop, drawStats, gameOver, hasPow, hurt, mobPos, MOBNAME, MOBWEAK, namedBoss, POWNAME, spawnMob, startWave, step, tick, waveLanes, wavePool, waveTheme } from "./combat.js";
 import { newGame, offlineReport, openOffline, openSquad, refresh, wireUI } from "./ui.js";
+import { foldHist } from "./core.js";
 
 
 // 검증 도구용 창구
@@ -17,7 +18,7 @@ Object.assign(window, { S, META, KINDS, GNAME, recruit, sell, startWave, refresh
 // 게임이 쓰는 것과 **같은 표**를 봐야 한다(다른 표를 보면 재는 것이 게임이 아니게 된다).
 Object.assign(window, { wavePool, waveTheme, MOBNAME, MOBWEAK, bossNote, namedBoss, hasPow, POWNAME, spawnMob, hurt });
 Object.assign(window, { META, newGame, drawShop, relicsFor, upCost, UPGRADES, saveMeta, metaDmg, offlineReport, openOffline, dexStat, noteSeen, newlySeen, gameOver, fragNeed,
-  medals, medalGain, medalsAt, medalDmg, medalRelic, medalSlots, nextMedalAt, prestige, MEDAL_GATE });
+  medals, medalGain, medalsAt, medalDmg, medalRelic, medalSlots, nextMedalAt, prestige, MEDAL_GATE, foldHist, drawStats });
 
 /* refreshSlots 를 layout(drawGrid)보다 먼저 — 순서가 뒤면 첫 화면의 자리가 전부
    "잠김"으로 그려지고, 첫 웨이브가 갈래를 바꿔 다시 그릴 때까지 그대로 남는다. */

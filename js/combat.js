@@ -918,7 +918,26 @@ const daysAgo = ts => Math.round((midnight(Date.now()) - midnight(ts)) / 864e5);
 function whenSay(ts) {
   if (!(ts > 0)) return "";
   const d = daysAgo(ts);
-  return d <= 0 ? "오늘" : d === 1 ? "어제" : d < 30 ? `${d}일 전` : `${Math.floor(d / 30)}달 전`;
+  // 달은 우리말 셈씨로 — 「1달 전」은 읽히지 않는다. 여섯 달을 넘으면 숫자로 돌아간다.
+  const MON = ["", "한", "두", "석", "넉", "다섯", "여섯"];
+  const m = Math.floor(d / 30);
+  return d <= 0 ? "오늘" : d === 1 ? "어제" : d < 30 ? `${d}일 전` : `${MON[m] || m} 달 전`;
+}
+
+/** 접힌 묶음이 **언제의 열 판**인가. 낱개 시각은 접히며 사라졌지만 묶음의 처음·끝은 남는다 —
+ *  같은 날짜 말이 나오면 하나만, 걸쳐 있으면 「두 달 전~한 달 전」. 시각을 안 들고 있던
+ *  옛 묶음은 그냥 「옛 」 — 없던 날짜를 지어내지 않는다. */
+function epWhen(e) {
+  const a = whenSay(e?.t0 > 0 ? e.t0 : 0), b = whenSay(e?.t1 > 0 ? e.t1 : 0);
+  if (!a && !b) return "옛 ";
+  if (!a || !b || a === b) return `${a || b} `;
+  /* 두 끝이 같은 단위면 앞머리만 잇는다 — 「넉 달 전~석 달 전」은 320px 뜻풀이 줄을
+     두 줄로 접어 뒷말을 밀어낸다(tools/histepoch.mjs 가 잡는다). */
+  for (const suf of [" 달 전", "일 전"]) {
+    if (a.endsWith(suf) && b.endsWith(suf))
+      return `${a.slice(0, -suf.length)}~${b.slice(0, -suf.length)}${suf} `;
+  }
+  return `${a}~${b} `;
 }
 
 export function drawStats() {
@@ -951,7 +970,7 @@ export function drawStats() {
      묶음은 다 열 판씩이라 폭으로는 못 가른다. 바래는 정도가 곧 거리다. */
   const fade = i => `opacity:${(0.42 + 0.58 * (i + 1) / eps.length).toFixed(2)}`;
   $("hist").innerHTML = hist.length
-    ? eps.map((e, i) => bar(epAvg[i], " old", `옛 ${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 그중 최고 ${e.max | 0}`, fade(i))).join("")
+    ? eps.map((e, i) => bar(epAvg[i], " old", `${epWhen(e)}${e.n}판 평균 ${epAvg[i].toFixed(1)}라운드 · 최고 ${e.max | 0}`, fade(i))).join("")
       + (eps.length ? `<i class="hsep"></i>` : "")
       + hist.slice().reverse().map((v, i) => {
           const ts = histT[hist.length - 1 - i];              // 막대는 옛것이 왼쪽, 저장은 최근이 앞
