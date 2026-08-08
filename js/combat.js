@@ -866,7 +866,7 @@ export function drawShop() {
   /* **전투력을 상점 맨 위에 둔다.** 여기서 사는 것마다 이 숫자가 오르는 걸 봐야
      「공격력 +13%」가 장부가 아니라 손에 잡히는 것이 된다. */
   $("armyNote").innerHTML =
-    `전투력 <b style="color:var(--amber)" title="${powerOf().toLocaleString()}">${shortNum(powerOf())}</b> · ` +
+    `전투력 ${exNum(powerOf(), "", "var(--amber)")} · ` +
     `유닛 <b>${META.army.length}</b>기 · 자리 <b>${slotMax()}</b> · 나오는 종류 <b>${poolSize()}</b>/${KIND_IDS.length}` +
     (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 해금` : "");
 
@@ -956,12 +956,46 @@ export const shortNum = v => {
 };
 
 /** 줄여 적은 수를 **한 자리에 박아 넣는다** — 화면엔 「128만」, 정확한 수는 title.
- *  `shortNum` 을 부르는 자리마다 title 을 빼먹기 쉬워서 둘을 묶어 둔다. */
+ *  `shortNum` 을 부르는 자리마다 title 을 빼먹기 쉬워서 둘을 묶어 둔다.
+ *  **폰엔 마우스가 없다** — title 만으로는 손가락으로 영영 못 읽으므로 `data-ex` 도 같이
+ *  달아 둔다(누르면 뜨는 쪽은 `wireExact` 하나가 맡는다). */
 export const setNum = (el, v, unit = "") => {
   if (!el) return;
+  const exact = `${Math.max(0, Math.floor(Number(v) || 0)).toLocaleString()}${unit}`;
   el.textContent = shortNum(v);
-  el.title = `${Math.max(0, Math.floor(Number(v) || 0)).toLocaleString()}${unit}`;
+  el.title = exact;
+  el.dataset.ex = exact;
+  el.classList.add("exn");
 };
+
+/** 같은 것을 **글줄 안에** 박을 때 — 밑줄·머리줄처럼 innerHTML 로 짜는 자리용. */
+export const exNum = (v, unit = "", col = "") => {
+  const exact = `${Math.max(0, Math.floor(Number(v) || 0)).toLocaleString()}${unit}`;
+  return `<b class="exn"${col ? ` style="color:${col}"` : ""} title="${exact}" data-ex="${exact}">${shortNum(v)}</b>`;
+};
+
+/** **줄여 적은 수를 폰에서도 읽는다 — 손잡이 하나로.**
+ *  「128만」의 원래 수가 title 뿐이라 마우스 없는 화면에선 못 읽었다. 붙은 자리가 여섯이라
+ *  자리마다 따로 달면 다음에 하나 더 붙일 때 또 빼먹는다 — 문서에 딱 하나 걸고, 표시는
+ *  `data-ex` 를 단 것이 알아서 뜬다. 누른 자리 바로 위에 짧게 떴다 사라진다.
+ *  버튼 안의 수는 건드리지 않는다 — 버튼은 눌리면 제 할 일(상점 열기)을 해야 한다. */
+export function wireExact() {
+  let bub = null, timer = 0;
+  const hide = () => { if (bub) bub.classList.remove("on"); clearTimeout(timer); };
+  document.addEventListener("click", e => {
+    const t = e.target instanceof Element ? e.target.closest("[data-ex]") : null;
+    if (!t || t.closest("button")) return hide();
+    if (!bub) { bub = document.createElement("div"); bub.id = "exbub"; document.body.appendChild(bub); }
+    bub.textContent = t.dataset.ex;
+    bub.classList.add("on");
+    const r = t.getBoundingClientRect(), w = bub.offsetWidth;
+    // 화면 밖으로 나가지 않게 좌우를 물린다 — 320px 에서 오른쪽 끝 숫자가 잘리던 자리
+    bub.style.left = Math.round(Math.min(Math.max(6, r.left + r.width / 2 - w / 2), innerWidth - w - 6)) + "px";
+    bub.style.top = Math.round(Math.max(4, r.top - bub.offsetHeight - 6)) + "px";
+    clearTimeout(timer);
+    timer = setTimeout(hide, 2200);
+  }, true);
+}
 
 export function drawStats() {
   const hist = Array.isArray(META.hist) ? META.hist : [];
@@ -969,7 +1003,7 @@ export function drawStats() {
   const runs = META.runs | 0, kills = META.kills | 0;
   const avg = hist.length ? hist.reduce((a, b) => a + b, 0) / hist.length : 0;
   const cell = (lb, v, col, tt) =>
-    `<div class="stc"${tt ? ` title="${tt}"` : ""}><span class="stv"${col ? ` style="color:${col}"` : ""}>${v}</span>
+    `<div class="stc${tt ? " exn" : ""}"${tt ? ` title="${tt}" data-ex="${tt}"` : ""}><span class="stv"${col ? ` style="color:${col}"` : ""}>${v}</span>
        <span class="stl">${lb}</span></div>`;
   $("stats").innerHTML =
     cell("누적 처치", shortNum(kills), "#d05353", `${kills.toLocaleString()}기`) +

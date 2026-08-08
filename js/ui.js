@@ -2,7 +2,7 @@ import { sfx, setSound, soundOn } from "./sound.js";
 import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { autoBest, dmgOf, fillFree, fragLeft, inBox, isOut, nearGradeUp, placed, powerOf, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
-import { bossNote, drawShop, drawTowers, mobEls, MOBNAME, MOBWEAK, paint, setNum, shortNum, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
+import { bossNote, drawShop, drawTowers, exNum, mobEls, MOBNAME, MOBWEAK, paint, setNum, shortNum, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
 
 
 /* ══ 패널 ══ */
@@ -154,7 +154,7 @@ export function drawSquad() {
   const better = placed().length && inBox().some(b =>
     rankOf(b) > Math.min(...placed().map(rankOf)));
   /* 배치를 바꾸면 이 숫자가 바로 움직인다 — 넣고 빼는 것이 무슨 뜻인지 화면이 말해 준다 */
-  $("sqNote").innerHTML = `전투력 <b style="color:var(--amber)" title="${powerOf().toLocaleString()}">${shortNum(powerOf())}</b> · 자리 <b>${at.size}/${spots.length}</b>` +
+  $("sqNote").innerHTML = `전투력 ${exNum(powerOf(), "", "var(--amber)")} · 자리 <b>${at.size}/${spots.length}</b>` +
     (free ? ` · <b style="color:var(--amber)">${free}자리 비었음</b>` : "") +
     (better ? ` · <b style="color:var(--amber)">창고에 더 센 유닛 있음</b>` : "") +
     ` · 자리 누르면 빼기, 창고 누르면 넣기 · 같은 종류는 한 자리만`;

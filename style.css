@@ -279,6 +279,15 @@
   .stc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;
     min-width:0;background:#161b22;border:1px solid #2b3340;border-radius:7px}
   .stc .stv{font-size:19px;color:var(--fg);line-height:1.1}
+  /* **줄여 적은 수는 눌러서 편다.** 「128만」의 원래 수가 title 뿐이라 폰에선 못 읽었다.
+     점선 밑줄이 "여긴 눌린다"는 표시이고, 뜨는 쪽은 `wireExact` 하나가 맡는다. */
+  .exn{cursor:pointer;-webkit-tap-highlight-color:transparent}
+  b.exn{border-bottom:1px dotted currentColor}
+  .stc.exn .stv{border-bottom:1px dotted #4b5563}
+  #exbub{position:fixed;z-index:90;pointer-events:none;opacity:0;transition:opacity .12s;
+    background:#0d1117;border:1px solid var(--amber);border-radius:6px;color:var(--fg);
+    font-size:12px;padding:4px 8px;white-space:nowrap;box-shadow:0 3px 10px #0009}
+  #exbub.on{opacity:1}
   /* 이름표는 **한 줄로 못 박는다.** 「최고 라운드」가 320~360px 에서 「최고 / 라운드」로
      갈라지면 그 칸만이 아니라 grid 줄 전체가 12px 커져 넉 장이 다 들뜬다. 자리를 만든 건
      letter-spacing:1px — 10px 한글에선 자간이 벌어져 읽히지도 않으면서 폭만 6px 먹었다. */

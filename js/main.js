@@ -1,7 +1,7 @@
 import { buildable, COLS, CORE, fragNeed, GNAME, GRADE, hpOf, KIND_IDS, kindCost, kindLv, KINDS, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalsAt, medalSlots, META, metaDmg, newlySeen, nextMedalAt, noteSeen, prestige, refreshSlots, relicsFor, RING, ROWS, S, saveMeta, SLOT_SPOTS, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { applyView, CELL, clampView, cx, cy, drawGrid, fitView, focusView, layout, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { autoBest, coreCenter, coreRadius, coverOf, dexStat, dmgOf, fillFree, fragLeft, freeSlots, inBox, placed, recruit, recruitCost, rngOf, sell, spawnRadius, syncArmy } from "./army.js";
-import { bossNote, distToCore, drawShop, drawStats, gameOver, hasPow, hurt, mobPos, MOBNAME, MOBWEAK, namedBoss, POWNAME, spawnMob, startWave, step, tick, waveLanes, wavePool, waveTheme } from "./combat.js";
+import { bossNote, distToCore, drawShop, drawStats, wireExact, gameOver, hasPow, hurt, mobPos, MOBNAME, MOBWEAK, namedBoss, POWNAME, spawnMob, startWave, step, tick, waveLanes, wavePool, waveTheme } from "./combat.js";
 import { newGame, offlineReport, openOffline, openSquad, refresh, wireUI } from "./ui.js";
 import { foldHist } from "./core.js";
 
@@ -23,6 +23,7 @@ Object.assign(window, { META, newGame, drawShop, relicsFor, upCost, UPGRADES, sa
 /* refreshSlots 를 layout(drawGrid)보다 먼저 — 순서가 뒤면 첫 화면의 자리가 전부
    "잠김"으로 그려지고, 첫 웨이브가 갈래를 바꿔 다시 그릴 때까지 그대로 남는다. */
 wireUI();
+wireExact();   // 줄여 적은 수를 눌러서 정확한 수 보기 — 손잡이 하나로 전부
 refreshSlots(); layout();
 /* 오프라인 지급은 newGame 보다 **먼저** 잰다 — newGame 이 saveMeta 로 lastSeen 을
    지금 시각으로 덮으므로, 그 뒤에 재면 비운 시간이 늘 0 이 된다. */
