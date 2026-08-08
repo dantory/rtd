@@ -858,15 +858,15 @@ export function drawShop() {
       <span class="d">${capped ? "더 늘려도 빈 자리 (종류 " + KIND_IDS.length + "개가 상한)" : u.d}</span>
       <span class="p">${capped ? "최대" : "자원 " + c}</span></button>`;
   }).join("");
-  $("shopHave").textContent = META.relics;
-  $("shopHave2").textContent = META.relics;
+  setNum($("shopHave"), META.relics, "자원");
+  setNum($("shopHave2"), META.relics, "자원");
   $("recCost").textContent = recruitCost();
   $("recruitBtn").disabled = META.relics < recruitCost();
   const nx = nextUnlockAt();
   /* **전투력을 상점 맨 위에 둔다.** 여기서 사는 것마다 이 숫자가 오르는 걸 봐야
      「공격력 +13%」가 장부가 아니라 손에 잡히는 것이 된다. */
   $("armyNote").innerHTML =
-    `전투력 <b style="color:var(--amber)">${powerOf().toLocaleString()}</b> · ` +
+    `전투력 <b style="color:var(--amber)" title="${powerOf().toLocaleString()}">${shortNum(powerOf())}</b> · ` +
     `유닛 <b>${META.army.length}</b>기 · 자리 <b>${slotMax()}</b> · 나오는 종류 <b>${poolSize()}</b>/${KIND_IDS.length}` +
     (nx ? ` — <b style="color:var(--steel)">${nx}라운드</b>를 넘기면 하나 더 해금` : "");
 
@@ -953,6 +953,14 @@ export const shortNum = v => {
   const m = n / div;
   // 열 미만은 한 자리를 남긴다 — 「1만」과 「1.9만」은 배 가까이 다르다
   return (m < 10 ? m.toFixed(1).replace(/\.0$/, "") : Math.round(m)) + unit;
+};
+
+/** 줄여 적은 수를 **한 자리에 박아 넣는다** — 화면엔 「128만」, 정확한 수는 title.
+ *  `shortNum` 을 부르는 자리마다 title 을 빼먹기 쉬워서 둘을 묶어 둔다. */
+export const setNum = (el, v, unit = "") => {
+  if (!el) return;
+  el.textContent = shortNum(v);
+  el.title = `${Math.max(0, Math.floor(Number(v) || 0)).toLocaleString()}${unit}`;
 };
 
 export function drawStats() {
@@ -1199,7 +1207,10 @@ export function paint() {
   if (cb) cb.style.width = Math.max(0, S.coreHp / S.coreMax * 100) + "%";
   if (cn) cn.textContent = Math.max(0, Math.ceil(S.coreHp)) + "/" + S.coreMax;
   $("hRound").textContent = S.round;
-  $("hRelic").textContent = META.relics;
+  /* 자원은 **판 내내 보는 숫자**인데 여기만 날것이었다 — 「1284000」은 자릿수를 세어야
+     읽힌다. 넉 장과 같은 말투로(`shortNum`) 적고 정확한 수는 title 로 남긴다.
+     값이 값인 만큼 줄여 적기가 발동하는 만 위는 어떤 값보다도 한참 위다(제일 비싼 게 세 자리). */
+  setNum($("hRelic"), META.relics, "자원");
   /* **살 수 있으면 살 수 있다고 말해야 한다.** 자원 버튼을 헤더 구석에 조용히 두었더니
      "업그레이드는 한 판 끝나고만 되나"는 물음이 돌아왔다 — 언제든 열린다는 걸 화면이
      한 번도 말한 적이 없었던 것이다. 지금 살 수 있는 게 하나라도 있으면 버튼이 뛴다. */
