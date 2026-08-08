@@ -29,6 +29,9 @@ const ev = async (x) => {
   return r?.result?.value;
 };
 await send("Runtime.enable");
+/* **캐시를 끈다.** 안 끄면 고친 모듈이 아니라 예전 것을 재는 수가 있다 —
+   실제로 RARITY 표를 세 번 바꿨는데 결과가 한 자리도 안 변해서 알아챘다. */
+await send("Network.enable"); await send("Network.setCacheDisabled", { cacheDisabled: true });
 await send("Page.navigate", { url: "http://127.0.0.1:8772/index.html" });
 await new Promise(r => setTimeout(r, 1000));
 

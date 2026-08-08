@@ -1,4 +1,4 @@
-import { BUNKER_DMG, CORE, fragNeed, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, kindLv, kindRngMul, KINDS, kindSkill, META, metaDmg, noteSeen, RING, S, saveMeta, SLOT_SPOTS, slotMax } from "./core.js";
+import { BUNKER_DMG, CORE, fragNeed, RARE, rarityOf, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, kindLv, kindRngMul, KINDS, kindSkill, META, metaDmg, noteSeen, RING, S, saveMeta, SLOT_SPOTS, slotMax } from "./core.js";
 import { CELL, px, py, say } from "./view.js";
 import { drawShop, flyText, popTower } from "./combat.js";
 import { refresh } from "./ui.js";
@@ -32,22 +32,43 @@ export function recruit(free) {
     META.relics -= c;
   }
   const pool = KIND_IDS.slice(0, poolSize());
-  /* 균등하게 뽑는다. 이미 가진 종류에 가중치를 주면 등급이 훨씬 빨리 오르지만, 부대가 몇
-     종류로 편식해 **무엇을 내보낼까가 결정이 아니게 된다** — 검증에서 "아무거나 vs 골라
-     내보내기" 차이가 3.6R → 2.4R 로 줄어 판정이 깨졌다. */
-  const kind = pool[Math.floor(Math.random() * pool.length)];
+  /* **희귀도는 「어느 새 얼굴이 먼저 오느냐」에만 건다.**
+   *
+   *  처음엔 열두 종 전체에 무게를 줬다(흔함 6 · 드묾 3 · 귀함 1). 그랬더니 counteraudit 이
+   *  +3.8R 에서 **-2.5R** 로 뒤집혔다 — 무게를 주면 흔한 것만 겹쳐 부대가 **깊게** 모이는데,
+   *  예고를 읽고 갈아 끼우려면 종류의 **넓이**가 필요하다. 무게가 곧 넓이를 깎았다.
+   *  (무게를 6·4·2 로 완만하게 해도 -1.8R 이었다. 정도의 문제가 아니라 방향의 문제다.)
+   *
+   *  그래서 둘로 나눈다: **새 유닛이 들어올 확률은 균등할 때와 똑같이** 두고(안 가진 종류의
+   *  비율 그대로), 그 안에서 **어느 종류가 올지만** 희귀도로 고른다. 넓이는 예전 속도대로
+   *  쌓이고, 로켓병·지휘관은 마지막에 오는 상이 된다. */
+  const unowned = pool.filter(k => !META.army.some(t => t.kind === k));
+  const owned   = pool.filter(k =>  META.army.some(t => t.kind === k));
+  const wpick = (ks) => {
+    const w = ks.map(k => RARE[rarityOf(k)].w);
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < ks.length; i++) if ((r -= w[i]) <= 0) return ks[i];
+    return ks[ks.length - 1];
+  };
+  const kind = (Math.random() * pool.length < unowned.length || !owned.length)
+    ? wpick(unowned)                                    // 새 얼굴 — 귀한 것일수록 늦게 온다
+    : owned[Math.floor(Math.random() * owned.length)];  // 겹침 — 여기는 균등(조각)
   const own = META.army.find(t => t.kind === kind);
   /* **이미 가진 종류면 조각이 된다.** 종류당 한 기만 보유하므로 또 나온 것을 창고에 쌓을
      데가 없다 — 대신 그 자리에서 별이 오른다. 이것이 이 게임의 합성이다. */
   if (own) {
-    own.frag = (own.frag | 0) + 1;
+    /* **꽝에도 폭이 있어야 한다.** 겹친 종류는 늘 조각 +1 이라, 새 유닛이 아니면 결과가
+       언제나 똑같은 한 줄이었다. 보통 1, 가끔 2~3 — 귀한 종류일수록 잘 튄다. */
+    const spike = Math.random() < 0.12 + rarityOf(kind) * 0.09;
+    const got = spike ? 2 + Math.floor(Math.random() * 2) : 1;
+    own.frag = (own.frag | 0) + got;
     let up = false;
     while (own.g < 5 && own.frag >= fragNeed(own.g)) { own.frag -= fragNeed(own.g); own.g++; up = true; }
     if (up) { noteSeen(kind, own.g); gradeUpFx(own); }
     fillFree(); syncArmy(); saveMeta();
     if (!free)
       say(up ? `<b style="color:${GCOL[own.g]}">${GNAME[own.g]} ${KINDS[kind].n}</b> 등급 상승!`
-             : `<b>${KINDS[kind].n}</b> 조각 +1 <span style="color:var(--dim)">(${own.frag}/${fragNeed(own.g)})</span>`);
+             : `<b>${KINDS[kind].n}</b> 조각 +${got}${got > 1 ? " <b style=\"color:var(--amber)\">듬뿍</b>" : ""} <span style="color:var(--dim)">(${own.frag}/${fragNeed(own.g)})</span>`);
     drawShop(); refresh();
     return own;
   }
@@ -60,6 +81,7 @@ export function recruit(free) {
   syncArmy(); saveMeta();
   if (!free)
     say((fresh ? `<b style="color:var(--amber)">새 유닛!</b> ` : "") +
+        `<b style="color:${RARE[rarityOf(kind)].col}">${RARE[rarityOf(kind)].n}</b> ` +
         `<b>${GNAME[g]} ${KINDS[kind].n}</b> 획득!`);
   drawShop(); refresh();
   return t;

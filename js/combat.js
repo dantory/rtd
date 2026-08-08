@@ -1,5 +1,5 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, foldHist, fragNeed, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, foldHist, fragNeed, RARE, rarityOf, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, powerOf, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
@@ -851,10 +851,17 @@ export function gameOver() {
      지갑에서 떼어 내 도달 라운드에 직접 매단다: 멀리 갈수록 더 온다. */
   const rolls = 1 + Math.floor(S.round / 7);
   let fresh = 0;
+  /* **귀한 게 왔으면 그걸 먼저 말한다.** 판이 끝날 때 뽑기는 조용히 여러 번 도는데,
+     결과 줄이 "새 유닛 +2 · 조각 +3" 뿐이면 로켓병이 온 판과 소총병이 온 판이 같은 줄이다.
+     뽑기의 감정은 **무엇이 왔는지**에 있다. */
+  const rareGot = [];
   for (let i = 0; i < rolls; i++) {
     const before = META.army.length;
-    recruit(true);
-    if (META.army.length > before) fresh++;
+    const t = recruit(true);
+    if (META.army.length > before) {
+      fresh++;
+      if (t && rarityOf(t.kind) > 0) rareGot.push(t.kind);
+    }
   }
   /* **이겼는지 졌는지를 먼저 말한다.** 끝나는 방식이 하나뿐인 무한 판이라 "승리"는
      기록을 넘어선 판이다 — 그게 이 게임에서 이긴다는 것의 유일한 뜻이다. */
@@ -894,7 +901,9 @@ export function gameOver() {
   /* 받은 것을 정산에 적는다. **새 종류와 조각을 갈라서** 적어야 한다 — 둘 다 "유닛 +N"
      이라고 하면 부대가 안 늘었는데 늘었다고 말하는 셈이다(조각은 별로 간다). */
   $("overD").innerHTML += ` · <b style="color:#7fb069">` +
-    [fresh ? `새 유닛 +${fresh}` : "", rolls - fresh ? `조각 +${rolls - fresh}` : ""]
+    [rareGot.length ? rareGot.map(k =>
+       `<b style="color:${RARE[rarityOf(k)].col}">${RARE[rarityOf(k)].n} ${KINDS[k].n}</b>`).join(" · ") : "",
+     fresh ? `새 유닛 +${fresh}` : "", rolls - fresh ? `조각 +${rolls - fresh}` : ""]
       .filter(Boolean).join(" · ") + `</b>`;
   /* 환생할 것이 생겼으면 결과에서 한 줄로 알린다 — 강화 메뉴를 열어 봐야 아는 성장 축이면
      있으나 마나다. 다만 여기서 하지는 않는다: 되돌릴 수 없는 결정은 제 자리에서 내린다. */

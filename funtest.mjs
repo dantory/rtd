@@ -31,6 +31,7 @@ const ev = async (x) => {
   return r?.result?.value;
 };
 await send("Runtime.enable");
+await send("Network.enable"); await send("Network.setCacheDisabled", { cacheDisabled: true });
 await send("Page.navigate", { url: "http://127.0.0.1:8772/index.html" });
 await new Promise(r => setTimeout(r, 1000));
 
