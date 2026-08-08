@@ -276,7 +276,10 @@
   .stc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;
     background:#161b22;border:1px solid #2b3340;border-radius:7px}
   .stc .stv{font-size:19px;color:var(--fg);line-height:1.1}
-  .stc .stl{font-size:10px;color:var(--dim);letter-spacing:1px}
+  /* 이름표는 **한 줄로 못 박는다.** 「최고 라운드」가 320~360px 에서 「최고 / 라운드」로
+     갈라지면 그 칸만이 아니라 grid 줄 전체가 12px 커져 넉 장이 다 들뜬다. 자리를 만든 건
+     letter-spacing:1px — 10px 한글에선 자간이 벌어져 읽히지도 않으면서 폭만 6px 먹었다. */
+  .stc .stl{font-size:10px;color:var(--dim);letter-spacing:0;white-space:nowrap}
   .hist{display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:8px;padding:0 2px;
     position:relative}
   /* 예시 그래프 — 한 판도 안 끝낸 사람에게 "여기에 무엇이 쌓이는가"를 보인다. 흐리고
