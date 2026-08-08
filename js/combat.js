@@ -90,10 +90,13 @@ export const bossPower = (r) => BOSS_POWERS[(Math.floor(r / 5) - 1 + BOSS_POWERS
    **보스가 5라운드마다 오는데 능력 셋이 돌기만 하면 그건 사건이 아니라 일정이다.**
    스물다섯 라운드마다 이름을 가진 놈이 온다 — 능력을 둘 안고, 훨씬 두껍고, 쓰러뜨리면
    크게 떨군다. 자주 오면 특별할 것이 없으므로 **드물게** 두는 것이 요점이다. */
+/* `hue`·`ring` 은 **판 위에서 알아보게 하는 몫**이다. 배너는 한 번 뜨고 사라지므로
+   이름이 나온 것을 놓치면 그 뒤로는 보통 보스와 구분할 길이 없었다 — 셋이 다 같은
+   boss.png 에 같은 붉은 테였다. 몸을 키우고 색을 갈라 **보면 안다**로 만든다. */
 const NAMED = [
-  { n:"강철 파괴자", powers:["armor","quake"], hp:2.4, sp:0.95 },
-  { n:"역병 어미",   powers:["spawn","haste"], hp:2.0, sp:1.15 },
-  { n:"장막의 것",   powers:["ward","armor"],  hp:2.6, sp:0.85 },
+  { n:"강철 파괴자", powers:["armor","quake"], hp:2.4, sp:0.95, hue:-150, ring:"180,190,205" },
+  { n:"역병 어미",   powers:["spawn","haste"], hp:2.0, sp:1.15, hue:  60, ring:"140,190,110" },
+  { n:"장막의 것",   powers:["ward","armor"],  hp:2.6, sp:0.85, hue: -95, ring:"170,130,210" },
 ];
 export const namedBoss = (r) => (r % 25 === 0 ? NAMED[(Math.floor(r / 25) - 1) % NAMED.length] : null);
 /** 이 몹이 그 능력을 가졌나 — 이름 있는 놈은 둘을 안고 온다. */
@@ -262,6 +265,7 @@ export function spawnMob() {
     if (boss) {
       const nb = namedBoss(S.round);
       if (nb) { m.powers = nb.powers.slice(); m.named = nb.n;
+                m.hue = nb.hue; m.ring = nb.ring;   // 판 위에서 알아보게 — 색조와 테
                 m.hp = m.maxHp = hp * nb.hp; m.speed *= nb.sp; }
       else m.power = bossPower(S.round);   // 보통 보스는 능력 하나
     }
@@ -1167,13 +1171,17 @@ export function paint() {
       el = document.createElement("div");
       /* 종류를 클래스로 남긴다 — **색조를 종류마다 갈라야 한 화면에서 구분된다.**
          공통 필터 하나로 전부 붉게 물들이면 치유체의 초록도 자폭체의 불꽃도 죽는다. */
-      el.className = "mob k-" + m.kind + (m.boss ? " boss" : "");
+      el.className = "mob k-" + m.kind + (m.boss ? " boss" : "") + (m.named ? " named" : "");
+      /* **이름은 몸에 붙어 있어야 한다** — 배너는 한 번 뜨고 사라진다. 이름표는 이름 있는
+         놈에게만 달고(DOM 을 쓸데없이 늘리지 않는다), 그놈 색으로 테를 두른다. */
       el.innerHTML = `<img class="spr" src="assets/mob/${m.kind}.png" alt=""
-          onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()"><i></i>`;
+          onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()"><i></i>` +
+        (m.named ? `<b class="nametag">${m.named}</b>` : "");
       $("world").appendChild(el);
       mobEls.set(m.id, el);
     }
-    const p = mobPos(m), sz = m.boss ? 76 : 44;
+    // 이름 있는 놈은 보통 보스보다 한 뼘 더 크다 — 크기부터가 "이건 다른 놈"이다
+    const p = mobPos(m), sz = m.named ? 98 : m.boss ? 76 : 44;
     const pct = Math.max(0, m.hp / m.maxHp);
     /* ══ 걸음 ══
        **그림 한 장을 좌표만 바꿔 밀면 걷는 게 아니라 미끄러진다**(병수님: "그냥 둥둥
@@ -1199,7 +1207,9 @@ export function paint() {
     el.style.cssText = `left:${p.x - sz/2}px;top:${p.y - sz/2}px;width:${sz}px;height:${sz}px;` +
       `--bob:${bob.toFixed(2)};--tilt:${tilt.toFixed(2)};--flip:${m.flip || 1};` +
       `--sx:${(1 + sq).toFixed(3)};--sy:${(1 - sq).toFixed(3)};` +
-      `--sh:${(1 - bob / 8).toFixed(2)}`;
+      `--sh:${(1 - bob / 8).toFixed(2)}` +
+      /* cssText 는 매 프레임 통째로 갈아치운다 — 색조·테는 여기 같이 실어야 안 날아간다 */
+      (m.named ? `;--ring:${m.ring || "224,164,88"};--hue:${m.hue || 0}deg` : "");
     el.classList.toggle("slowed", !!m.slow);
     el.classList.toggle("hitting", !!m.stuck);   // 붙은 놈은 걷는 대신 때리는 결로
     /* **왜 안 잡히는지, 왜 위험한지를 화면이 말해야 한다.**
