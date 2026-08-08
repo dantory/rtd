@@ -2,7 +2,11 @@ import { sfx, setSound, soundOn } from "./sound.js";
 import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { autoBest, dmgOf, fillFree, fragLeft, inBox, isOut, nearGradeUp, placed, powerOf, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
-import { bossNote, drawShop, drawTowers, exNum, mobEls, MOBNAME, MOBWEAK, namedBoss, namedSoon, paint, setNum, shortNum, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
+import { bossNote, bossTip, drawShop, drawTowers, exNum, mobEls, MOBNAME, MOBWEAK, namedBoss, namedSoon, paint, setNum, shortNum, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
+
+/* 여러 줄짜리 말풍선 글을 HTML 속성에 넣는다 — 줄바꿈은 `&#10;` 로 살려야 속성 파서를
+   지나 `dataset.ex` 까지 온다. */
+const exAttr = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/\n/g, "&#10;");
 
 
 /* ══ 패널 ══ */
@@ -54,13 +58,16 @@ export function refresh() {
   const ns = nb ? null : namedSoon(nextR);
   $("wavebar").innerHTML =
     `<span>다음 <b>${nextR}R</b>${th ? ` <b style="color:var(--amber)">${th.n}</b>` : ""} · 적 ${waveN(nextR)}</span>` + icons +
-    (nb ? `<span class="namedwarn" style="--ring:${nb.ring};--hue:${nb.hue}deg"
-        title="${bossNote(nextR)}"><img class="mobico" src="assets/mob/boss.png" alt=""
+    /* 이름만으로는 **무엇을 갈아 끼울지**가 안 나온다 — 누르면 능력과 그때 유리한 것이
+       말풍선으로 뜬다(`data-ex`, wireExact 가 맡는다). 머리줄 자리는 안 먹는다. */
+    (nb ? `<span class="namedwarn exn" style="--ring:${nb.ring};--hue:${nb.hue}deg"
+        title="${bossNote(nextR)}" data-ex="${exAttr(bossTip(nextR))}"><img class="mobico" src="assets/mob/boss.png" alt=""
         onerror="this.remove()">${nb.n}</span>`
-      : isBossR(nextR) ? `<img class="mobico" src="assets/mob/boss.png" alt="" title="${bossNote(nextR)}"
-        onerror="this.remove()">` : "") +
-    (ns ? `<span class="namedsoon" style="--ring:${ns.nb.ring}"
-        title="${ns.r}R — ${bossNote(ns.r)} · 그때까지 갈아 끼울 것">${ns.away}R 뒤 ${ns.nb.n}</span>` : "") +
+      : isBossR(nextR) ? `<img class="mobico exn" src="assets/mob/boss.png" alt="" title="${bossNote(nextR)}"
+        data-ex="${exAttr(bossTip(nextR))}" onerror="this.remove()">` : "") +
+    (ns ? `<span class="namedsoon exn" style="--ring:${ns.nb.ring}"
+        title="${ns.r}R — ${bossNote(ns.r)} · 그때까지 갈아 끼울 것"
+        data-ex="${exAttr(bossTip(ns.r) + "\n그때까지 갈아 끼울 것")}">${ns.away}R 뒤 ${ns.nb.n}</span>` : "") +
     (wsum.length ? `<span class="weaksum" title="이 웨이브에 유리한 공격">유리 ${wsum.join("·")}</span>` : "");
   $("waveNote").textContent = S.running
     ? `${S.toSpawn}마리 중 ${S.spawned}마리 나옴 · 남은 적 ${S.mobs.length}`
@@ -129,10 +136,11 @@ export function drawSquad() {
   const nnb = namedBoss(nextR), nns = nnb ? null : namedSoon(nextR);
   $("sqWave").innerHTML =
     `다음 <b>${nextR}R</b>${nth ? ` <b style="color:var(--amber)">${nth.n}</b>` : ""} — ` + nk.map(k => MOBNAME[k]).join(" · ") +
-    (nnb ? ` · <b style="color:rgb(${nnb.ring})">「${nnb.n}」</b>`
-      : isBossR(nextR) ? ` · <b style="color:var(--amber)">큰 놈</b>` : "") +
+    /* 갈아 끼우는 손이 여기 있으니 **눌러서 속을 보는 것도 여기서** 되어야 한다. */
+    (nnb ? ` · <b class="exn" style="color:rgb(${nnb.ring})" data-ex="${exAttr(bossTip(nextR))}">「${nnb.n}」</b>`
+      : isBossR(nextR) ? ` · <b class="exn" style="color:var(--amber)" data-ex="${exAttr(bossTip(nextR))}">큰 놈</b>` : "") +
     /* 갈아 끼우는 손이 여기 있으니 **몇 판 남았는지도 여기서** 읽혀야 한다. */
-    (nns ? ` · <b style="color:rgb(${nns.nb.ring})">${nns.away}R 뒤 「${nns.nb.n}」</b>` : "") +
+    (nns ? ` · <b class="exn" style="color:rgb(${nns.nb.ring})" data-ex="${exAttr(bossTip(nns.r) + "\n그때까지 갈아 끼울 것")}">${nns.away}R 뒤 「${nns.nb.n}」</b>` : "") +
     (weaks.length ? `<br><span style="color:var(--steel)">유리한 공격</span> <b>${weaks.join(" · ")}</b>` : "");
 
   const spots = SLOT_SPOTS.slice(0, slotMax());

@@ -85,6 +85,17 @@ export const POWNAME = {
   armor: "받는 피해가 절반",
 };
 export const bossPower = (r) => BOSS_POWERS[(Math.floor(r / 5) - 1 + BOSS_POWERS.length) % BOSS_POWERS.length];
+/* **능력 이름만으로는 무엇을 갈아 끼울지가 안 나온다.** 「받는 피해가 절반」을 읽어도 그래서
+   뭘 내보내라는 것인지는 판에서 맞아 보고야 안다 — 다섯 판 앞서 알려 주는 뜻이 없어진다.
+   능력마다 **그때 유리한 것**을 한마디로 짝지어 둔다(게임이 실제로 재는 수와 같은 쪽으로:
+   ward 는 120px 밖에서 0.45배, armor 는 절반, quake 는 벙커를 직접 친다). */
+export const POWCOUNTER = {
+  haste: "먼저 이놈부터 — 사거리",
+  spawn: "새끼까지 한꺼번에 — 범위",
+  ward:  "가까이서 때리는 것 — 짧은 사거리",
+  quake: "빨리 끊는 것 — 연사",
+  armor: "한 방이 큰 것 — 절반이 깎여도 남게",
+};
 
 /* ══ 이름 있는 놈 ══
    **보스가 5라운드마다 오는데 능력 셋이 돌기만 하면 그건 사건이 아니라 일정이다.**
@@ -138,6 +149,15 @@ export function bossNote(r) {
   const nb = namedBoss(r);
   if (nb) return `「${nb.n}」 — ${nb.powers.map(p => POWNAME[p]).join(" · ")}`;
   return "큰 놈 등장 — " + POWNAME[bossPower(r)];
+}
+/** **예고 칩을 누르면 뜨는 속.** 마우스가 있는 화면은 `title` 로 읽었지만 폰에는 마우스가
+ *  없어서, 다섯 판 앞서 이름을 대 놓고도 **그놈이 무엇에 약한지는 코앞에 와야** 나왔다.
+ *  칩에 `data-ex` 로 달아 `wireExact` 의 말풍선에 얹는다 — 머리줄 자리를 새로 안 먹는다. */
+export function bossTip(r) {
+  const nb = namedBoss(r);
+  const powers = nb ? nb.powers : [bossPower(r)];
+  return [`${r}R — ${nb ? `「${nb.n}」` : "큰 놈"}`,
+    ...powers.map(p => `· ${POWNAME[p]}\n   → ${POWCOUNTER[p]}`)].join("\n");
 }
 
 /** 보스가 쓰러진 자리에서 새끼가 흩어진다 — runner 결의 얇은 몹 4마리. 소환 수(S.spawned)에는
@@ -1062,14 +1082,20 @@ export function wireExact() {
     const t = e.target instanceof Element ? e.target.closest("[data-ex]") : null;
     if (!t || t.closest("button")) return hide();
     if (!bub) { bub = document.createElement("div"); bub.id = "exbub"; document.body.appendChild(bub); }
-    bub.textContent = t.dataset.ex;
+    const txt = t.dataset.ex;
+    bub.textContent = txt;
+    /* 수 하나면 한 줄이지만 예고 칩의 속은 여러 줄이다 — 320px 에서 nowrap 이면 화면 밖으로
+       샌다. 줄바꿈이 들어 있을 때만 여러 줄 꼴로 편다. */
+    bub.classList.toggle("multi", txt.includes("\n"));
     bub.classList.add("on");
-    const r = t.getBoundingClientRect(), w = bub.offsetWidth;
+    const r = t.getBoundingClientRect(), w = bub.offsetWidth, h = bub.offsetHeight;
     // 화면 밖으로 나가지 않게 좌우를 물린다 — 320px 에서 오른쪽 끝 숫자가 잘리던 자리
     bub.style.left = Math.round(Math.min(Math.max(6, r.left + r.width / 2 - w / 2), innerWidth - w - 6)) + "px";
-    bub.style.top = Math.round(Math.max(4, r.top - bub.offsetHeight - 6)) + "px";
+    /* 머리줄은 화면 맨 위라 그 위에 뜰 자리가 없다 — 위가 모자라면 아래로 넘긴다.
+       (예전엔 top 을 4 로 물려서 칩을 가린 채 떴다.) */
+    bub.style.top = Math.round(r.top - h - 6 >= 4 ? r.top - h - 6 : Math.min(r.bottom + 6, innerHeight - h - 4)) + "px";
     clearTimeout(timer);
-    timer = setTimeout(hide, 2200);
+    timer = setTimeout(hide, txt.includes("\n") ? 4600 : 2200);
   }, true);
 }
 

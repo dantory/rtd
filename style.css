@@ -310,10 +310,16 @@
   .exn{cursor:pointer;-webkit-tap-highlight-color:transparent}
   b.exn{border-bottom:1px dotted currentColor}
   .stc.exn .stv{border-bottom:1px dotted #4b5563}
+  /* 머리줄은 판 위에 얹힌 덮개라 통째로 `pointer-events:none` 이다(끌기가 판까지 가야 한다).
+     **누를 수 있어야 하는 것만** 도로 켠다 — 예고 칩. 안 켜면 눌러도 아무 일이 없다. */
+  #wavebar .exn{pointer-events:auto}
   #exbub{position:fixed;z-index:90;pointer-events:none;opacity:0;transition:opacity .12s;
     background:#0d1117;border:1px solid var(--amber);border-radius:6px;color:var(--fg);
     font-size:12px;padding:4px 8px;white-space:nowrap;box-shadow:0 3px 10px #0009}
   #exbub.on{opacity:1}
+  /* 예고 칩의 속 — 여러 줄. 320px 에서도 안 새게 폭을 물린다. */
+  #exbub.multi{white-space:pre-line;max-width:min(248px,calc(100vw - 24px));text-align:left;
+    line-height:1.5;font-size:11px;padding:6px 9px}
   /* 이름표는 **한 줄로 못 박는다.** 「최고 라운드」가 320~360px 에서 「최고 / 라운드」로
      갈라지면 그 칸만이 아니라 grid 줄 전체가 12px 커져 넉 장이 다 들뜬다. 자리를 만든 건
      letter-spacing:1px — 10px 한글에선 자간이 벌어져 읽히지도 않으면서 폭만 6px 먹었다. */
