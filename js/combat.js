@@ -1003,6 +1003,7 @@ export function drawStats() {
   };
   /* 밑줄 한 줄 — 옛 묶음이 있으면 **그때와 지금을 나란히** 놓는다. 그게 이 화면의 요점이다. */
   const first = eps[0];
+  const firstWhen = first ? (w => w === "옛" ? "" : w)(epWhen(first).trim()) : "";
   /* **며칠째인가.** 스물넷 막대는 판 순서일 뿐이라 어제 굴린 건지 한 달 전 건지가 안 남는다.
      굴린 날수와 오늘 판 수를 한 줄로 놓으면 그래프가 언제의 것인지가 붙는다.
      시각을 안 들고 있던 옛 세이브에는 이 줄이 없다 — 다음 판부터 쌓인다. */
@@ -1018,7 +1019,11 @@ export function drawStats() {
     ? `한 판에 평균 <b>${(kills / runs).toFixed(0)}</b>기 처치` +
       (hist.length >= 4
         ? ` · 최근 넷 평균 <b>${(hist.slice(0, 4).reduce((a, b) => a + b, 0) / 4).toFixed(1)}</b>라운드` : "") +
-      (first ? ` · 첫 ${first.n}판 평균 <b>${(first.sum / first.n).toFixed(1)}</b>라운드` : "") +
+      /* **언제의 첫 판인가.** 「첫 10판 평균」이 그때와 지금을 나란히 놓는 줄인데, 그 「그때」가
+         막대를 눌러야만 뜨는 설명 안에만 있었다. 묶음이 든 시각을 괄호로 붙여 안 눌러도 읽히게.
+         시각을 안 들고 있던 옛 세이브(「옛 」)에는 괄호를 안 단다 — 없던 날짜를 지어내지 않는다. */
+      (first ? ` · 첫 ${first.n}판${firstWhen ? `(${firstWhen})` : ""} 평균 ` +
+               `<b>${(first.sum / first.n).toFixed(1)}</b>라운드` : "") +
       dayLine
     : `처음 한 판을 끝내면 기록이 남는다`;
 }
