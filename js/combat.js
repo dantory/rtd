@@ -1,5 +1,5 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, foldHist, fragNeed, RARE, rarityOf, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN } from "./core.js";
+import { $, foldHist, fragNeed, RARE, rarityOf, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN, skipTo } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, powerOf, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
@@ -902,6 +902,13 @@ export function gameOver() {
   foldHist(META);
   saveMeta();
   sfx(best ? "win" : "lose");
+  /* **건너뛰기 버튼은 갈 수 있을 때만 보인다.** 최고 기록이 낮으면(첫 몇 판) 건너뛸 데가
+     없으므로 아예 숨긴다 — 눌리지도 않는 버튼이 자리만 먹으면 화면이 시끄러워진다. */
+  const sk = $("skipBtn"), to = skipTo();
+  if (sk) {
+    sk.style.display = to >= 5 ? "" : "none";
+    sk.textContent = to + "라운드부터";
+  }
   $("overT").textContent = best ? "최고 기록" : "패배";
   $("overT").style.color = best ? "#e0a458" : "#d05353";
   /* ══ 어디서 막혔나를 **관문으로** 말한다 ══

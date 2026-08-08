@@ -117,7 +117,11 @@
         <button id="forgeBtn" style="flex:1;padding:11px 14px">강화</button>
         <button id="overSquad" style="flex:1;padding:11px 14px">배치</button>
       </div>
-      <div class="stick"><button id="again" style="padding:11px 26px">한 판 더</button></div>
+      <div class="stick" style="display:flex;gap:7px;justify-content:center;flex-wrap:wrap">
+        <button id="again" style="padding:11px 26px">한 판 더</button>
+        <!-- 이미 깬 데는 건너뛴다 — 최고 기록보다 두 관문 아래까지(skipTo). 없으면 숨는다 -->
+        <button id="skipBtn" style="padding:11px 20px;display:none"></button>
+      </div>
     </div></div>
     <!-- 강화 — 자원을 쓰는 곳이 한 메뉴에 모인다: 뽑기 · 벙커 능력치 · 종류 훈련 -->
     <div id="forge"><div class="box">

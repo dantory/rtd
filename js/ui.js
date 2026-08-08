@@ -1,5 +1,5 @@
 import { sfx, setSound, soundOn } from "./sound.js";
-import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
+import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN, skipTo } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { autoBest, dmgOf, fillFree, fragLeft, inBox, isOut, nearGradeUp, placed, powerOf, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
 import { bossNote, bossTip, drawShop, drawTowers, exNum, mobEls, MOBNAME, MOBWEAK, namedBoss, namedSoon, paint, setNum, shortNum, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
@@ -269,10 +269,14 @@ export let mdrag = null;
 // iOS 는 주소창이 접히며 높이가 변한다 — 처음 한 번 더 맞춰 주지 않으면 판이 잘린 채로 남는다
 
 
-export function newGame() {
+/** `from` 을 주면 그 라운드부터 시작한다(건너뛰기). 최고 기록보다 두 관문 아래까지만
+ *  — 값은 `skipTo()` 가 정하고, 여기서 한 번 더 가둔다(저장이 깨져도 100라운드에서
+ *  시작하는 일이 없게). */
+export function newGame(from) {
+  const start = Math.max(1, Math.min(from | 0 || 1, Math.max(1, skipTo())));
   refreshSlots();            // 자리 늘리기한 만큼 자리를 연다 — 판을 시작할 때 한 번
   Object.assign(S, {
-    coreHp: metaLife(), coreMax: metaLife(), round: 1,
+    coreHp: metaLife(), coreMax: metaLife(), round: start,
     towers: [], mobs: [], shots: [],
     running: false, spawned: 0, toSpawn: 0, spawnT: 0, sel: null, over: false,
     speed: S.speed || 1,                        // 배속은 판을 넘어 유지한다
@@ -380,6 +384,10 @@ export function wireUI() {
   $("toSquad").onclick = () => openSquad();
   $("forgeBtn").onclick = openShop;
   $("overSquad").onclick = () => openSquad();
+  /* **이미 깬 데를 또 기어오르지 않는다.** 벽에 부딪히고 강화하고 다시 오는 게 이 장르의
+     리듬인데, 그 "다시"가 매번 1라운드부터면 벽에 닿기까지 몇 분이 앞에 붙는다.
+     건너뛴 라운드의 판 도중 전리품은 안 들어오므로 이득이 아니라 **시간을 아끼는 것**이다. */
+  $("skipBtn").onclick = () => { const to = skipTo(); if (to >= 1) newGame(to); };
   $("forgeClose").onclick = () => $("forge").classList.remove("on");
   /* 환생 — 되돌릴 수 없으니 무엇이 사라지고 무엇이 남는지를 한 번 더 묻는다.
      누른 뒤에는 판을 처음부터 다시 시작한다 — 반납한 부대로 판을 이어 갈 수는 없다. */
@@ -402,7 +410,9 @@ export function wireUI() {
     const b = e.target.closest("[data-train]");
     if (b) trainKind(b.dataset.train);
   });
-  $("again").onclick = newGame;
+  /* `newGame` 을 그대로 걸면 **클릭 이벤트가 `from` 으로 들어간다**(지금은 `|0` 이
+     0 이라 우연히 1라운드가 되지만, 우연에 기대는 자리는 언젠가 깨진다). */
+  $("again").onclick = () => newGame(1);
   const inModal = (e) => e.target.closest("#over,#forge,#squad,#settings,#offline");
   $("field").addEventListener("touchstart", (e) => {
     if (inModal(e)) return;
