@@ -225,6 +225,10 @@
     font-size:11px;font-weight:700;color:rgb(var(--ring));border:1px solid rgba(var(--ring),.55);
     border-radius:6px;padding:1px 6px;background:rgba(var(--ring),.10)}
   #wavebar .namedwarn .mobico{filter:hue-rotate(var(--hue)) drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+  /* 몇 판 앞선 예고 — 코앞의 것보다 한 톤 죽인다. 늘 떠 있는 글이라 눈을 안 끌어야 한다 */
+  #wavebar .namedsoon{white-space:nowrap;font-size:10px;font-weight:700;color:rgba(var(--ring),.85);
+    border:1px dashed rgba(var(--ring),.40);border-radius:6px;padding:1px 5px;
+    background:rgba(var(--ring),.06)}
   /* 배치 화면 맨 위의 다음 웨이브 줄 — 갈아 끼우는 손이 여기 있으니 정보도 여기 둔다 */
   .sqwave{text-align:left;line-height:1.65;padding:8px 10px;margin-bottom:8px;
     border:1px solid #2b3138;border-radius:8px;background:#171b20}

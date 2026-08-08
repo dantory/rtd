@@ -118,6 +118,20 @@ export function namedBoss(r) {
   return { ...base, powers, n: `${NAMED_TIER[cyc] || cyc + 1 + "대"} ${base.n}`,
            hp: base.hp * (1 + 0.6 * cyc), sp: base.sp * (1 + 0.04 * cyc) };
 }
+/* **예고가 한 라운드 앞뿐이면 아직 준비할 시간이 아니다.** 이름은 대게 됐지만 뜨는 때가
+   24R 을 마치고 나서다 — 25R 짜리에 맞춰 갈아 끼우려면 자원·합성이 몇 판 필요하다.
+   그래서 몇 판 앞서 "3R 뒤 「강철 파괴자」"를 댄다. 너무 일찍부터 늘 떠 있으면 배경이
+   되므로 **다섯 판 안**으로만 — 그 밖에서는 조용한 편이 정확하다. */
+export const NAMED_SOON = 5;
+/** 다음에 올 이름 있는 놈 — `away` 판 뒤다. 코앞(away===0)이거나 멀면 null. */
+export function namedSoon(r) {
+  const br = (Math.floor(r / 25) + 1) * 25;             // r 다음의 25 배수
+  const away = br - r;
+  if (away > NAMED_SOON) return null;
+  const nb = namedBoss(br);
+  return nb ? { r: br, away, nb } : null;
+}
+
 /** 이 몹이 그 능력을 가졌나 — 이름 있는 놈은 둘을 안고 온다. */
 export const hasPow = (m, p) => m.powers ? m.powers.includes(p) : m.power === p;
 export function bossNote(r) {
