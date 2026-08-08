@@ -940,17 +940,32 @@ function epWhen(e) {
   return `${a}~${b} `;
 }
 
+/** 큰 수는 **줄여 적는다.** 넉 장은 `repeat(4,1fr)` 이지만 칸 안이 「1,284,000」처럼
+ *  안 접히는 덩어리면 그 칸이 제 몫보다 넓어지고 옆칸을 빼앗는다 — 320px 에서
+ *  96 / 39 / 65 / 55px 까지 기울었다. 백 판 굴린 사람일수록 더 기운다.
+ *  `min-width:0` 만 주면 이번엔 숫자가 칸 밖으로 나가니, 수 자체를 짧게 적는 쪽이 맞다.
+ *  만 아래는 그대로, 위는 「128만」·「1.2억」 — 화면 말투도 짧은 명사구다.
+ *  정확한 수는 title 로 남는다. */
+export const shortNum = v => {
+  const n = Math.max(0, Math.floor(Number(v) || 0));
+  if (n < 10000) return n.toLocaleString();
+  const [div, unit] = n >= 1e8 ? [1e8, "억"] : [1e4, "만"];
+  const m = n / div;
+  // 열 미만은 한 자리를 남긴다 — 「1만」과 「1.9만」은 배 가까이 다르다
+  return (m < 10 ? m.toFixed(1).replace(/\.0$/, "") : Math.round(m)) + unit;
+};
+
 export function drawStats() {
   const hist = Array.isArray(META.hist) ? META.hist : [];
   const histT = Array.isArray(META.histT) ? META.histT : [];
   const runs = META.runs | 0, kills = META.kills | 0;
   const avg = hist.length ? hist.reduce((a, b) => a + b, 0) / hist.length : 0;
-  const cell = (lb, v, col) =>
-    `<div class="stc"><span class="stv"${col ? ` style="color:${col}"` : ""}>${v}</span>
+  const cell = (lb, v, col, tt) =>
+    `<div class="stc"${tt ? ` title="${tt}"` : ""}><span class="stv"${col ? ` style="color:${col}"` : ""}>${v}</span>
        <span class="stl">${lb}</span></div>`;
   $("stats").innerHTML =
-    cell("누적 처치", kills.toLocaleString(), "#d05353") +
-    cell("판 수", runs.toLocaleString()) +
+    cell("누적 처치", shortNum(kills), "#d05353", `${kills.toLocaleString()}기`) +
+    cell("판 수", shortNum(runs), "", `${runs.toLocaleString()}판`) +
     cell("최고 라운드", (META.best | 0), "var(--amber)") +
     cell("최근 평균", avg ? avg.toFixed(1) : "—", "#7fb069");
   /* 이력 막대 — 왼쪽이 오래된 것, 오른쪽이 방금 것. 최고 기록을 세운 판만 호박색으로

@@ -58,14 +58,15 @@ for (const w of WIDTHS) {
   const cells = await p.evaluate(PROBE);
   const heights = cells.map(c => c.cellH);
   const ragged = Math.max(...heights) - Math.min(...heights) > 1;
-  /* 폭도 같이 적는다 — repeat(4,1fr) 인데 min-width:auto 라 긴 숫자가 제 칸을 넓히고
-     옆칸을 빼앗는다. 아직 삐져나가진 않으니 ✗ 로는 안 세고 숫자만 남긴다(ROADMAP). */
+  /* 폭도 **✗ 로 센다** — repeat(4,1fr) 이라도 min-width:auto 면 긴 숫자가 제 칸을 넓히고
+     옆칸을 빼앗는다(320px 에서 96 / 39 / 65 / 55px). min-width:0 + 줄여 적기(shortNum)
+     로 막았으니, 다시 기울면 그건 되돌아간 것이다. */
   const widths = cells.map(c => c.cellW);
   const uneven = Math.max(...widths) - Math.min(...widths) > 2;
   console.log(`${w}px  칸 키 ${heights.join(" / ")}${ragged ? "  ← 들쭉날쭉" : ""}` +
               `  · 칸 폭 ${widths.join(" / ")}${uneven ? "  ← 넉 장이 안 고르다" : ""}`);
   for (const c of cells) {
-    const ok = c.lines === 1 && c.vLines === 1 && !ragged && c.spill <= 1;
+    const ok = c.lines === 1 && c.vLines === 1 && !ragged && !uneven && c.spill <= 1;
     if (!ok) bad++;
     console.log(`   ${ok ? "✓" : "✗"} ${c.name} (${c.val}) — 이름표 ${c.lines}줄 · 숫자 ${c.vLines}줄` +
                 (c.spill > 1 ? ` · 칸 밖 ${c.spill}px` : ""));
