@@ -1257,7 +1257,50 @@ export function drawTowers() {
   $("world").appendChild(rg);
 }
 
+/* ══ 색을 **미리 구워 둔다** ══
+   적 스프라이트마다 CSS 필터가 여섯 단이었다(drop-shadow · grayscale · sepia · saturate ·
+   hue-rotate · brightness). 필터는 그 요소가 다시 칠해질 때마다 통째로 다시 도는데, 적은
+   매 프레임 움직이므로 **백서른 마리면 프레임마다 백서른 장을 다시 칠한다.**
+   병수님: "적군 많이 나오면 렉 걸린다."
+
+   같은 필터를 캔버스에 **한 번만** 걸어 구워 두고, 그 결과를 그림으로 쓴다. 화면에 보이는
+   색은 한 픽셀도 안 달라지고(같은 필터 문자열이다), 판 위에서는 필터가 아예 사라진다.
+   종류마다 보통·서리 두 장이면 되고, 이름 있는 놈(한 번에 한 마리)만 CSS 로 남긴다. */
+const TINT = {
+  splitter: "grayscale(1) sepia(1) saturate(4.5) hue-rotate(-72deg) brightness(1)",
+  healer:   "grayscale(1) sepia(1) saturate(4) hue-rotate(50deg) brightness(1.05)",
+  shooter:  "grayscale(1) sepia(1) saturate(5) hue-rotate(-8deg) brightness(1.05)",
+  bomber:   "grayscale(1) sepia(1) saturate(6) hue-rotate(4deg) brightness(1.15)",
+};
+const TINT_BASE = "grayscale(1) sepia(1) saturate(5.5) hue-rotate(-32deg) brightness(.95)";
+const TINT_SLOW = "grayscale(1) sepia(1) saturate(4) hue-rotate(160deg) brightness(1.15)";
+const baked = new Map();          // "kind|slow" → 구운 그림의 주소
+/** 구워 준다. 아직 안 구워졌으면 원본 주소를 돌려주고, 다 구워지면 그때 갈아 끼운다 —
+ *  그림 한 장 읽는 동안 판이 멈출 이유가 없다. */
+function bakedSrc(kind, slow) {
+  const key = kind + (slow ? "|s" : "");
+  if (baked.has(key)) return baked.get(key);
+  const src = `assets/mob/${kind}.png`;
+  baked.set(key, src);            // 구워지기 전에는 원본 그대로
+  const img = new Image();
+  img.onload = () => {
+    try {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth || 32; c.height = img.naturalHeight || 32;
+      const x = c.getContext("2d");
+      x.imageSmoothingEnabled = false;
+      x.filter = slow ? TINT_SLOW : (TINT[kind] || TINT_BASE);
+      x.drawImage(img, 0, 0);
+      baked.set(key, c.toDataURL());
+    } catch { /* 캔버스가 막히면 원본으로 산다 — 색만 달라지고 판은 돈다 */ }
+  };
+  img.src = src;
+  return src;
+}
+
 export let mobEls = new Map();
+/** 탄은 만들어 두고 돌려 쓴다 — 매 프레임 지웠다 만들면 그 수만큼 레이아웃이 돈다. */
+const shotPool = [];
 export let towersHurtLast = false;
 export function paint() {
   // 몹
@@ -1275,8 +1318,16 @@ export function paint() {
       el.innerHTML = `<img class="spr" src="assets/mob/${m.kind}.png" alt=""
           onerror="this.parentNode&amp;&amp;this.parentNode.classList.add('noimg');this.remove()"><i></i>` +
         (m.named ? `<b class="nametag">${m.named}</b>` : "");
+      /* **크기는 한 번만 정한다.** 종류가 바뀌지 않으므로 매 프레임 width/height 를 쓰면
+         레이아웃만 다시 돌 뿐이다(129마리에서 프레임당 레이아웃 2.4회의 절반이 여기였다). */
+      const s0 = m.named ? 98 : m.boss ? 76 : 44;
+      el.style.width = el.style.height = s0 + "px";
+      el.style.left = el.style.top = "0px";
       $("world").appendChild(el);
       mobEls.set(m.id, el);
+      el._spr = el.querySelector(".spr");
+      el._bar = el.querySelector("i");
+      el._st = {};                 // 마지막으로 쓴 값 — 안 바뀐 것은 다시 안 쓴다
     }
     // 이름 있는 놈은 보통 보스보다 한 뼘 더 크다 — 크기부터가 "이건 다른 놈"이다
     const p = mobPos(m), sz = m.named ? 98 : m.boss ? 76 : 44;
@@ -1302,12 +1353,33 @@ export function paint() {
        눌림이 붙어야 발이 땅을 민 것으로 보인다(스프라이트가 한 장이라 이게 걸음의 대역이다). */
     const sq = walking ? Math.cos(ph * 2) * 0.05 : 0;
     if (dx < -0.02) m.flip = -1; else if (dx > 0.02) m.flip = 1;
-    el.style.cssText = `left:${p.x - sz/2}px;top:${p.y - sz/2}px;width:${sz}px;height:${sz}px;` +
-      `--bob:${bob.toFixed(2)};--tilt:${tilt.toFixed(2)};--flip:${m.flip || 1};` +
-      `--sx:${(1 + sq).toFixed(3)};--sy:${(1 - sq).toFixed(3)};` +
-      `--sh:${(1 - bob / 8).toFixed(2)}` +
-      /* cssText 는 매 프레임 통째로 갈아치운다 — 색조·테는 여기 같이 실어야 안 날아간다 */
-      (m.named ? `;--ring:${m.ring || "224,164,88"};--hue:${m.hue || 0}deg` : "");
+    /* ══ 위치는 **transform 으로** 옮긴다 ══
+       left/top 을 쓰면 그 한 줄이 레이아웃을 부른다. 백서른 마리면 프레임마다 백서른 번이다
+       (병수님: "적군 많이 나오면 렉 걸린다"). translate3d 는 레이아웃도 칠하기도 안 건드리고
+       합성 단계에서 끝난다. 걸음(bob·tilt·flip·눌림)도 CSS 변수로 넘겨 자식이 다시 계산하게
+       하는 대신 **자식의 transform 을 직접** 쓴다 — 변수 하나를 바꾸면 그 아래가 통째로
+       다시 계산되기 때문이다. 접지 그림자만 ::after 가 읽어야 해서 변수로 남긴다. */
+    const st = el._st;
+    const tx = (p.x - sz / 2).toFixed(1), ty = (p.y - sz / 2).toFixed(1);
+    const mt = `translate3d(${tx}px,${ty}px,0)`;
+    if (st.mt !== mt) { el.style.transform = mt; st.mt = mt; }
+    if (el._spr) {
+      const spr = `translateY(${(-bob).toFixed(2)}px) rotate(${tilt.toFixed(2)}deg) ` +
+        `scale(${((1 + sq) * (m.flip || 1)).toFixed(3)},${(1 - sq).toFixed(3)})`;
+      if (st.spr !== spr) { el._spr.style.transform = spr; st.spr = spr; }
+    }
+    const sh = (1 - bob / 8).toFixed(2);
+    if (st.sh !== sh) { el.style.setProperty("--sh", sh); st.sh = sh; }
+    if (m.named && !st.named) {         // 색조·테는 안 바뀐다 — 한 번만
+      el.style.setProperty("--ring", m.ring || "224,164,88");
+      el.style.setProperty("--hue", (m.hue || 0) + "deg");
+      st.named = true;
+    }
+    /* 구운 그림으로 갈아 끼운다 — 서리를 맞으면 파란 쪽으로. 주소가 그대로면 안 건드린다. */
+    if (el._spr && !m.named) {
+      const src = bakedSrc(m.kind, !!m.slow);
+      if (el._spr.getAttribute("src") !== src) el._spr.setAttribute("src", src);
+    }
     el.classList.toggle("slowed", !!m.slow);
     el.classList.toggle("hitting", !!m.stuck);   // 붙은 놈은 걷는 대신 때리는 결로
     /* **왜 안 잡히는지, 왜 위험한지를 화면이 말해야 한다.**
@@ -1316,11 +1388,16 @@ export function paint() {
     const pf = MOB[m.kind] || {};
     el.classList.toggle("standing", !!(pf.standoff && m.stuck));
     el.classList.toggle("fuse", !!pf.bomb);
-    const bar = el.querySelector("i");
+    /* 체력바도 **바뀔 때만** 쓴다. 성한 놈이 대부분이라(안 맞은 채 걸어온다) 여기서
+       매 프레임 width 를 쓰면 레이아웃이 공짜로 한 번씩 더 돈다. */
+    const bar = el._bar;
     if (bar) {
-      bar.style.width = Math.max(3, sz * 0.8 * pct) + "px";
-      bar.style.background = pct > .5 ? "#7fb069" : pct > .25 ? "#e0a458" : "#d05353";
-      bar.style.display = pct >= 1 ? "none" : "block";   // 성한 놈에게는 바를 안 그린다
+      const w = Math.max(3, sz * 0.8 * pct).toFixed(1);
+      if (st.w !== w) { bar.style.width = w + "px"; st.w = w; }
+      const col = pct > .5 ? "#7fb069" : pct > .25 ? "#e0a458" : "#d05353";
+      if (st.col !== col) { bar.style.background = col; st.col = col; }
+      const dis = pct >= 1 ? "none" : "block";           // 성한 놈에게는 바를 안 그린다
+      if (st.dis !== dis) { bar.style.display = dis; st.dis = dis; }
     }
   }
   for (const [id, el] of mobEls) if (!alive.has(id)) { el.remove(); mobEls.delete(id); }
@@ -1333,15 +1410,24 @@ export function paint() {
 
   // 탄 — 점이 아니라 **진행 방향으로 늘어난 짧은 트레이서**. 나아가는 결이 보여야 "쏘고 있다"가
   // 읽힌다. 시작점→목표 방향으로 rotate 하고 scaleX 로 늘인다(종류색은 그대로).
-  document.querySelectorAll("#world .shot").forEach(e => e.remove());
-  for (const s of S.shots) {
-    const f = 1 - s.life / 0.14;
-    const a = Math.atan2(s.ty - s.y, s.tx - s.x);
+  /* **탄을 매 프레임 다 지우고 다시 만들고 있었다.** 붙었다 떨어지는 것만으로도
+     스타일 재계산과 레이아웃이 그 수만큼 돈다 — 적이 많아지면 탄도 같이 많아지므로
+     렉이 정확히 여기서 겹쳐 커진다. 만들어 둔 것을 **돌려 쓴다**(모자라면 그때만 만든다). */
+  for (let i = shotPool.length; i < S.shots.length; i++) {
     const el = document.createElement("div");
     el.className = "shot";
-    el.style.cssText = `left:${s.x + (s.tx - s.x) * f}px;top:${s.y + (s.ty - s.y) * f}px;` +
-      `background:${s.col};color:${s.col};transform:translate(-50%,-50%) rotate(${a}rad) scaleX(1.7)`;
     $("world").appendChild(el);
+    shotPool.push(el);
+  }
+  for (let i = 0; i < shotPool.length; i++) {
+    const el = shotPool[i], s = S.shots[i];
+    if (!s) { if (el.style.display !== "none") el.style.display = "none"; continue; }
+    if (el.style.display === "none") el.style.display = "";
+    const f = 1 - s.life / 0.14;
+    const a = Math.atan2(s.ty - s.y, s.tx - s.x);
+    el.style.transform = `translate3d(${(s.x + (s.tx - s.x) * f).toFixed(1)}px,` +
+      `${(s.y + (s.ty - s.y) * f).toFixed(1)}px,0) translate(-50%,-50%) rotate(${a.toFixed(3)}rad) scaleX(1.7)`;
+    if (el._col !== s.col) { el.style.background = el.style.color = s.col; el._col = s.col; }
   }
 
   // 체력은 벙커 곁에서 읽힌다 — 헤더에는 안 적는다(같은 숫자가 두 곳이면 눈이 갈라진다)

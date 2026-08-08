@@ -100,7 +100,8 @@
     border:2px solid var(--amber);opacity:0;animation:mergeRing .6s ease-out}
   @keyframes mergeRing{0%{transform:scale(.7);opacity:.95}100%{transform:scale(1.9);opacity:0}}
 
-  .mob{position:absolute;pointer-events:none;transition:none;border-radius:50%}
+  .mob{position:absolute;left:0;top:0;pointer-events:none;transition:none;border-radius:50%;
+    will-change:transform}
   /* **발밑 접지 그림자.** 떠 보이는 것의 정체는 바닥에 닿은 자국이 없는 것이다 —
      drop-shadow 는 실루엣을 따라 지므로 "그림자"가 아니라 테두리 광택으로 읽힌다.
      몸이 뜰 때(--sh) 같이 작아지고 옅어져야 딛는 것으로 보인다. DOM 은 안 늘린다. */
@@ -131,19 +132,11 @@
   /* **적은 붉은 계열로 통일하되, 결이 다른 놈은 색조도 갈라야 한다.**
      하나의 필터로 전부 물들였더니 등에 초록 주머니를 진 치유체도, 불꽃을 인 자폭체도
      똑같은 붉은 덩어리가 됐다 — 한 화면에 아홉 종이 섞이면 그건 종류가 는 게 아니다. */
-  .mob .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
-    grayscale(1) sepia(1) saturate(5.5) hue-rotate(-32deg) brightness(.95)}
-  .mob.k-splitter .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
-    grayscale(1) sepia(1) saturate(4.5) hue-rotate(-72deg) brightness(1)}      /* 자주 */
-  .mob.k-healer .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
-    grayscale(1) sepia(1) saturate(4) hue-rotate(50deg) brightness(1.05)}      /* 초록 */
-  .mob.k-shooter .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
-    grayscale(1) sepia(1) saturate(5) hue-rotate(-8deg) brightness(1.05)}      /* 주황 */
-  .mob.k-bomber .spr{filter:drop-shadow(0 2px 4px rgba(0,0,0,.85))
-    grayscale(1) sepia(1) saturate(6) hue-rotate(4deg) brightness(1.15)}       /* 밝은 주황 — 제일 눈에 띄어야 한다 */
-  /* 서리를 맞으면 파랗게 식는다 — 로그를 안 봐도 느려진 게 보인다 */
-  .mob.slowed.slowed .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))
-    grayscale(1) sepia(1) saturate(4) hue-rotate(160deg) brightness(1.15)}
+  /* **색은 이제 그림에 구워져 있다**(combat.js 의 bakedSrc). 여기에 필터를 남겨 두면
+     구운 그림에 한 번 더 걸려 색이 두 번 먹고, 무엇보다 프레임마다 다시 칠해진다 —
+     그게 "적군 많이 나오면 렉 걸린다"의 정체였다. 그림자만 남긴다(한 단은 싸다).
+     이름 있는 놈은 한 번에 한 마리뿐이라 색조를 CSS 로 두어도 값이 안 나간다. */
+  .mob .spr{filter:drop-shadow(0 2px 3px rgba(0,0,0,.8))}
   .mob i{position:absolute;left:50%;transform:translateX(-50%);top:-7px;height:3px;
     border-radius:2px;z-index:2;box-shadow:0 0 0 1px rgba(0,0,0,.6)}
   .mob.boss{filter:drop-shadow(0 0 4px rgba(208,83,83,.8))}
@@ -193,8 +186,8 @@
     text-shadow:0 0 6px rgba(140,58,58,.7);animation:lanep 1.6s ease-in-out infinite}
   @keyframes lanep{0%,100%{opacity:.45}50%{opacity:1}}
   /* 탄은 진행 방향으로 늘어난 짧은 트레이서 — 길이·회전은 paint 가 인라인 transform 으로 준다 */
-  .shot{position:absolute;width:11px;height:2px;border-radius:1px;pointer-events:none;
-    transform-origin:50% 50%;box-shadow:0 0 3px currentColor}
+  .shot{position:absolute;left:0;top:0;width:11px;height:2px;border-radius:1px;pointer-events:none;
+    transform-origin:50% 50%;box-shadow:0 0 3px currentColor;will-change:transform}
   .rng{position:absolute;border-radius:50%;border:1px dashed #3f4a58;pointer-events:none}
   /* ── 상단 웨이브 바 — 다음 웨이브 정보는 **상시** 보인다 ── */
   #wavebar{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:40;
