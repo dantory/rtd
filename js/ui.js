@@ -2,7 +2,7 @@ import { sfx, setSound, soundOn } from "./sound.js";
 import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { autoBest, dmgOf, fillFree, fragLeft, inBox, isOut, nearGradeUp, placed, powerOf, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
-import { bossNote, drawShop, drawTowers, exNum, mobEls, MOBNAME, MOBWEAK, paint, setNum, shortNum, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
+import { bossNote, drawShop, drawTowers, exNum, mobEls, MOBNAME, MOBWEAK, namedBoss, paint, setNum, shortNum, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
 
 
 /* ══ 패널 ══ */
@@ -44,9 +44,17 @@ export function refresh() {
   const wsumAll = [...new Set(kinds.map(k => MOBWEAK[k]?.lb).filter(Boolean))];
   const wsum = wsumAll.length > 3 ? [] : wsumAll;
   const th = waveTheme(nextR);
+  /* **이름 있는 놈은 예고에서 이름을 대야 한다.** 스물다섯 라운드짜리는 준비할 시간을 주는
+     것이 요점인데, 배너가 뜰 때는 이미 판에 와 있다. 칩이 늘 같은 boss.png 한 장이면
+     "큰 놈"까지밖에 못 읽는다 — 판 위에서 쓰는 그 색(`ring`·`hue`)을 여기에도 얹고
+     이름을 적는다. 좁은 폰에서 종류 이름은 접히지만(font-size:0) 이 칩은 안 접는다. */
+  const nb = namedBoss(nextR);
   $("wavebar").innerHTML =
     `<span>다음 <b>${nextR}R</b>${th ? ` <b style="color:var(--amber)">${th.n}</b>` : ""} · 적 ${waveN(nextR)}</span>` + icons +
-    (isBossR(nextR) ? `<img class="mobico" src="assets/mob/boss.png" alt="" title="${bossNote(nextR)}"
+    (nb ? `<span class="namedwarn" style="--ring:${nb.ring};--hue:${nb.hue}deg"
+        title="${bossNote(nextR)}"><img class="mobico" src="assets/mob/boss.png" alt=""
+        onerror="this.remove()">${nb.n}</span>`
+      : isBossR(nextR) ? `<img class="mobico" src="assets/mob/boss.png" alt="" title="${bossNote(nextR)}"
         onerror="this.remove()">` : "") +
     (wsum.length ? `<span class="weaksum" title="이 웨이브에 유리한 공격">유리 ${wsum.join("·")}</span>` : "");
   $("waveNote").textContent = S.running
@@ -113,9 +121,11 @@ export function drawSquad() {
   const nk = [...new Set(wavePool(nextR))];
   const weaks = [...new Set(nk.map(k => MOBWEAK[k]?.lb).filter(Boolean))];
   const nth = waveTheme(nextR);
+  const nnb = namedBoss(nextR);
   $("sqWave").innerHTML =
     `다음 <b>${nextR}R</b>${nth ? ` <b style="color:var(--amber)">${nth.n}</b>` : ""} — ` + nk.map(k => MOBNAME[k]).join(" · ") +
-    (isBossR(nextR) ? ` · <b style="color:var(--amber)">큰 놈</b>` : "") +
+    (nnb ? ` · <b style="color:rgb(${nnb.ring})">「${nnb.n}」</b>`
+      : isBossR(nextR) ? ` · <b style="color:var(--amber)">큰 놈</b>` : "") +
     (weaks.length ? `<br><span style="color:var(--steel)">유리한 공격</span> <b>${weaks.join(" · ")}</b>` : "");
 
   const spots = SLOT_SPOTS.slice(0, slotMax());

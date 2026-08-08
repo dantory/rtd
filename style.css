@@ -219,6 +219,12 @@
      한다(그게 있어야 예고가 "그래서 뭘 넣지"로 이어진다). */
   #wavebar .weaksum{font-size:11px;color:var(--steel);border:1px solid #33404d;border-radius:6px;
     padding:1px 6px;white-space:nowrap}
+  /* 이름 있는 놈 예고 — 판 위에서 쓰는 그 색을 그대로 쓴다(--ring·--hue 는 칩에 실려 온다).
+     좁은 폰에서도 접지 않는다: 스물다섯 라운드에 한 번뿐이고, 그걸 보고 준비하는 것이 요점. */
+  #wavebar .namedwarn{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;
+    font-size:11px;font-weight:700;color:rgb(var(--ring));border:1px solid rgba(var(--ring),.55);
+    border-radius:6px;padding:1px 6px;background:rgba(var(--ring),.10)}
+  #wavebar .namedwarn .mobico{filter:hue-rotate(var(--hue)) drop-shadow(0 1px 1px rgba(0,0,0,.6))}
   /* 배치 화면 맨 위의 다음 웨이브 줄 — 갈아 끼우는 손이 여기 있으니 정보도 여기 둔다 */
   .sqwave{text-align:left;line-height:1.65;padding:8px 10px;margin-bottom:8px;
     border:1px solid #2b3138;border-radius:8px;background:#171b20}
