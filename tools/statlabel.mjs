@@ -13,8 +13,9 @@
 import { chromium } from "/Users/lbs/source/personal/game-asset-editor/node_modules/playwright/index.mjs";
 
 const WIDTHS = [320, 360, 390, 430];
-/* 숫자가 길수록 칸이 좁아지지 않는지도 같이 본다 — 넉 자리 처치 수가 실제 값이다 */
-const SETUP = `META.relics=40; META.best=137; META.runs=48; META.kills=12840;
+/* **숫자가 오래 굴린 사람 것이어야 한다.** 처치 수는 자릿수가 계속 늘어나는 유일한 값이라
+   백 판쯤 굴리면 여섯 자리가 된다 — 그때 갈라지면 이름표를 고쳐 놔도 같은 자리가 또 뜬다. */
+const SETUP = `META.relics=40; META.best=137; META.runs=482; META.kills=1284000;
   META.hist=[8,12,19,7,24,31,18,22,9,27,33,15,40,11,26,38,20,29,13,35,17,42,23,30];
   drawShop(); document.getElementById('forge').classList.add('on');`;
 
@@ -25,13 +26,22 @@ const PROBE = `(() => {
     const lr = l.getBoundingClientRect(), cr = c.getBoundingClientRect();
     const lh = parseFloat(getComputedStyle(l).lineHeight) ||
                parseFloat(getComputedStyle(l).fontSize) * 1.2;
+    const vr = v.getBoundingClientRect();
+    const vlh = parseFloat(getComputedStyle(v).lineHeight) ||
+                parseFloat(getComputedStyle(v).fontSize) * 1.2;
     out.push({
       name: l.textContent.trim(),
       val: v.textContent.trim(),
       lines: Math.round(lr.height / lh),
+      vLines: Math.round(vr.height / vlh),
+      cellW: Math.round(cr.width),
       cellH: Math.round(cr.height),
-      /* letter-spacing 은 마지막 글자 뒤에도 붙어서 글자 상자를 칸 밖으로 민다 */
-      spill: Math.round(Math.max(0, lr.right - (cr.right - 4), (cr.left + 4) - lr.left)),
+      /* letter-spacing 은 마지막 글자 뒤에도 붙어서 글자 상자를 칸 밖으로 민다.
+         숫자는 「1,284,000」처럼 안 접히는 덩어리라 줄 수만 봐서는 삐져나간 걸 못 잡는다 —
+         칸 밖으로 나갔는지를 이름표와 숫자 **둘 다** 잰다(padding 4px 은 봐준다). */
+      spill: Math.round(Math.max(0,
+        lr.right - (cr.right - 4), (cr.left + 4) - lr.left,
+        vr.right - (cr.right - 4), (cr.left + 4) - vr.left)),
     });
   }
   return out;
@@ -48,11 +58,16 @@ for (const w of WIDTHS) {
   const cells = await p.evaluate(PROBE);
   const heights = cells.map(c => c.cellH);
   const ragged = Math.max(...heights) - Math.min(...heights) > 1;
-  console.log(`${w}px  칸 키 ${heights.join(" / ")}${ragged ? "  ← 들쭉날쭉" : ""}`);
+  /* 폭도 같이 적는다 — repeat(4,1fr) 인데 min-width:auto 라 긴 숫자가 제 칸을 넓히고
+     옆칸을 빼앗는다. 아직 삐져나가진 않으니 ✗ 로는 안 세고 숫자만 남긴다(ROADMAP). */
+  const widths = cells.map(c => c.cellW);
+  const uneven = Math.max(...widths) - Math.min(...widths) > 2;
+  console.log(`${w}px  칸 키 ${heights.join(" / ")}${ragged ? "  ← 들쭉날쭉" : ""}` +
+              `  · 칸 폭 ${widths.join(" / ")}${uneven ? "  ← 넉 장이 안 고르다" : ""}`);
   for (const c of cells) {
-    const ok = c.lines === 1 && !ragged && c.spill <= 1;
+    const ok = c.lines === 1 && c.vLines === 1 && !ragged && c.spill <= 1;
     if (!ok) bad++;
-    console.log(`   ${ok ? "✓" : "✗"} ${c.name} (${c.val}) — ${c.lines}줄` +
+    console.log(`   ${ok ? "✓" : "✗"} ${c.name} (${c.val}) — 이름표 ${c.lines}줄 · 숫자 ${c.vLines}줄` +
                 (c.spill > 1 ? ` · 칸 밖 ${c.spill}px` : ""));
   }
   await p.close();
