@@ -1,5 +1,5 @@
 let nextId = 1;   // 몹 id 는 웨이브를 만드는 여기서만 는다
-import { $, foldHist, fragNeed, RARE, rarityOf, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN, skipTo } from "./core.js";
+import { $, foldHist, fragNeed, RARE, rarityOf, GCOL, GNAME, gradeMul, isBossR, KIND_IDS, kindCost, kindLv, KINDS, kindSkill, MEDAL_GATE, medalDmg, medalGain, medalRelic, medals, medalSlots, META, metSet, noteMet, noteSeen, slotCapped, newlySeen, nextMedalAt, relicsFor, relicTick, S, saveMeta, seenCount, slotMax, upCost, UPGRADES, waveHp, waveN, skipTo, profOf, PATHS, pathReady } from "./core.js";
 import { banner, drawGrid, px, say } from "./view.js";
 import { armorMul, autoBest, coreCenter, coreRadius, dexStat, dmgOf, fillFree, isOut, nextUnlockAt, placed, poolSize, powerOf, recruit, recruitCost, rngOf, spawnRadius } from "./army.js";
 import { refresh } from "./ui.js";
@@ -379,7 +379,7 @@ export function hurt(m, d, from, tag) {
     sfx(m.boss ? "boss" : "kill");
     /* 골드가 사라졌으니 정찰병의 몫도 자원 쪽으로 옮겨 간다(relicTick 에서 셈한다).
        띄우는 숫자도 골드가 아니라 **그 몫**이다 — 없는 재화를 띄우면 거짓말이 된다. */
-    const extra = (from && KINDS[from.kind].bounty ? KINDS[from.kind].bounty : 1) - 1;
+    const extra = (from && profOf(from).bounty ? profOf(from).bounty : 1) - 1;
     S.bounty += extra;
     if (extra > 0 || m.boss) {
       const p = mobPos(m);
@@ -723,7 +723,7 @@ export function tick(dt) {
   /* 위생병 — 싸우는 동안 **본진**을 고친다. 유닛이 안 죽게 된 뒤로 깎이는 것은 본진뿐이고,
      그러니 고칠 것도 본진이다. 웨이브 도중에만 의미가 있는 힘이다. */
   for (const t of placed()) {
-    const h = KINDS[t.kind].heal;
+    const h = profOf(t).heal;
     if (!h) continue;
     t.healT = (t.healT || 0) - dt;
     if (t.healT > 0) continue;
@@ -741,7 +741,7 @@ export function tick(dt) {
   for (const t of placed()) {
     t.cd = (t.cd || 0) - dt;
     if (t.cd > 0) continue;
-    const K = KINDS[t.kind], r = rngOf(t);
+    const K = profOf(t), r = rngOf(t);
     // **벙커에 제일 가까이 온 놈부터** 노린다 — 먼 놈을 먼저 잡으면 코앞의 것을 놓친다.
     // 지뢰밭만은 **멈춰 붙은 놈**을 노린다 — 그래야 "달라붙은 것들을 한꺼번에"가 된다.
     /* 지뢰병(arm)은 **붙은 놈 우선, 없으면 가까운 놈** — "붙은 놈만"으로 두면 벙커가 안

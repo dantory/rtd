@@ -65,6 +65,66 @@ const RARITY = { gun:0, cannon:0, frost:0, bolt:0, flame:0, medic:0, guard:0, mi
                  rail:1, drone:1,
                  rocket:2, officer:2 };
 export const rarityOf = (k) => RARITY[k] | 0;
+
+/* ══ 갈래 — **다 키운 유닛에게도 다음이 있어야 한다** ══
+   성장 축이 등급 하나뿐이라(×3 씩 다섯 계단) 5등급을 찍으면 그 유닛은 거기서 끝이고,
+   판을 아무리 더 굴려도 부대가 똑같이 자란다. 같은 저격수라도 **관통으로 갈지 한 방으로
+   갈지**가 갈리면 열두 종이 스물넉 갈래가 되고, 환생할 때마다 다른 길을 탄다.
+
+   규칙은 셋뿐이다:
+     · **상급(3등급)에 닿으면** 고를 수 있다 — 그전에는 갈래가 뜨지도 않는다
+     · 한 번 고르면 **환생 전까지 못 바꾼다**(바꿀 수 있으면 고르는 게 결정이 아니다)
+     · 갈래는 **하나를 올리고 하나를 내린다** — 순수한 상향이면 고를 것이 없다 */
+export const PATHS = {
+  gun:    [{ n:"연사",     d:"재장전 짧게 · 한 발은 약하게", m:{ cd:0.65, dmg:0.8 } },
+           { n:"정밀",     d:"한 발 세게 · 재장전 길게",     m:{ dmg:1.6, cd:1.25 } }],
+  cannon: [{ n:"광역",     d:"터지는 폭 넓게 · 피해 낮게",   m:{ splash:1.5, dmg:0.8 } },
+           { n:"직격",     d:"피해 크게 · 폭 좁게",          m:{ dmg:1.5, splash:0.7 } }],
+  frost:  [{ n:"혹한",     d:"더 느리게 · 사거리 짧게",      m:{ slow:1.4, rng:0.85 } },
+           { n:"살포",     d:"멀리까지 · 둔화 약하게",       m:{ rng:1.3, slow:0.8 } }],
+  bolt:   [{ n:"연쇄",     d:"더 많이 튕김 · 피해 낮게",     m:{ chain:2, dmg:0.8 } },
+           { n:"고압",     d:"피해 크게 · 덜 튕김",          m:{ dmg:1.6, chain:0.5 } }],
+  flame:  [{ n:"방사",     d:"쉬지 않고 · 사거리 짧게",      m:{ cd:0.7, rng:0.9 } },
+           { n:"소이",     d:"불이 넓게 · 피해 낮게",        m:{ splash:1.6, dmg:0.85 } }],
+  rail:   [{ n:"관통",     d:"더 뚫고 지나감 · 피해 낮게",   m:{ pierce:2, dmg:0.8 } },
+           { n:"한 방",    d:"피해 크게 · 재장전 길게",      m:{ dmg:1.7, cd:1.2 } }],
+  drone:  [{ n:"보급",     d:"자원 더 · 피해 낮게",          m:{ bounty:2, dmg:0.7 } },
+           { n:"무장",     d:"피해 크게 · 자원 덜",          m:{ dmg:1.6, bounty:0.5 } }],
+  mine:   [{ n:"광역",     d:"터지는 폭 넓게 · 피해 낮게",   m:{ splash:1.5, dmg:0.85 } },
+           { n:"고폭",     d:"피해 크게 · 재장전 길게",      m:{ dmg:1.6, cd:1.2 } }],
+  medic:  [{ n:"응급",     d:"수리 크게 · 피해 낮게",        m:{ heal:1.6, dmg:0.6 } },
+           { n:"전투",     d:"피해 크게 · 수리 적게",        m:{ dmg:1.8, heal:0.7 } }],
+  guard:  [{ n:"중장갑",   d:"감쇄 크게 · 피해 낮게",        m:{ armor:1.5, dmg:0.7 } },
+           { n:"반격",     d:"피해 크게 · 감쇄 적게",        m:{ dmg:1.8, armor:0.75 } }],
+  rocket: [{ n:"다연장",   d:"재장전 짧게 · 한 발 약하게",   m:{ cd:0.65, dmg:0.75 } },
+           { n:"관통탄",   d:"피해 크게 · 폭 좁게",          m:{ dmg:1.5, splash:0.8 } }],
+  officer:[{ n:"지휘",     d:"모두 더 세게 · 제 피해 낮게",  m:{ aura:1.6, dmg:0.6 } },
+           { n:"선봉",     d:"제 피해 크게 · 지휘 약하게",   m:{ dmg:1.8, aura:0.7 } }],
+};
+export const PATH_AT = 3;                       // 상급부터 갈래가 열린다
+export const pathReady = (t) => t.g >= PATH_AT;
+export const pathOf = (t) => (t && t.path === 0) || (t && t.path === 1) ? PATHS[t.kind][t.path] : null;
+
+/** **그 유닛의 실제 능력치.** `KINDS[kind]` 를 그대로 읽던 자리를 전부 이리로 보낸다 —
+ *  갈래를 곳곳에 흩어 곱하면 어느 한 자리를 빠뜨렸을 때 조용히 안 먹는다.
+ *  종류·갈래 쌍마다 결과가 같으므로 한 번 만들어 두고 돌려 쓴다(프레임마다 도는 자리다). */
+const profMemo = new Map();
+export function profOf(t) {
+  const pi = (t && (t.path === 0 || t.path === 1)) ? t.path : -1;
+  if (pi < 0) return KINDS[t.kind];
+  const key = t.kind + pi;
+  let p = profMemo.get(key);
+  if (!p) {
+    p = Object.assign({}, KINDS[t.kind]);
+    const m = PATHS[t.kind][pi].m;
+    for (const k in m) if (p[k]) p[k] = p[k] * m[k];
+    if (p.chain) p.chain = Math.max(1, Math.round(p.chain));
+    if (p.pierce) p.pierce = Math.max(1, Math.round(p.pierce));
+    if (p.bounty) p.bounty = Math.max(1, Math.round(p.bounty));
+    profMemo.set(key, p);
+  }
+  return p;
+}
 export const GRADE = [1,2,3,4,5];
 export const gradeMul = (g) => Math.pow(3, g - 1);          // 1 · 3 · 9 · 27 · 81
 export const GNAME = ["", "하급", "중급", "상급", "정예", "전설"];

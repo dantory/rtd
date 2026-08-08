@@ -1,5 +1,5 @@
 import { sfx, setSound, soundOn } from "./sound.js";
-import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN, skipTo } from "./core.js";
+import { $, fragNeed, GCOL, GNAME, GRADE, isBossR, KIND_IDS, kindCost, kindLv, KINDS, medalGain, medals, META, META_KEY, metaLife, noteSeen, prestige, refreshSlots, relicsFor, S, saveMeta, SLOT_SPOTS, slotMax, upCost, waveHp, waveN, skipTo, PATHS, pathOf, pathReady } from "./core.js";
 import { applyView, clampView, drawGrid, fitView, focusView, say, V, WORLD_H, WORLD_W, zoomAt } from "./view.js";
 import { autoBest, dmgOf, fillFree, fragLeft, inBox, isOut, nearGradeUp, placed, powerOf, recruit, rngOf, sell, sellOf, syncArmy, toggleOut } from "./army.js";
 import { bossNote, bossTip, drawShop, drawTowers, exNum, mobEls, MOBNAME, MOBWEAK, namedBoss, namedSoon, paint, setNum, shortNum, startWave, WAVE_GAP, waveLanes, wavePool, waveTheme } from "./combat.js";
@@ -156,6 +156,21 @@ export function drawSquad() {
       <span class="nm">${K.n}</span>
       <span class="gr" style="color:${GCOL[t.g]}">${"★".repeat(Math.min(t.g,5))}</span>
       <span class="cnt">${t.g < 5 ? `${t.frag | 0}/${fragNeed(t.g)}` : "MAX"}</span></button>`;
+  }).join("");
+
+  /* ══ 갈래 ══ **다 키운 유닛에게도 다음이 있어야 한다.**
+     상급(3등급)에 닿은 유닛만 여기 뜬다 — 그전에 보여 주면 "언젠가 될 것"의 목록일 뿐이다.
+     이미 고른 유닛은 고른 갈래를 적어 두고 버튼은 안 준다(환생 전까지 못 바꾼다). */
+  const ready = META.army.filter(pathReady);
+  $("sqPathWrap").style.display = ready.length ? "" : "none";
+  if (ready.length) $("sqPath").innerHTML = ready.map(t => {
+    const K = KINDS[t.kind], p = pathOf(t);
+    if (p) return `<div class="pathrow done"><b>${K.n}</b>
+      <span style="color:var(--amber)">${p.n}</span>
+      <span class="dim" style="font-size:11px">${p.d}</span></div>`;
+    return `<div class="pathrow"><b>${K.n}</b>` + PATHS[t.kind].map((o, i) =>
+      `<button class="pathb" data-path="${t.id}:${i}" title="${o.d}">${o.n}
+        <span class="dim" style="font-size:10px">${o.d}</span></button>`).join("") + `</div>`;
   }).join("");
 
   const selT = META.army.find(t => t.id === S.sel);
@@ -357,6 +372,17 @@ export function wireUI() {
      버튼이 되면 편의가 되고, 그 위에서 예고를 읽고 갈아 끼우는 건 사람 몫으로 남는다. */
   $("sqAuto").onclick = () => { autoBest(); drawSquad(); refresh(); say("힘 센 순으로 배치"); };
   $("squadBtn").onclick = openSquad;
+  /* 갈래 고르기 — 위임으로 받는다(줄이 매번 다시 그려지므로 낱개로 걸면 새 줄엔 안 붙는다). */
+  $("sqPath").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-path]");
+    if (!b) return;
+    const [id, i] = b.dataset.path.split(":").map(Number);
+    const t = META.army.find(u => u.id === id);
+    if (!t || !pathReady(t) || pathOf(t)) return;      // 이미 골랐으면 안 바뀐다
+    t.path = i;
+    saveMeta(); drawSquad(); refresh();
+    say(`<b>${KINDS[t.kind].n}</b> — <b style="color:var(--amber)">${PATHS[t.kind][i].n}</b>`);
+  });
   $("sqSlots").addEventListener("click", (e) => {
     const b = e.target.closest("[data-pull]");
     if (!b) return;

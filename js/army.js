@@ -1,4 +1,4 @@
-import { BUNKER_DMG, CORE, fragNeed, RARE, rarityOf, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, kindLv, kindRngMul, KINDS, kindSkill, META, metaDmg, noteSeen, RING, S, saveMeta, SLOT_SPOTS, slotMax } from "./core.js";
+import { BUNKER_DMG, CORE, fragNeed, RARE, rarityOf, GCOL, GNAME, gradeMul, hpOf, KIND_IDS, kindDmgMul, kindLv, kindRngMul, KINDS, kindSkill, META, metaDmg, noteSeen, RING, S, saveMeta, SLOT_SPOTS, slotMax, profOf } from "./core.js";
 import { CELL, px, py, say } from "./view.js";
 import { drawShop, flyText, popTower } from "./combat.js";
 import { refresh } from "./ui.js";
@@ -221,7 +221,7 @@ export function autoBest() {
    별 하나도, 배치를 바꾸는 것도 전부 이 숫자를 움직인다. 사면 오르는 게 보여야 산 값을 한다.
    ══════════════════════════════════════════════════════════ */
 export const powerOf = () =>
-  Math.round(placed().reduce((s, t) => s + dmgOf(t) / KINDS[t.kind].cd, 0));
+  Math.round(placed().reduce((s, t) => s + dmgOf(t) / profOf(t).cd, 0));
 
 /** 진열대의 칩을 눌렀을 때 — 창고에 있으면 내보내고, 다 나가 있으면 하나 거둔다. */
 export function toggleOut(key) {
@@ -301,15 +301,15 @@ export function sell(id) {
 /** 지휘관은 **벙커 전원**의 피해를 올린다. 사거리를 두지 않는 건 벙커이기 때문이다 —
  *  같은 건물 안이라 누가 누구 옆인지를 따질 것이 없다. 여럿 넣으면 그만큼 쌓인다. */
 export const auraMul = () => 1 + placed().reduce(
-  (s, t) => s + (KINDS[t.kind].aura || 0) * (1 + (t.g - 1) * 0.5) * kindSkill(t.kind), 0);
-export const dmgOf  = (t) => Math.round(KINDS[t.kind].dmg * BUNKER_DMG * gradeMul(t.g) * metaDmg()
+  (s, t) => s + (profOf(t).aura || 0) * (1 + (t.g - 1) * 0.5) * kindSkill(t.kind), 0);
+export const dmgOf  = (t) => Math.round(profOf(t).dmg * BUNKER_DMG * gradeMul(t.g) * metaDmg()
                                  * auraMul() * kindDmgMul(t.kind));
 /** 방패병이 있으면 본진이 받는 피해가 준다. 여럿 넣으면 곱으로 쌓이되 바닥을 둔다 —
  *  방패병만 채워 무적이 되면 그건 방어가 아니라 정답이 하나뿐인 판이 된다. */
 export const armorMul = () => {
   let m = 1;
   for (const t of placed()) {
-    const a = KINDS[t.kind].armor;
+    const a = profOf(t).armor;
     if (a) m *= 1 - Math.min(0.6, a * (1 + (t.g - 1) * 0.35) * kindSkill(t.kind));
   }
   return Math.max(0.28, m);
@@ -323,7 +323,7 @@ export const BUNKER_RNG = 1.45;
 /* 상한: 적 출현 반경 안쪽. 사거리가 출현 반경을 넘으면 **나오자마자 죽어서** 싸움이 화면
    밖 일이 된다 — 저격수가 등급·훈련으로 크면 실제로 넘는다(334 > 326). */
 export const rngOf  = (t) => Math.min(spawnRadius() - 30,
-  Math.round((KINDS[t.kind].rng + (t.g - 1) * 9) * BUNKER_RNG * kindRngMul(t.kind)));
+  Math.round((profOf(t).rng + (t.g - 1) * 9) * BUNKER_RNG * kindRngMul(t.kind)));
 
 /* 종류마다 다른 **특기의 대표값**. 훈련(kindSkill)만큼 자라는 것과 등급 계단마다 늘어나는 것이
    섞여 있어, 각 종류가 무엇을 키우는지(둔화·범위·연쇄·관통·회복·감쇄·지휘…)를 lv 로 계산한다.

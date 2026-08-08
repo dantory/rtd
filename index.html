@@ -67,6 +67,11 @@
       <div class="sqslots" id="sqSlots"></div>
       <h3 class="sqh">창고 <span class="dim" id="sqBoxN"></span></h3>
       <div class="sqbox" id="sqBox"></div>
+      <!-- 갈래 — 상급에 닿은 유닛만 뜬다. 고를 것이 없으면 통째로 숨는다 -->
+      <div id="sqPathWrap" style="display:none">
+        <h3 class="sqh">갈래 <span class="dim" style="font-size:11px">상급부터 · 한 번 고르면 환생까지</span></h3>
+        <div id="sqPath"></div>
+      </div>
       <!-- 합치기 버튼은 없앴다 — 등급은 중복 뽑기(조각)로 저절로 오른다. 정리만 남긴다.
            「추천 배치」는 예전에 자동이 몰래 하던 계산을 **손으로 누르는 버튼**으로 되돌린 것. -->
       <div class="rowbtn" style="gap:7px;margin-top:12px">
